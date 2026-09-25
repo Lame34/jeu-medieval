@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "playwright-best-practices": {
+      "source": "0xBigBoss/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/playwright-best-practices/SKILL.md",
+      "computedHash": "c78c72fc0574d790968855b295f6987dc8c5290ab7839cd52154ecd588cf0bcf"
+    },
+    "procedural-landscapes": {
+      "source": "CK42BB/procedural-landscapes-threejs",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "b14b7fa7998bfccaef1eb52aea6f39171e4a703ff3bb63222bb8ec982cfccbd6"
+    },
+    "r3f-best-practices": {
+      "source": "emalorenzo/three-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/r3f-best-practices/SKILL.md",
+      "computedHash": "5d231c2345fee302b580549ef7a7446ef5a6c9598437f4c305eeb62e86beb273"
+    },
+    "three-best-practices": {
+      "source": "emalorenzo/three-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/three-best-practices/SKILL.md",
+      "computedHash": "f1d2981c4a865dd90d7fbd4e43df4570a0275cae3fde51199e03b2c8a20a4776"
+    },
+    "threejs-agents-model-optimizer": {
+      "source": "OpenAEC-Foundation/Three.js-Claude-Skill-Package",
+      "sourceType": "github",
+      "skillPath": "skills/source/threejs-agents/threejs-agents-model-optimizer/SKILL.md",
+      "computedHash": "3c28d7221f90cb20f2a9bea5a3abec49550b1d95f7698aa214d43a2e4264a731"
+    },
+    "threejs-errors-performance": {
+      "source": "OpenAEC-Foundation/Three.js-Claude-Skill-Package",
+      "sourceType": "github",
+      "skillPath": "skills/source/threejs-errors/threejs-errors-performance/SKILL.md",
+      "computedHash": "cdc160993014753921cfa281c9e88283ad598e6016b6eb61b997f503dd413e0d"
+    },
+    "threejs-syntax-shaders": {
+      "source": "OpenAEC-Foundation/Three.js-Claude-Skill-Package",
+      "sourceType": "github",
+      "skillPath": "skills/source/threejs-syntax/threejs-syntax-shaders/SKILL.md",
+      "computedHash": "0e5e0e7aedefc1bb0e05ba14f4121b11c2b557b7f6dd39cd3043c54ee2dce173"
+    }
+  }
+}
