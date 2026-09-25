@@ -1,0 +1,90 @@
+/* Thème « bois sombre, parchemin et fer forgé » — valeurs de docs/STYLE_BIBLE.md §5. */
+:root {
+  --wood-dark: #2b1e14;
+  --wood-mid: #4a3423;
+  --wood-light: #6b4a30;
+  --parchment: #e8d9b5;
+  --parchment-shade: #cdb98f;
+  --ink: #3a2a1a;
+  --ink-soft: #5b4630;
+  --iron: #3c3f44;
+  --iron-light: #6b7078;
+  --gold: #c9a13b;
+  --gold-bright: #e6c35a;
+  --attacker: #1f4fc4;
+  --attacker-accent: #e6b325;
+  --defender: #b3141e;
+  --defender-accent: #4a4f57;
+
+  --font-title: 'Cinzel', 'Trajan Pro', serif;
+  --font-body: 'Alegreya', 'Georgia', serif;
+
+  --radius-plaque: 6px;
+  --shadow-deep: 0 10px 30px rgb(10 6 3 / 55%);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--wood-dark);
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--parchment);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 3px;
+}
+
+/* Plaque de parchemin aux bords irréguliers (masque SVG défini dans PaperFilters). */
+.parchment {
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgb(255 250 235 / 55%), transparent 70%),
+    radial-gradient(80% 60% at 20% 90%, rgb(160 120 70 / 25%), transparent 70%),
+    var(--parchment);
+  color: var(--ink);
+  filter: url(#paper-edge) drop-shadow(0 6px 14px rgb(10 6 3 / 45%));
+}
+
+.parchment::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  filter: url(#paper-grain);
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

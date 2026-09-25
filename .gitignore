@@ -13,6 +13,9 @@ perf-results/
 assets-src/raw/
 assets-src/work/
 
+# Raw look-dev captures (PNG, heavy); curated WebP copies live in docs/style-log/
+docs/captures/
+
 # Local tool caches
 .tools/
 .env.local

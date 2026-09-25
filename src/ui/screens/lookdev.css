@@ -1,0 +1,50 @@
+.lookdev-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 5;
+  width: 240px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--iron-light);
+  border-radius: 6px;
+  background: rgb(43 30 20 / 88%);
+  box-shadow: var(--shadow-deep);
+}
+
+.lookdev-panel h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-title);
+  font-size: 17px;
+  letter-spacing: 0.06em;
+  color: var(--gold-bright);
+}
+
+.lookdev-panel__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.lookdev-panel__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.lookdev-panel__group button {
+  flex: 1 1 45%;
+  padding: 6px 8px;
+  border: 1px solid rgb(232 217 181 / 30%);
+  border-radius: 3px;
+  background: rgb(232 217 181 / 8%);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.lookdev-panel__group button[aria-pressed='true'] {
+  border-color: var(--gold);
+  background: rgb(201 161 59 / 25%);
+  color: #fff4d8;
+}

@@ -20,7 +20,23 @@ const CURVE_SAMPLES = 10;
 const RELIEF: FbmOptions = { octaves: 4, lacunarity: 2, gain: 0.5, frequency: 1 / 70 };
 const FOREST_MASK: FbmOptions = { octaves: 3, lacunarity: 2, gain: 0.5, frequency: 1 / 38 };
 
-const RIVER = { widthM: 9, levelM: 0.2, bedM: -1.5, bankM: 4, control: [{ x: -8, z: 66 }, { x: 16, z: 84 }, { x: 30, z: 104 }, { x: 36, z: 136 }] };
+/** The river runs well beyond the map so the decorative ring can carry it to the horizon. */
+const RIVER = {
+  widthM: 9,
+  levelM: 0.2,
+  bedM: -1.5,
+  bankM: 4,
+  control: [
+    { x: -140, z: 20 },
+    { x: -60, z: 44 },
+    { x: -8, z: 66 },
+    { x: 16, z: 84 },
+    { x: 30, z: 104 },
+    { x: 36, z: 136 },
+    { x: 60, z: 220 },
+    { x: 40, z: 320 },
+  ],
+};
 const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }] };
 const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 76, z: 20 }, { x: 102, z: 27 }, { x: 128, z: 44 }] };
 const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
@@ -125,7 +141,9 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     return clamp(edge * 0.8 + bank * 0.6 + m * 0.25, 0, 0.9);
   });
   for (const p of underSpots) {
-    trees.push({ species: vegRng.chance(0.55) ? 'bush' : 'fern', position: p, scale: vegRng.float(0.7, 1.3), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+    // Ferns only in the shade of the wood; bushes along edges and banks.
+    const fern = forestMask(p) > 0.45 && vegRng.chance(0.6);
+    trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.7, 1.3), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
   // A few lone trees in the meadow near the houses break the edge and frame the view.
   for (const p of [{ x: 60, z: 58 }, { x: 40, z: 100 }, { x: 118, z: 112 }]) {

@@ -1,0 +1,278 @@
+/**
+ * PaintedMaterial — the single material family of the game (STYLE_BIBLE §4, ADR-010).
+ * MeshLambertMaterial + onBeforeCompile: keeps three's maps, vertex colours, instancing,
+ * skinning, shadows; replaces lighting (wrap + tinted shadows), adds the painterly albedo
+ * treatment (vertical gradient, world-space hue noise, ground-contact AO), optional wind sway,
+ * optional rim light (units) and the shared atmospheric fog.
+ */
+import { Color, MeshLambertMaterial, Vector2, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
+import { PAINTED_FOG_FN, PAINTED_GLOBALS_PARS, PAINTED_LIGHTS_PARS, PAINTED_NOISE, buildPaintedLightsBegin } from './painted-chunks.ts';
+import { paintedGlobals } from './painted-globals.ts';
+
+export interface PaintedOptions {
+  readonly color?: Color | string;
+  readonly map?: Texture | null;
+  readonly vertexColors?: boolean;
+  /** Local-space height of the object's top (m); drives the vertical gradient. */
+  readonly heightM?: number;
+  readonly wrap?: number;
+  readonly gradientBase?: number;
+  readonly gradientTop?: number;
+  readonly gradientSaturation?: number;
+  readonly hueNoiseScale?: number;
+  readonly hueNoiseAmp?: number;
+  readonly valueNoiseAmp?: number;
+  readonly groundAO?: number;
+  readonly groundAOHeightM?: number;
+  /** Units only: soft rim light that detaches silhouettes from the scenery. */
+  readonly rim?: { readonly color: Color | string; readonly strength: number };
+  /** Vegetation: vertex sway amplitude (m at the top of the object). */
+  readonly windSwayM?: number;
+  readonly alphaTest?: number;
+  readonly side?: MeshLambertMaterial['side'];
+  readonly name?: string;
+  /**
+   * Replaces the default painterly albedo treatment (terrain, water banks…). `body` runs after
+   * three's color_fragment and must write `diffuseColor.rgb`; it can read vPaintedWorldPos,
+   * vPaintedHeight and (with `worldNormal`) vPaintedWorldNormal. `key` names the shader variant.
+   */
+  readonly customAlbedo?: {
+    readonly key: string;
+    readonly pars: string;
+    readonly body: string;
+    readonly uniforms: Record<string, { value: unknown }>;
+  };
+  /**
+   * Custom vertex placement (GPU grass…): `body` runs right after three's begin_vertex and may
+   * overwrite `transformed` and `vColor`; `pars` declares its uniforms/attributes.
+   */
+  readonly customVertex?: {
+    readonly key: string;
+    readonly pars: string;
+    readonly body: string;
+    readonly uniforms: Record<string, { value: unknown }>;
+  };
+  /** Exposes the world-space geometric normal to the fragment shader. */
+  readonly worldNormal?: boolean;
+  /** Vertex attribute `aPaintedData` (vec4) passed through as vPaintedData. */
+  readonly vertexData?: boolean;
+  /**
+   * Double-sided cards (grass, ferns): keep the authored normal on both faces instead of
+   * flipping it for back faces, so a blade seen from behind is lit like the ground it grows on.
+   */
+  readonly keepNormalOnBackFaces?: boolean;
+}
+
+/** Defaults from STYLE_BIBLE §4. */
+export const PAINTED_DEFAULTS = {
+  wrap: 0.45,
+  gradientBase: 0.72,
+  gradientTop: 1.08,
+  gradientSaturation: 0.12,
+  hueNoiseScale: 1 / 45,
+  hueNoiseAmp: 0.035,
+  valueNoiseAmp: 0.07,
+  groundAO: 0.35,
+  groundAOHeightM: 0.6,
+  heightM: 2,
+} as const;
+
+let cachedLightsBegin: string | null = null;
+function paintedLightsBegin(): string {
+  cachedLightsBegin ??= buildPaintedLightsBegin();
+  return cachedLightsBegin;
+}
+
+const VERTEX_PARS = /* glsl */ `
+${PAINTED_GLOBALS_PARS}
+${PAINTED_NOISE}
+uniform vec2 uBoundsY;
+uniform float uWindSway;
+varying vec3 vPaintedWorldPos;
+varying float vPaintedHeight;
+#ifdef PAINTED_WORLD_NORMAL
+varying vec3 vPaintedWorldNormal;
+#endif
+#ifdef PAINTED_VERTEX_DATA
+attribute vec4 aPaintedData;
+varying vec4 vPaintedData;
+#endif
+`;
+
+const VERTEX_EXTRA = /* glsl */ `
+#ifdef PAINTED_WORLD_NORMAL
+vPaintedWorldNormal = normalize(mat3(modelMatrix) * objectNormal);
+#endif
+#ifdef PAINTED_VERTEX_DATA
+// Merged meshes (houses, walls) carry their own "height above the building base" in x.
+vPaintedData = aPaintedData;
+vPaintedHeight = aPaintedData.x;
+#endif
+`;
+
+const VERTEX_WIND = /* glsl */ `
+#ifdef PAINTED_WIND
+{
+  vec4 baseW = vec4(0.0, 0.0, 0.0, 1.0);
+  #ifdef USE_INSTANCING
+  baseW = instanceMatrix * baseW;
+  #endif
+  baseW = modelMatrix * baseW;
+  float h = clamp(position.y / max(uBoundsY.y, 1e-3), 0.0, 1.0);
+  float phase = dot(baseW.xz, vec2(0.071, 0.053));
+  float gust = sin(uTime * 1.3 + phase) * 0.6 + sin(uTime * 2.9 + phase * 1.7) * 0.25 + 0.35;
+  vec3 worldOffset = vec3(uWindDir.x, 0.0, uWindDir.y) * (uWindSway * uWindStrength * gust * h * h);
+  mat3 toWorld = mat3(modelMatrix);
+  #ifdef USE_INSTANCING
+  toWorld = toWorld * mat3(instanceMatrix);
+  #endif
+  transformed += inverse(toWorld) * worldOffset;
+}
+#endif
+`;
+
+const VERTEX_WORLD = /* glsl */ `
+{
+  vec4 pW = vec4(transformed, 1.0);
+  vec4 pB = vec4(0.0, 0.0, 0.0, 1.0);
+  #ifdef USE_INSTANCING
+  pW = instanceMatrix * pW;
+  pB = instanceMatrix * pB;
+  #endif
+  pW = modelMatrix * pW;
+  pB = modelMatrix * pB;
+  vPaintedWorldPos = pW.xyz;
+  vPaintedHeight = pW.y - pB.y;
+}
+`;
+
+const FRAGMENT_PARS = /* glsl */ `
+${PAINTED_GLOBALS_PARS}
+${PAINTED_NOISE}
+${PAINTED_FOG_FN}
+uniform vec2 uBoundsY;
+uniform float uGradBase;
+uniform float uGradTop;
+uniform float uGradSat;
+uniform float uHueNoiseScale;
+uniform float uHueNoiseAmp;
+uniform float uValueNoiseAmp;
+uniform float uGroundAO;
+uniform float uGroundAOHeight;
+uniform vec3 uRimColor;
+uniform float uRimStrength;
+varying vec3 vPaintedWorldPos;
+varying float vPaintedHeight;
+#ifdef PAINTED_WORLD_NORMAL
+varying vec3 vPaintedWorldNormal;
+#endif
+#ifdef PAINTED_VERTEX_DATA
+varying vec4 vPaintedData;
+#endif
+`;
+
+const FRAGMENT_ALBEDO = /* glsl */ `
+{
+  float h01 = clamp(vPaintedHeight / max(uBoundsY.y, 1e-3), 0.0, 1.0);
+  vec3 c = diffuseColor.rgb;
+  float l = paintedLuma(c);
+  c = max(mix(vec3(l), c, 1.0 + uGradSat * (1.0 - h01)), 0.0);
+  c *= mix(uGradBase, uGradTop, smoothstep(0.0, 1.0, h01));
+  float n = paintedFbm(vPaintedWorldPos.xz * uHueNoiseScale);
+  c = max(paintedHueShift(c, (n - 0.5) * 2.0 * uHueNoiseAmp), 0.0);
+  c *= 1.0 + (n - 0.5) * 2.0 * uValueNoiseAmp;
+  c *= mix(1.0 - uGroundAO, 1.0, smoothstep(0.0, uGroundAOHeight, vPaintedHeight));
+  #ifdef PAINTED_VERTEX_DATA
+  // Per-building variation (y: hue, z: value) so merged repeats never look copy-pasted.
+  c = max(paintedHueShift(c, vPaintedData.y * 0.025), 0.0);
+  c *= 1.0 + vPaintedData.z * 0.07;
+  #endif
+  diffuseColor.rgb = c;
+}
+`;
+
+const FRAGMENT_RIM = /* glsl */ `
+#ifdef PAINTED_RIM
+{
+  float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 3.0);
+  reflectedLight.directDiffuse += uRimColor * rim * uRimStrength * (0.35 + 0.65 * paintedSunLit);
+}
+#endif
+`;
+
+function inject(source: string, anchor: string, code: string, position: 'before' | 'after' | 'replace'): string {
+  const include = `#include <${anchor}>`;
+  if (!source.includes(include)) throw new Error(`PaintedMaterial: anchor ${include} not found.`);
+  const replacement = position === 'replace' ? code : position === 'before' ? `${code}\n${include}` : `${include}\n${code}`;
+  return source.replace(include, replacement);
+}
+
+export type PaintedMaterial = MeshLambertMaterial & {
+  readonly userData: { painted: { uniforms: Record<string, { value: unknown }> } };
+};
+
+export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMaterial {
+  const material = new MeshLambertMaterial({
+    color: options.color ?? '#ffffff',
+    map: options.map ?? null,
+    vertexColors: options.vertexColors ?? false,
+    alphaTest: options.alphaTest ?? 0,
+    name: options.name ?? 'Painted',
+  }) as PaintedMaterial;
+  if (options.side !== undefined) material.side = options.side;
+
+  const heightM = options.heightM ?? PAINTED_DEFAULTS.heightM;
+  const local = {
+    uWrap: { value: options.wrap ?? PAINTED_DEFAULTS.wrap },
+    uBoundsY: { value: new Vector2(0, heightM) },
+    uGradBase: { value: options.gradientBase ?? PAINTED_DEFAULTS.gradientBase },
+    uGradTop: { value: options.gradientTop ?? PAINTED_DEFAULTS.gradientTop },
+    uGradSat: { value: options.gradientSaturation ?? PAINTED_DEFAULTS.gradientSaturation },
+    uHueNoiseScale: { value: options.hueNoiseScale ?? PAINTED_DEFAULTS.hueNoiseScale },
+    uHueNoiseAmp: { value: options.hueNoiseAmp ?? PAINTED_DEFAULTS.hueNoiseAmp },
+    uValueNoiseAmp: { value: options.valueNoiseAmp ?? PAINTED_DEFAULTS.valueNoiseAmp },
+    uGroundAO: { value: options.groundAO ?? PAINTED_DEFAULTS.groundAO },
+    uGroundAOHeight: { value: options.groundAOHeightM ?? PAINTED_DEFAULTS.groundAOHeightM },
+    uRimColor: { value: materialColor(options.rim?.color ?? '#fff1d6') },
+    uRimStrength: { value: options.rim?.strength ?? 0 },
+    uWindSway: { value: options.windSwayM ?? 0 },
+  };
+  const custom = options.customAlbedo;
+  const customVertex = options.customVertex;
+  const uniforms = { ...local, ...(custom?.uniforms ?? {}), ...(customVertex?.uniforms ?? {}) };
+  material.userData.painted = { uniforms };
+
+  const defines: string[] = [];
+  if (options.rim) defines.push('PAINTED_RIM');
+  if (options.windSwayM) defines.push('PAINTED_WIND');
+  if (options.worldNormal) defines.push('PAINTED_WORLD_NORMAL');
+  if (options.vertexData) defines.push('PAINTED_VERTEX_DATA');
+  if (options.keepNormalOnBackFaces) defines.push('PAINTED_KEEP_BACK_NORMAL');
+  material.defines = Object.fromEntries(defines.map((d) => [d, '']));
+
+  material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
+    Object.assign(shader.uniforms, paintedGlobals, uniforms);
+    let vs = shader.vertexShader;
+    vs = inject(vs, 'common', VERTEX_PARS + (customVertex?.pars ?? ''), 'after');
+    vs = inject(vs, 'begin_vertex', (customVertex?.body ?? '') + VERTEX_WIND, 'after');
+    vs = inject(vs, 'project_vertex', VERTEX_WORLD + VERTEX_EXTRA, 'after');
+    shader.vertexShader = vs;
+
+    let fs = shader.fragmentShader;
+    fs = inject(fs, 'common', FRAGMENT_PARS + (custom?.pars ?? ''), 'after');
+    fs = inject(fs, 'lights_lambert_pars_fragment', PAINTED_LIGHTS_PARS, 'replace');
+    fs = inject(fs, 'normal_fragment_begin', '#ifdef PAINTED_KEEP_BACK_NORMAL\nnormal = normalize(vNormal);\n#endif', 'after');
+    fs = inject(fs, 'color_fragment', custom ? custom.body : FRAGMENT_ALBEDO, 'after');
+    fs = inject(fs, 'lights_fragment_begin', paintedLightsBegin(), 'replace');
+    fs = inject(fs, 'lights_fragment_end', FRAGMENT_RIM, 'after');
+    fs = inject(fs, 'fog_fragment', 'gl_FragColor.rgb = paintedApplyFog(gl_FragColor.rgb, vPaintedWorldPos);', 'replace');
+    shader.fragmentShader = fs;
+  };
+  // One program per feature combination; values live in uniforms.
+  material.customProgramCacheKey = () => `painted-v1|${custom?.key ?? 'default'}|${customVertex?.key ?? 'mesh'}|${defines.join(',')}`;
+  return material;
+}
+
+function materialColor(value: Color | string): Color {
+  return new Color(value);
+}
