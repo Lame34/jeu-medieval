@@ -1,0 +1,21 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+perf-results/
+.vite/
+*.log
+*.tsbuildinfo
+
+# Raw third-party downloads: re-downloadable from assets/CREDITS.md (URL + SHA-256)
+assets-src/raw/
+assets-src/work/
+
+# Local tool caches
+.tools/
+.env.local
+
+# Claude Code local settings
+.claude/settings.local.json
