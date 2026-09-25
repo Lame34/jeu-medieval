@@ -43,9 +43,13 @@ const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
 const BUTTE = { rise: 6.5, from: 0.5, to: 0.95 };
 const FIELD_POLY: Vec2[] = [
   { x: 82, z: 74 },
+  { x: 97, z: 71.5 },
   { x: 116, z: 70 },
+  { x: 119.5, z: 83 },
   { x: 122, z: 98 },
+  { x: 104, z: 102.5 },
   { x: 88, z: 104 },
+  { x: 84.5, z: 89 },
 ];
 const HOUSES: readonly Omit<HouseSite, 'baseHeightM'>[] = [
   { id: 'house-a', center: { x: 52, z: 70 }, rotationTurns: 0.03, widthM: 6, depthM: 4, floors: 1, roof: 'thatch', seed: 11 },
@@ -107,8 +111,10 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
   paintAlongPolyline(t, river, RIVER.widthM / 2, TerrainLayer.River);
   paintAlongPolyline(t, path, PATH.widthM / 2, TerrainLayer.Road);
 
-  const hedge: HedgeLine = { id: 'hedge-field', kind: 'hedge', points: [{ x: 80, z: 105 }, { x: 78, z: 90 }, { x: 81, z: 75 }] };
+  const hedge: HedgeLine = { id: 'hedge-field', kind: 'hedge', points: [{ x: 86, z: 106 }, { x: 82.5, z: 89 }, { x: 80, z: 72.5 }] };
+  const dryWall: HedgeLine = { id: 'wall-field', kind: 'dryStoneWall', points: [{ x: 89, z: 106 }, { x: 104, z: 104.6 }, { x: 123, z: 100 }] };
   paintAlongPolyline(t, hedge.points, 0.7, TerrainLayer.Hedge, [TerrainLayer.Plain, TerrainLayer.Field]);
+  paintAlongPolyline(t, dryWall.points, 0.5, TerrainLayer.DryStoneWall, [TerrainLayer.Plain, TerrainLayer.Field]);
 
   for (const h of houseSites) paintPolygon(t, orientedRect(h.center, h.widthM, h.depthM, h.rotationTurns), TerrainLayer.Building);
   const wall: WallRun = { id: 'wall', points: WALL.points, heightM: WALL.heightM, thicknessM: WALL.thicknessM, baseHeightM: wallBase };
@@ -132,18 +138,27 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     const core = forestMask(p);
     trees.push({ species: speciesFor(vegRng, core), position: p, scale: vegRng.float(0.8, 1.25) * (0.75 + 0.3 * core), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
-  // Understory: bushes and ferns concentrated along the forest edge and the river banks.
-  const underSpots = poissonScatter(vegRng.fork('under'), bounds, 2.2, (p) => {
+  // Understory and bushes: in clusters of 3–7 along edges — forest edge, river bank, path sides,
+  // the field border and the foot of the wall — never sprinkled evenly over the meadow.
+  const clusterNoise = createSimplex(root.fork('bush-clusters'));
+  const underSpots = poissonScatter(vegRng.fork('under'), bounds, 1.9, (p) => {
     if (blocked(p)) return 0;
     const m = forestMask(p);
     const edge = 1 - Math.abs(m - 0.5) * 2;
     const bank = 1 - smoothstep(RIVER.widthM / 2 + 1, RIVER.widthM / 2 + 7, projectOnPolyline(p, river).distance);
-    return clamp(edge * 0.8 + bank * 0.6 + m * 0.25, 0, 0.9);
+    const pathD = projectOnPolyline(p, path).distance;
+    const pathSide = smoothstep(PATH.widthM / 2 + 0.5, PATH.widthM / 2 + 2, pathD) * (1 - smoothstep(PATH.widthM / 2 + 3, PATH.widthM / 2 + 7, pathD));
+    const fieldD = pointInPolygon(p, FIELD_POLY) ? 0 : projectOnPolyline(p, [...FIELD_POLY, FIELD_POLY[0] as Vec2]).distance;
+    const fieldBorder = fieldD > 0 ? 1 - smoothstep(1.5, 5, fieldD) : 0;
+    const wallFoot = 1 - smoothstep(2, 7, projectOnPolyline(p, WALL.points).distance);
+    const zone = Math.max(edge * 0.9, bank * 0.8, pathSide * 0.6, fieldBorder * 0.7, wallFoot * 0.8);
+    const cluster = smoothstep(0.1, 0.35, fbm(clusterNoise, p.x, p.z, { octaves: 2, lacunarity: 2, gain: 0.5, frequency: 1 / 9 }));
+    return clamp(zone * cluster + m * 0.25, 0, 0.9);
   });
   for (const p of underSpots) {
     // Ferns only in the shade of the wood; bushes along edges and banks.
     const fern = forestMask(p) > 0.45 && vegRng.chance(0.6);
-    trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.7, 1.3), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+    trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.6, 1.5), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
   // A few lone trees in the meadow near the houses break the edge and frame the view.
   for (const p of [{ x: 60, z: 58 }, { x: 40, z: 100 }, { x: 118, z: 112 }]) {
@@ -161,15 +176,16 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     houses: houseSites,
     water: [{ id: 'river', kind: 'river', centerline: river, widthM: RIVER.widthM, levelM: RIVER.levelM }],
     roads: [{ id: 'path', kind: 'path', centerline: path, widthM: PATH.widthM }],
-    hedges: [hedge],
+    hedges: [hedge, dryWall],
     walls: [wall],
     towers: [tower],
     gates: [],
     keeps: [],
     bridges: [],
     units: [
-      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.62 },
-      { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 66.5, z: 70.5 }, facingTurns: 0.6 },
+      // Three-quarter facing towards the close-up camera (yaw 0.16).
+      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.2 },
+      { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 66.5, z: 70.5 }, facingTurns: 0.13 },
       { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: { x: 90.5, z: 44.5 }, facingTurns: 0.12 },
       { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 96.5, z: 46.5 }, facingTurns: 0.1 },
     ],

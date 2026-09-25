@@ -78,6 +78,22 @@ export function catmullRom(points: readonly Vec2[], samplesPerSegment: number): 
   return out;
 }
 
+/** Extends a polyline at both ends along its end tangents (rivers running off to the horizon). */
+export function extendPolyline(line: readonly Vec2[], meters: number, stepM: number): Vec2[] {
+  if (line.length < 2) return [...line];
+  const extend = (end: Vec2, before: Vec2): Vec2[] => {
+    const dx = end.x - before.x;
+    const dz = end.z - before.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const out: Vec2[] = [];
+    for (let s = stepM; s <= meters; s += stepM) out.push({ x: end.x + (dx / len) * s, z: end.z + (dz / len) * s });
+    return out;
+  };
+  const head = extend(line[0] as Vec2, line[1] as Vec2).reverse();
+  const tail = extend(line[line.length - 1] as Vec2, line[line.length - 2] as Vec2);
+  return [...head, ...line, ...tail];
+}
+
 /** Even-odd point-in-polygon test. */
 export function pointInPolygon(p: Vec2, polygon: readonly Vec2[]): boolean {
   let inside = false;
