@@ -1,0 +1,10 @@
+{
+  "//": "Core déterministe : aucune lib DOM ni type Node. Toute dépendance au navigateur ou à three échoue ici.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023"],
+    "types": [],
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.core.tsbuildinfo"
+  },
+  "include": ["src/core", "src/data"]
+}
