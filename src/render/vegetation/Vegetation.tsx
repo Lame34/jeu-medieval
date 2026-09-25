@@ -48,6 +48,7 @@ function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData): 
         side: species === 'fern' ? DoubleSide : FrontSide,
         keepNormalOnBackFaces: species === 'fern',
         foliage: species !== 'fern',
+        nearFade: true,
       }),
     );
   }

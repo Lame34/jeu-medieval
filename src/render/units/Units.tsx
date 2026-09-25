@@ -1,54 +1,53 @@
 /**
- * Units on the battlefield: KayKit bodies (shared 41-bone rig, one animation library) merged
- * with their weapons into one skinned mesh each (one draw call per unit), faction colours baked
- * into vertex colours, one shared painted material with rim light, and a faction ground ring.
+ * Units on the battlefield: Quaternius RPG bodies (ADR-014: shared 44-bone rig, one animation
+ * library, body and weapon in one skinned mesh with one atlas), so one draw call per unit.
+ * Allegiance colours are painted into a recoloured copy of each body's atlas, one per faction;
+ * every unit uses a painted material with rim light and stands on a faction ground ring.
  */
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { AnimationMixer, Group, PropertyBinding, type AnimationClip, type Object3D } from 'three';
+import { AnimationMixer, Group, SkinnedMesh, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
-import { mergeCharacter, type WeaponMount } from './merge-character.ts';
-import { BODY_CLOTH_HUES } from './team-colors.ts';
+import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
 
-const ANIMATIONS_URL = '/assets/characters/kaykit-animations.glb';
-const bodyUrl = (body: string) => `/assets/characters/${body}.glb`;
-const weaponUrl = (weapon: string) => `/assets/weapons/${weapon}.glb`;
+const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
+const BODIES = ['warrior', 'ranger', 'rogue'] as const;
+type Body = (typeof BODIES)[number];
+const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
 
 /**
- * KayKit bodies are authored ~2.1 units tall. Units are shown ~35 % above human scale
- * ("proportions légèrement héroïques"): silhouettes must read at tactical zoom.
+ * Converted bodies stand ~2.9 units tall. Units are shown ~2.15 m: slightly heroic (brief §5.1),
+ * readable at tactical zoom, and a 1.05 m merlon still reaches the chest.
  */
-export const UNIT_SCALE = 1.16;
-const UNIT_HEIGHT_M = 2.4;
+export const UNIT_SCALE = 0.74;
+const UNIT_HEIGHT_M = 2.15;
 const RIM = { color: '#fff1d6', strength: 0.35 };
-/** GLTFLoader sanitises node names ('handslot.r' → 'handslotr'). */
-const RIGHT_HAND = PropertyBinding.sanitizeNodeName('handslot.r');
-const LEFT_HAND = PropertyBinding.sanitizeNodeName('handslot.l');
+/** Quaternius atlases are painted dark for Blender's studio light; the warrior's steel most. */
+const ALBEDO_VALUE: Readonly<Record<Body, number>> = { warrior: 1.7, ranger: 1.3, rogue: 1.35 };
 
 interface Loadout {
-  readonly body: string;
-  readonly right?: string;
-  readonly left?: string;
+  readonly body: Body;
   readonly idle: string;
 }
 
 const LOADOUTS: Readonly<Record<string, Loadout>> = {
-  knight: { body: 'knight', right: 'sword_1handed', left: 'shield_badge_color', idle: 'Idle' },
-  soldier: { body: 'barbarian', right: 'axe_1handed', left: 'shield_round_color', idle: 'Idle' },
-  archer: { body: 'rogue_hooded', right: 'crossbow_1handed', idle: 'Idle' },
-  sapper: { body: 'rogue', right: 'axe_1handed', idle: 'Idle' },
-  wallGuard: { body: 'barbarian', right: 'axe_1handed', left: 'shield_square_color', idle: 'Idle' },
-  crossbowman: { body: 'rogue', right: 'crossbow_2handed', idle: '2H_Ranged_Aiming' },
-  sallyKnight: { body: 'knight', right: 'sword_1handed', left: 'shield_square_color', idle: 'Idle' },
-  militia: { body: 'rogue', right: 'axe_1handed', idle: 'Idle' },
-  officer: { body: 'knight', right: 'sword_1handed', idle: 'Idle' },
-  towerArcher: { body: 'rogue_hooded', right: 'crossbow_1handed', idle: 'Idle' },
+  knight: { body: 'warrior', idle: 'Idle_Weapon' },
+  soldier: { body: 'rogue', idle: 'Idle' },
+  archer: { body: 'ranger', idle: 'Idle' },
+  sapper: { body: 'rogue', idle: 'Idle' },
+  wallGuard: { body: 'warrior', idle: 'Idle_Weapon' },
+  crossbowman: { body: 'ranger', idle: 'Idle' },
+  sallyKnight: { body: 'warrior', idle: 'Idle_Weapon' },
+  militia: { body: 'rogue', idle: 'Idle' },
+  officer: { body: 'warrior', idle: 'Idle' },
+  towerArcher: { body: 'ranger', idle: 'Idle' },
 };
 const DEFAULT_LOADOUT = LOADOUTS['knight'] as Loadout;
 
@@ -56,56 +55,67 @@ export function loadoutFor(typeKey: string): Loadout {
   return LOADOUTS[typeKey] ?? DEFAULT_LOADOUT;
 }
 
-const BODIES = ['knight', 'barbarian', 'rogue', 'rogue_hooded', 'mage'] as const;
-const WEAPONS = ['sword_1handed', 'axe_1handed', 'crossbow_1handed', 'crossbow_2handed', 'shield_badge_color', 'shield_round_color', 'shield_square_color'] as const;
+function atlasOf(scene: Object3D): Texture | null {
+  let map: Texture | null = null;
+  scene.traverse((o) => {
+    if (o instanceof SkinnedMesh && !map) map = (o.material as { map?: Texture | null }).map ?? null;
+  });
+  return map;
+}
 
 export function Units({ units, terrain }: { readonly units: readonly UnitMarker[]; readonly terrain: TerrainData }) {
   const anims = useGLTF(ANIMATIONS_URL, false, true);
   const bodies = useGLTF(BODIES.map(bodyUrl), false, true);
-  const weapons = useGLTF(WEAPONS.map(weaponUrl), false, true);
 
   const built = useMemo(() => {
-    // One material (one program) for every unit: colours live in the vertices.
-    const material = createPaintedMaterial({
-      name: 'Units',
-      vertexColors: true,
-      heightM: UNIT_HEIGHT_M,
-      gradientBase: 0.82,
-      gradientSaturation: 0.05,
-      hueNoiseAmp: 0,
-      valueNoiseAmp: 0.02,
-      groundAO: 0.2,
-      groundAOHeightM: 0.3,
-      rim: RIM,
-    });
+    // One material per (body, faction): same shader program, only the atlas differs.
+    const materials = new Map<string, Material>();
+    const textures: Texture[] = [];
+    const materialFor = (body: Body, faction: Faction): Material => {
+      const key = `${body}:${faction}`;
+      const cached = materials.get(key);
+      if (cached) return cached;
+      const source = atlasOf(bodies[BODIES.indexOf(body)]?.scene as Object3D);
+      const map = source ? recolorTexture(source, BODY_CLOTH_HUES[body] ?? [], faction) : null;
+      if (map) textures.push(map);
+      const material = createPaintedMaterial({
+        name: `Unit:${key}`,
+        map,
+        heightM: UNIT_HEIGHT_M,
+        gradientBase: 0.82,
+        gradientSaturation: 0.08,
+        hueNoiseAmp: 0,
+        valueNoiseAmp: 0.03,
+        albedoValue: ALBEDO_VALUE[body],
+        albedoSaturation: 1.05,
+        groundAO: 0.2,
+        groundAOHeightM: 0.3,
+        rim: RIM,
+      });
+      materials.set(key, material);
+      return material;
+    };
     const clips = new Map<string, AnimationClip>(anims.animations.map((c) => [c.name, c]));
-    const bodyScene = (name: string) => bodies[BODIES.indexOf(name as (typeof BODIES)[number])]?.scene;
-    const weaponScene = (name: string) => weapons[WEAPONS.indexOf(name as (typeof WEAPONS)[number])]?.scene;
     const mixers: AnimationMixer[] = [];
     const starts: (() => void)[] = [];
     const roots: Group[] = [];
     const rings: Object3D[] = [];
     units.forEach((unit, index) => {
       const loadout = loadoutFor(unit.typeKey);
-      const source = bodyScene(loadout.body);
+      const source = bodies[BODIES.indexOf(loadout.body)]?.scene;
       if (!source) return;
       const body = cloneSkinned(source);
-      const mounts: WeaponMount[] = [];
-      for (const [bone, weapon] of [
-        [RIGHT_HAND, loadout.right],
-        [LEFT_HAND, loadout.left],
-      ] as const) {
-        const scene = weapon ? weaponScene(weapon) : undefined;
-        if (scene) mounts.push({ bone, scene, clothHues: BODY_CLOTH_HUES['shield'] ?? [] });
-      }
-      const mesh = mergeCharacter(body, mounts, BODY_CLOTH_HUES[loadout.body] ?? [], unit.faction);
-      mesh.material = material;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.frustumCulled = false;
+      const material = materialFor(loadout.body, unit.faction);
+      body.traverse((o) => {
+        if (!(o instanceof SkinnedMesh)) return;
+        o.material = material;
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.frustumCulled = false;
+      });
+      body.scale.setScalar(UNIT_SCALE);
       const root = new Group();
       root.name = `Unit:${unit.id}`;
-      body.scale.setScalar(UNIT_SCALE);
       const ring = createFactionRing(unit.faction);
       rings.push(ring);
       root.add(body, ring);
@@ -122,8 +132,8 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       });
       roots.push(root);
     });
-    return { roots, rings, mixers, starts, material };
-  }, [anims, bodies, weapons, units, terrain]);
+    return { roots, rings, mixers, starts, materials, textures };
+  }, [anims, bodies, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
   useEffect(() => {
@@ -139,12 +149,8 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
 
   useEffect(
     () => () => {
-      built.roots.forEach((root) =>
-        root.traverse((o) => {
-          if ('geometry' in o && o.name === 'UnitBody') (o as { geometry: { dispose(): void } }).geometry.dispose();
-        }),
-      );
-      built.material.dispose();
+      built.materials.forEach((m) => m.dispose());
+      built.textures.forEach((t) => t.dispose());
     },
     [built],
   );

@@ -93,7 +93,7 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
     const disposables: { dispose(): void }[] = [];
     if (spots.length > 0) {
       const geometry = buildTreeGeometry('bush', 1);
-      const material = createPaintedMaterial({ name: 'Hedge', vertexColors: true, heightM: HEDGE_HEIGHT_M, windSwayM: HEDGE_WIND_M, gradientBase: 0.72, foliage: true });
+      const material = createPaintedMaterial({ name: 'Hedge', vertexColors: true, heightM: HEDGE_HEIGHT_M, windSwayM: HEDGE_WIND_M, gradientBase: 0.72, foliage: true, nearFade: true });
       const mesh = new InstancedMesh(geometry, material, spots.length);
       const m = new Matrix4();
       const q = new Quaternion();

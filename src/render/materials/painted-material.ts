@@ -66,6 +66,11 @@ export interface PaintedOptions {
   readonly keepNormalOnBackFaces?: boolean;
   /** Leaves: brush-stroke light/dark clumps in the albedo. */
   readonly foliage?: boolean;
+  /**
+   * Tactical cutaway: fragments close to the camera dissolve with an ordered dither, so
+   * vegetation never walls off a close-up view (shadows are unaffected).
+   */
+  readonly nearFade?: boolean;
 }
 
 /** Defaults from STYLE_BIBLE §4. */
@@ -207,6 +212,23 @@ const FRAGMENT_ALBEDO = /* glsl */ `
 }
 `;
 
+/** Near-camera cutaway (m): fully dissolved below START, fully opaque beyond END. */
+const NEAR_FADE_START_M = 4.5;
+const NEAR_FADE_END_M = 8;
+
+const FRAGMENT_NEAR_FADE = /* glsl */ `
+#ifdef PAINTED_NEAR_FADE
+{
+  float keep = smoothstep(${NEAR_FADE_START_M.toFixed(1)}, ${NEAR_FADE_END_M.toFixed(1)}, distance(vPaintedWorldPos, cameraPosition));
+  if (keep < 1.0) {
+    const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
+    ivec2 q = ivec2(gl_FragCoord.xy) & 3;
+    if (keep <= (bayer[q.x + q.y * 4] + 0.5) / 16.0) discard;
+  }
+}
+#endif
+`;
+
 const FRAGMENT_RIM = /* glsl */ `
 #ifdef PAINTED_RIM
 {
@@ -267,6 +289,7 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
   if (options.vertexData) defines.push('PAINTED_VERTEX_DATA');
   if (options.keepNormalOnBackFaces) defines.push('PAINTED_KEEP_BACK_NORMAL');
   if (options.foliage) defines.push('PAINTED_FOLIAGE');
+  if (options.nearFade) defines.push('PAINTED_NEAR_FADE');
   material.defines = Object.fromEntries(defines.map((d) => [d, '']));
 
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
@@ -280,6 +303,7 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
     let fs = shader.fragmentShader;
     fs = inject(fs, 'common', FRAGMENT_PARS + (custom?.pars ?? ''), 'after');
     fs = inject(fs, 'lights_lambert_pars_fragment', PAINTED_LIGHTS_PARS, 'replace');
+    fs = inject(fs, 'clipping_planes_fragment', FRAGMENT_NEAR_FADE, 'after');
     fs = inject(fs, 'normal_fragment_begin', '#ifdef PAINTED_KEEP_BACK_NORMAL\nnormal = normalize(vNormal);\n#endif', 'after');
     fs = inject(fs, 'color_fragment', custom ? custom.body : FRAGMENT_ALBEDO, 'after');
     fs = inject(fs, 'lights_fragment_begin', paintedLightsBegin(), 'replace');

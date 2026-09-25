@@ -1,8 +1,7 @@
 /**
- * Allegiance recolouring (brief §5.3, §6.5): KayKit textures are palette atlases of gradient
- * swatches. The cloth swatches of each body are identified by hue and re-hued to the faction
- * colour, preserving the painted gradient (lightness). Done once per (body, faction) on a
- * canvas: zero shader cost, exact result.
+ * Allegiance recolouring (brief §5.3, §6.5): the cloth of each body's painted atlas is found by
+ * hue and re-hued to the faction colour, keeping the painted lightness variation (lifted: the
+ * source cloths are dark). Done once per (body, faction) on a canvas: zero shader cost.
  */
 import { CanvasTexture, SRGBColorSpace, type Texture } from 'three';
 import type { Faction } from '../../core/rules/types.ts';
@@ -11,23 +10,23 @@ export interface HueRange {
   readonly from: number;
   readonly to: number;
   readonly minSaturation: number;
+  /** Lightness multiplier applied to the recoloured cloth (default 1). */
+  readonly lightnessGain?: number;
 }
 
-/** Cloth hues per KayKit body (hue in turns; ranges may wrap through 0). */
+/**
+ * Cloth hues per body (hue in turns; ranges may wrap through 0), measured on the atlases:
+ * warrior red tabard, ranger green-teal hood and cloak (its red hair is left alone), rogue
+ * maroon tunic.
+ */
 export const BODY_CLOTH_HUES: Readonly<Record<string, readonly HueRange[]>> = {
-  knight: [{ from: 0.93, to: 0.025, minSaturation: 0.45 }],
-  rogue: [{ from: 0.28, to: 0.52, minSaturation: 0.3 }],
-  rogue_hooded: [{ from: 0.28, to: 0.52, minSaturation: 0.3 }],
-  barbarian: [{ from: 0.53, to: 0.66, minSaturation: 0.22 }],
-  mage: [{ from: 0.7, to: 0.9, minSaturation: 0.3 }],
-  shield: [
-    { from: 0.93, to: 0.025, minSaturation: 0.4 },
-    { from: 0.53, to: 0.7, minSaturation: 0.3 },
-  ],
+  warrior: [{ from: 0.95, to: 0.03, minSaturation: 0.28, lightnessGain: 1.8 }],
+  ranger: [{ from: 0.2, to: 0.55, minSaturation: 0.1, lightnessGain: 2.0 }],
+  rogue: [{ from: 0.95, to: 0.03, minSaturation: 0.3, lightnessGain: 2.2 }],
 };
 
-/** Gold/yellow accents: kept gold for the attacker, forged to iron for the defender. */
-const GOLD: HueRange = { from: 0.08, to: 0.17, minSaturation: 0.5 };
+/** Gold accents (not skin nor leather, hue < 0.1): kept for the attacker, iron for the defender. */
+const GOLD: HueRange = { from: 0.105, to: 0.17, minSaturation: 0.5 };
 
 export interface FactionTint {
   readonly hue: number;
@@ -106,8 +105,10 @@ export function recolorPixels(data: Uint8ClampedArray, clothHues: readonly HueRa
   for (let i = 0; i < data.length; i += 4) {
     const [h, s, l] = rgbToHsl((data[i] as number) / BYTE, (data[i + 1] as number) / BYTE, (data[i + 2] as number) / BYTE);
     let out: [number, number, number] | null = null;
-    if (clothHues.some((r) => inRange(h, s, r))) {
-      out = hslToRgb(tint.hue, Math.max(tint.saturation, s * 0.9), Math.min(0.92, Math.max(0.06, l + tint.lightnessBias)));
+    const cloth = clothHues.find((r) => inRange(h, s, r));
+    if (cloth) {
+      const lit = l * (cloth.lightnessGain ?? 1) + tint.lightnessBias;
+      out = hslToRgb(tint.hue, Math.max(tint.saturation, s * 0.9), Math.min(0.92, Math.max(0.06, lit)));
     } else if (tint.goldToIron && inRange(h, s, GOLD)) {
       out = hslToRgb(0.6, 0.06, l * 0.75);
     }

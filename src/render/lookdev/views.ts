@@ -4,7 +4,7 @@ import type { CameraLimits, CameraView } from '../camera/TacticalCamera.tsx';
 export const LOOKDEV_VIEWS: readonly (CameraView & { readonly id: string; readonly label: string })[] = [
   { id: 'overview', label: 'Vue d’ensemble', focus: { x: 72, z: 66 }, distance: 118, yawTurns: 0.11, pitchDeg: 48 },
   { id: 'tactical', label: 'Vue tactique', focus: { x: 74, z: 64 }, distance: 58, yawTurns: 0.05, pitchDeg: 50 },
-  { id: 'close', label: 'Plan rapproché', focus: { x: 69, z: 67 }, distance: 17, yawTurns: 0.16, pitchDeg: 30 },
+  { id: 'close', label: 'Plan rapproché', focus: { x: 68.5, z: 68.5 }, distance: 11, yawTurns: 0.16, pitchDeg: 24 },
   { id: 'castle', label: 'Mur et tour', focus: { x: 98, z: 34 }, distance: 48, yawTurns: 0.36, pitchDeg: 13 },
 ];
 

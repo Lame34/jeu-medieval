@@ -8,7 +8,7 @@ import { Color, DoubleSide, Mesh, NormalBlending, PlaneGeometry, ShaderMaterial 
 import type { Faction } from '../../core/rules/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
-const RING_SIZE_M = 2.2;
+const RING_SIZE_M = 1.8;
 /** Ring scale = clamp(cameraDistance / RING_SCALE_DISTANCE_M, 1, RING_MAX_SCALE). */
 export const RING_SCALE_DISTANCE_M = 60;
 export const RING_MAX_SCALE = 1.8;
