@@ -16,9 +16,44 @@ export interface WorldLayout {
   readonly hedges: readonly HedgeLine[];
   readonly walls: readonly WallRun[];
   readonly towers: readonly TowerSite[];
+  readonly gates: readonly GateSite[];
+  readonly keeps: readonly KeepSite[];
+  readonly bridges: readonly BridgeSite[];
   readonly units: readonly UnitMarker[];
+  /** Attacker deployment zone (battle maps). */
+  readonly deployment?: { readonly minX: number; readonly minZ: number; readonly maxX: number; readonly maxZ: number };
   /** Suggested camera focus for the opening shot. */
   readonly focus: Vec2;
+}
+
+export interface GateSite {
+  readonly id: string;
+  readonly center: Vec2;
+  /** Direction the gate faces (outwards), in turns. */
+  readonly rotationTurns: number;
+  readonly openingM: number;
+  readonly heightM: number;
+  readonly baseHeightM: number;
+  /** A drawbridge spans the moat in front of the gate. */
+  readonly drawbridge: boolean;
+}
+
+export interface KeepSite {
+  readonly id: string;
+  readonly center: Vec2;
+  readonly widthM: number;
+  readonly depthM: number;
+  readonly heightM: number;
+  readonly rotationTurns: number;
+  readonly baseHeightM: number;
+}
+
+export interface BridgeSite {
+  readonly id: string;
+  readonly from: Vec2;
+  readonly to: Vec2;
+  readonly widthM: number;
+  readonly deckHeightM: number;
 }
 
 export const TREE_SPECIES = ['oak', 'beech', 'birch', 'pine', 'bush', 'fern'] as const;
@@ -95,6 +130,8 @@ export interface TowerSite {
   readonly radiusM: number;
   readonly heightM: number;
   readonly baseHeightM: number;
+  /** Round towers get a conical roof; square gate towers stay crenellated. */
+  readonly shape?: 'round' | 'square';
 }
 
 export interface UnitMarker {

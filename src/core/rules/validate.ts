@@ -88,6 +88,7 @@ function readTerrainLayers(raw: unknown): TerrainLayerRule[] {
       cover: oneOf<CoverLevel>(layer['cover'], COVER_LEVELS, `${path}.cover`),
       directionalCover: bool(layer['directionalCover'], `${path}.directionalCover`),
       flammable: bool(layer['flammable'], `${path}.flammable`),
+      flatDeck: layer['flatDeck'] === undefined ? false : bool(layer['flatDeck'], `${path}.flatDeck`),
       material: oneOf(layer['material'], MATERIALS, `${path}.material`),
       sight: Object.freeze({
         heightM: num(sight['heightM'], `${path}.sight.heightM`, 0),

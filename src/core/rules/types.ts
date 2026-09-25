@@ -65,6 +65,8 @@ export interface TerrainLayerRule {
   readonly flammable: boolean;
   readonly material: Material;
   readonly sight: SightRule;
+  /** Walkable deck above the relief (bridges): the ground slope underneath is ignored. */
+  readonly flatDeck: boolean;
 }
 
 export interface MovementRules {

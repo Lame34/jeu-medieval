@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 /** Errors that are not ours: dev-only deprecation chatter from dependencies. */
 const IGNORED = [/THREE\.Clock/, /toNonIndexed/, /glGetProgramiv/];
 
-function trackErrors(page: import('@playwright/test').Page): string[] {
+function trackErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error' && !IGNORED.some((re) => re.test(msg.text()))) errors.push(msg.text());

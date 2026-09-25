@@ -164,6 +164,9 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     hedges: [hedge],
     walls: [wall],
     towers: [tower],
+    gates: [],
+    keeps: [],
+    bridges: [],
     units: [
       { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.62 },
       { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 66.5, z: 70.5 }, facingTurns: 0.6 },

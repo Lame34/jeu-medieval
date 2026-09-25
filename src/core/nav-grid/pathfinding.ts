@@ -85,8 +85,9 @@ export function edgeCost(nav: NavGrid, profile: MovementProfile, cx: number, cz:
   if (dz === 0) hm = nav.sampledEastMid[dx > 0 ? from : to] as number;
   else if (dx === 0) hm = nav.sampledSouthMid[dz > 0 ? from : to] as number;
   else hm = nav.sampledCorner[Math.max(cz, nz) * (w + 1) + Math.max(cx, nx)] as number;
-  const up0 = hm > h0 ? (hm - h0) / halfM : 0;
-  const up1 = h1 > hm ? (h1 - hm) / halfM : 0;
+  // Same rule as segmentCost: no uphill surcharge inside a deck cell.
+  const up0 = nav.flatDeck[from] !== 1 && hm > h0 ? (hm - h0) / halfM : 0;
+  const up1 = nav.flatDeck[to] !== 1 && h1 > hm ? (h1 - hm) / halfM : 0;
   return halfM * costFrom * (1 + nav.uphillPenaltyPerGrade * up0) + halfM * costTo * (1 + nav.uphillPenaltyPerGrade * up1);
 }
 

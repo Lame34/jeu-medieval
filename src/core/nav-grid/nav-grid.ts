@@ -39,6 +39,8 @@ export interface NavGrid {
   readonly flammable: Uint8Array;
   readonly sightHeight: Float32Array;
   readonly sightDensity: Float32Array;
+  /** 1 on decks (bridges): no slope blocking and no uphill surcharge inside the cell. */
+  readonly flatDeck: Uint8Array;
 }
 
 export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
@@ -50,6 +52,7 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
   const flammable = new Uint8Array(count);
   const sightHeight = new Float32Array(count);
   const sightDensity = new Float32Array(count);
+  const flatDeck = new Uint8Array(count);
   const cs = terrain.cellSize;
   const sampledCenter = new Float64Array(count);
   const sampledEastMid = new Float64Array(count);
@@ -80,9 +83,10 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
       flammable[i] = layer.flammable ? 1 : 0;
       sightHeight[i] = layer.sight.heightM;
       sightDensity[i] = layer.sight.densityPerM;
+      flatDeck[i] = layer.flatDeck ? 1 : 0;
       for (const profile of MOVEMENT_PROFILES) {
         const metersPerAp = layer.metersPerAp[profile];
-        const tooSteep = (grade[i] as number) > rules.movement.maxWalkableGrade[profile];
+        const tooSteep = !layer.flatDeck && (grade[i] as number) > rules.movement.maxWalkableGrade[profile];
         const cost = metersPerAp > 0 && !tooSteep ? 1 / metersPerAp : IMPASSABLE;
         apPerMeter[profile][i] = cost;
         if (cost < minApPerMeter[profile]) minApPerMeter[profile] = cost;
@@ -110,6 +114,7 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
     flammable,
     sightHeight,
     sightDensity,
+    flatDeck,
   };
 }
 
@@ -156,10 +161,14 @@ export function segmentCost(
     (cx, cz, t0, t1) => {
       if (isBlocked(cx, cz)) return false;
       const pieceM = (t1 - t0) * lengthM;
-      const h0 = sampleHeight(terrain, ax + (bx - ax) * t0, az + (bz - az) * t0);
-      const h1 = sampleHeight(terrain, ax + (bx - ax) * t1, az + (bz - az) * t1);
-      const uphillGrade = h1 > h0 ? (h1 - h0) / pieceM : 0;
-      total += pieceM * (costs[cz * nav.width + cx] as number) * (1 + nav.uphillPenaltyPerGrade * uphillGrade);
+      const cell = cz * nav.width + cx;
+      let uphillGrade = 0;
+      if (nav.flatDeck[cell] !== 1) {
+        const h0 = sampleHeight(terrain, ax + (bx - ax) * t0, az + (bz - az) * t0);
+        const h1 = sampleHeight(terrain, ax + (bx - ax) * t1, az + (bz - az) * t1);
+        uphillGrade = h1 > h0 ? (h1 - h0) / pieceM : 0;
+      }
+      total += pieceM * (costs[cell] as number) * (1 + nav.uphillPenaltyPerGrade * uphillGrade);
       return true;
     },
     (sax, saz, sbx, sbz) => !(isBlocked(sax, saz) || isBlocked(sbx, sbz)),
