@@ -354,7 +354,8 @@ describe('generateLookdev', () => {
     expect(layout.units).toHaveLength(4);
     expect(layout.water).toHaveLength(1);
     expect(layout.roads).toHaveLength(1);
-    expect(layout.hedges).toHaveLength(1);
+    // One field-edge hedge and one dry-stone wall (src/core/worldgen/lookdev.ts: `hedge`, `dryWall`).
+    expect(layout.hedges.map((h) => h.kind).sort()).toEqual(['dryStoneWall', 'hedge']);
     expect(layout.walls).toHaveLength(1);
     expect(layout.towers).toHaveLength(1);
     expect(layout.trees.length).toBeGreaterThan(0);

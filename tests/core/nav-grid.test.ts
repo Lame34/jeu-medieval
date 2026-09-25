@@ -176,3 +176,45 @@ describe('edgeCost vs segmentCost: must be exactly identical between neighbourin
     expect(comparisons).toBeGreaterThan(1000);
   });
 });
+
+describe('flatDeck: a Bridge deck ignores the underlying slope', () => {
+  // Grade well above every profile's maxWalkableGrade (the steepest, lightFoot, is 1.0), so a
+  // plain sloped layer would be impassable for every profile; a flatDeck layer must not be.
+  const STEEP_GRADE = 3;
+
+  it('stays passable for every profile, including "engine", on a steep Bridge cell', () => {
+    const t = flatTerrain(3, 1, 1);
+    setPlaneHeights(t, STEEP_GRADE, 0);
+    fillRect(t, 0, 0, 2, 0, TerrainLayer.Bridge);
+    const nav = buildNav(t);
+    for (const profile of ['lightFoot', 'foot', 'mounted', 'engine'] as const) {
+      expect(DEFAULT_RULES.movement.maxWalkableGrade[profile]).toBeLessThan(STEEP_GRADE);
+      expect(nav.apPerMeter[profile][1] as number).toBeLessThan(IMPASSABLE);
+      expect(isPassable(nav, profile, 1, 0)).toBe(true);
+    }
+  });
+
+  it('the identical slope on a Plain layer is impassable for "engine" (control case)', () => {
+    const t = flatTerrain(3, 1, 1);
+    setPlaneHeights(t, STEEP_GRADE, 0); // Plain everywhere (the default layer)
+    const nav = buildNav(t);
+    expect(nav.apPerMeter.engine[1] as number).toBe(IMPASSABLE);
+  });
+
+  it('edgeCost stays exactly equal to segmentCost between neighbouring centres, even when both cells are a sloped Bridge deck', () => {
+    const t = flatTerrain(4, 1, 1);
+    setPlaneHeights(t, STEEP_GRADE, 0);
+    fillRect(t, 0, 0, 3, 0, TerrainLayer.Bridge);
+    const nav = buildNav(t);
+    for (const profile of ['lightFoot', 'foot', 'mounted', 'engine'] as const) {
+      for (let cx = 0; cx < 3; cx++) {
+        const viaEdge = edgeCost(nav, profile, cx, 0, 1, 0);
+        const ax = cx + 0.5;
+        const bx = cx + 1.5;
+        const viaSegment = segmentCost(nav, profile, ax, 0.5, bx, 0.5);
+        expect(Number.isFinite(viaEdge)).toBe(true);
+        expect(viaEdge).toBe(viaSegment);
+      }
+    }
+  });
+});

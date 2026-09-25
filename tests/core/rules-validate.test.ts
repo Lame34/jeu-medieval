@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RulesValidationError, TERRAIN_LAYER_COUNT, validateRules, type RawRuleFiles } from '@core/index.ts';
+import { RulesValidationError, TERRAIN_LAYER_COUNT, TerrainLayer, validateRules, type RawRuleFiles } from '@core/index.ts';
 import { DEFAULT_RULES } from '@data/index.ts';
 import damage from '@data/damage.json' with { type: 'json' };
 import terrain from '@data/terrain.json' with { type: 'json' };
@@ -84,5 +84,25 @@ describe('validateRules error reporting', () => {
     const raw = rawFiles();
     const rules = validateRules(raw);
     expect(rules.units['siegeTower']?.attack).toBeNull();
+  });
+});
+
+describe('validateRules: terrain.layers.*.flatDeck', () => {
+  it('defaults to false when the key is absent from the JSON (e.g. Plain)', () => {
+    const rules = validateRules(rawFiles());
+    expect(rules.terrainLayers[TerrainLayer.Plain]?.flatDeck).toBe(false);
+  });
+
+  it('accepts an explicit flatDeck: true (Bridge, in the real data file)', () => {
+    const rules = validateRules(rawFiles());
+    expect(rules.terrainLayers[TerrainLayer.Bridge]?.flatDeck).toBe(true);
+  });
+
+  it('rejects a non-boolean flatDeck value, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.terrain as { layers: Record<string, { flatDeck?: unknown }> }).layers['Bridge']!.flatDeck = 'yes';
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('terrain.layers.Bridge.flatDeck');
   });
 });
