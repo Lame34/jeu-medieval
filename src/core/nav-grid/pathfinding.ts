@@ -138,8 +138,11 @@ export function findPath(ctx: PathContext, query: PathQuery): GridPath | null {
     const current = ctx.heap.pop();
     if (ctx.closed[current] === gen) continue;
     ctx.closed[current] = gen;
-    if (current === goal) return { cells: reconstruct(ctx, goal), cost: ctx.g[goal] as number };
     const gCurrent = ctx.g[current] as number;
+    if (current === goal) {
+      // The goal pops with its optimal cost: over budget means no path within the budget.
+      return gCurrent > maxCost + AP_EPSILON ? null : { cells: reconstruct(ctx, goal), cost: gCurrent };
+    }
     if (gCurrent + heuristic(current) > maxCost + AP_EPSILON) return null;
     const cx = current % w;
     const cz = Math.floor(current / w);
