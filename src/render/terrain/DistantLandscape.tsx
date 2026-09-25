@@ -130,7 +130,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       const g = new IcosahedronGeometry(1, 0);
       g.scale(1.1 - k * 0.15, 0.95, 1.1 - k * 0.15);
       g.translate(k === 0 ? 0 : (k - 1.5) * 1.1, 1.3 + k * 0.25, k === 2 ? 0.8 : -0.4);
-      return g.toNonIndexed();
+      return g.index ? g.toNonIndexed() : g;
     });
     const clump = mergeGeometries(clumpParts, false);
     clumpParts.forEach((g) => g.dispose());

@@ -35,3 +35,6 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 
 | Date (UTC) | Commit | Scène | Préréglage | CPU | FPS moy. | 1 % low | Draw calls | Triangles | Textures | Budget |
 |---|---|---|---|---|---|---|---|---|---|---|
+| 2026-09-25 12:32 | 0411f98 | lookdev | portable | ×1 | 101.6 | 4.5 | 65 | 0.82 M | 22 | ❌ |
+| 2026-09-25 12:36 | 0411f98 | lookdev | portable | ×1 | 106.5 | 52.9 | 65 | 0.82 M | 22 | ✅ |
+| 2026-09-25 12:38 | 0411f98 | lookdev | portable | ×4 | 81.3 | 16.1 | 65 | 0.82 M | 22 | ✅ |
