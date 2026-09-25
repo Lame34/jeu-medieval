@@ -1,0 +1,19 @@
+{
+  "$comment": "Brief §9.7. Réduction d'armure et pénalités de couvert : valeurs de départ (J7 : équilibrage).",
+  "armorReduction": { "light": 0.10, "medium": 0.25, "heavy": 0.40, "wood": 0, "stone": 0 },
+  "multipliers": {
+    "piercing": { "light": 1.5, "medium": 1.0, "heavy": 0.5, "wood": 0.3, "stone": 0.1 },
+    "blunt":    { "light": 0.7, "medium": 1.0, "heavy": 1.5, "wood": 0.8, "stone": 0.5 },
+    "fire":     { "light": 1.5, "medium": 1.2, "heavy": 1.0, "wood": 2.5, "stone": 0.2 },
+    "siege":    { "light": 0.5, "medium": 0.5, "heavy": 0.7, "wood": 2.0, "stone": 3.0 }
+  },
+  "critChance": 0.10,
+  "critMultiplier": 1.75,
+  "hitChanceMin": 0.05,
+  "hitChanceMax": 0.95,
+  "heightStepM": 3,
+  "accuracyPerHeightStep": 0.10,
+  "rangePerHeightStep": 0.10,
+  "coverPenalty": { "none": 0, "light": 0.10, "partial": 0.25, "heavy": 0.40 },
+  "meleeReachM": 1.6
+}

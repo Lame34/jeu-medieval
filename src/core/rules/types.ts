@@ -1,0 +1,121 @@
+/**
+ * Game rule types. Values live in src/data/*.json and are validated by ./validate.ts;
+ * the core never hard-codes a tunable number.
+ */
+
+export const MOVEMENT_PROFILES = ['lightFoot', 'foot', 'mounted', 'engine'] as const;
+export type MovementProfile = (typeof MOVEMENT_PROFILES)[number];
+
+export const COVER_LEVELS = ['none', 'light', 'partial', 'heavy'] as const;
+export type CoverLevel = (typeof COVER_LEVELS)[number];
+
+export const MATERIALS = ['earth', 'vegetation', 'wood', 'stone', 'water'] as const;
+export type Material = (typeof MATERIALS)[number];
+
+export const ARMOR_CLASSES = ['light', 'medium', 'heavy', 'wood', 'stone'] as const;
+export type ArmorClass = (typeof ARMOR_CLASSES)[number];
+
+export const DAMAGE_TYPES = ['piercing', 'blunt', 'fire', 'siege'] as const;
+export type DamageType = (typeof DAMAGE_TYPES)[number];
+
+export const FACTIONS = ['attacker', 'defender'] as const;
+export type Faction = (typeof FACTIONS)[number];
+
+/**
+ * Navigation layers. The numeric id is stored per 1 m cell in a Uint8Array; the same layer map
+ * drives both the simulation and the ground splat of the renderer.
+ */
+export const TerrainLayer = {
+  Plain: 0,
+  Road: 1,
+  Field: 2,
+  Forest: 3,
+  Mud: 4,
+  Ford: 5,
+  River: 6,
+  Moat: 7,
+  Rock: 8,
+  Building: 9,
+  Wall: 10,
+  Bridge: 11,
+  Rubble: 12,
+  Hedge: 13,
+  DryStoneWall: 14,
+} as const;
+export type TerrainLayerId = (typeof TerrainLayer)[keyof typeof TerrainLayer];
+export type TerrainLayerKey = keyof typeof TerrainLayer;
+export const TERRAIN_LAYER_KEYS = Object.keys(TerrainLayer) as TerrainLayerKey[];
+export const TERRAIN_LAYER_COUNT = TERRAIN_LAYER_KEYS.length;
+
+export interface SightRule {
+  /** Height above ground (m) up to which the layer obstructs sight. 0 = transparent. */
+  readonly heightM: number;
+  /** Obscurance accumulated per metre crossed; ≥ 1 means opaque. */
+  readonly densityPerM: number;
+}
+
+export interface TerrainLayerRule {
+  readonly key: TerrainLayerKey;
+  readonly id: TerrainLayerId;
+  /** Metres travelled per action point, per movement profile. 0 = impassable. */
+  readonly metersPerAp: Readonly<Record<MovementProfile, number>>;
+  readonly cover: CoverLevel;
+  /** Hedges and dry-stone walls only protect against fire coming across them. */
+  readonly directionalCover: boolean;
+  readonly flammable: boolean;
+  readonly material: Material;
+  readonly sight: SightRule;
+}
+
+export interface MovementRules {
+  /** Extra cost fraction per unit of uphill grade (rise / run). */
+  readonly uphillPenaltyPerGrade: number;
+  /** Steeper cells are impassable for the profile. */
+  readonly maxWalkableGrade: Readonly<Record<MovementProfile, number>>;
+  readonly eyeHeightM: number;
+  readonly targetHeightM: number;
+  /** AP kept in reserve for the inner "move + action" contour. */
+  readonly actionReserveAp: number;
+}
+
+export interface UnitAttackRule {
+  readonly type: DamageType;
+  readonly power: number;
+  /** 0 means melee (contact). */
+  readonly rangeM: number;
+  readonly accuracy: number;
+}
+
+export interface UnitTypeRule {
+  readonly key: string;
+  readonly name: string;
+  readonly faction: Faction;
+  readonly hp: number;
+  readonly armor: ArmorClass;
+  readonly attack: UnitAttackRule | null;
+  readonly ap: number;
+  readonly movement: MovementProfile;
+  readonly tags: readonly string[];
+}
+
+export interface DamageRules {
+  readonly armorReduction: Readonly<Record<ArmorClass, number>>;
+  readonly multipliers: Readonly<Record<DamageType, Readonly<Record<ArmorClass, number>>>>;
+  readonly critChance: number;
+  readonly critMultiplier: number;
+  readonly hitChanceMin: number;
+  readonly hitChanceMax: number;
+  readonly heightStepM: number;
+  readonly accuracyPerHeightStep: number;
+  readonly rangePerHeightStep: number;
+  readonly coverPenalty: Readonly<Record<CoverLevel, number>>;
+  readonly meleeReachM: number;
+}
+
+export interface GameRules {
+  /** Indexed by TerrainLayerId. */
+  readonly terrainLayers: readonly TerrainLayerRule[];
+  readonly movement: MovementRules;
+  readonly units: Readonly<Record<string, UnitTypeRule>>;
+  readonly damage: DamageRules;
+}

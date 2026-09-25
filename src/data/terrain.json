@@ -1,0 +1,27 @@
+{
+  "$comment": "Mètres parcourus par PA selon le profil de déplacement (0 = infranchissable). Brief §9.2 : route 8, plaine 6, champ 5, forêt 4, boue/gué 3.",
+  "layers": {
+    "Plain":        { "metersPerAp": { "lightFoot": 6, "foot": 6, "mounted": 6,   "engine": 5 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "earth",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Road":         { "metersPerAp": { "lightFoot": 8, "foot": 8, "mounted": 8,   "engine": 7 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "earth",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Field":        { "metersPerAp": { "lightFoot": 5, "foot": 5, "mounted": 5,   "engine": 4 }, "cover": "light",   "directionalCover": false, "flammable": true,  "material": "vegetation", "sight": { "heightM": 1.1, "densityPerM": 0.02 } },
+    "Forest":       { "metersPerAp": { "lightFoot": 4, "foot": 4, "mounted": 2.5, "engine": 0 }, "cover": "partial", "directionalCover": false, "flammable": false, "material": "vegetation", "sight": { "heightM": 9,   "densityPerM": 0.06 } },
+    "Mud":          { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 3,   "engine": 2 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "earth",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Ford":         { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 3,   "engine": 2 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "water",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "River":        { "metersPerAp": { "lightFoot": 0, "foot": 0, "mounted": 0,   "engine": 0 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "water",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Moat":         { "metersPerAp": { "lightFoot": 1, "foot": 0, "mounted": 0,   "engine": 0 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "water",      "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Rock":         { "metersPerAp": { "lightFoot": 0, "foot": 0, "mounted": 0,   "engine": 0 }, "cover": "heavy",   "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 4,   "densityPerM": 1 } },
+    "Building":     { "metersPerAp": { "lightFoot": 0, "foot": 0, "mounted": 0,   "engine": 0 }, "cover": "heavy",   "directionalCover": false, "flammable": true,  "material": "wood",       "sight": { "heightM": 6,   "densityPerM": 1 } },
+    "Wall":         { "metersPerAp": { "lightFoot": 0, "foot": 0, "mounted": 0,   "engine": 0 }, "cover": "heavy",   "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 9,   "densityPerM": 1 } },
+    "Bridge":       { "metersPerAp": { "lightFoot": 8, "foot": 8, "mounted": 8,   "engine": 7 }, "cover": "none",    "directionalCover": false, "flammable": true,  "material": "wood",       "sight": { "heightM": 0,   "densityPerM": 0 } },
+    "Rubble":       { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 2,   "engine": 0 }, "cover": "partial", "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 1,   "densityPerM": 0.1 } },
+    "Hedge":        { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": true,  "flammable": true,  "material": "vegetation", "sight": { "heightM": 1.8, "densityPerM": 0.35 } },
+    "DryStoneWall": { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": true,  "flammable": false, "material": "stone",      "sight": { "heightM": 1.1, "densityPerM": 1 } }
+  },
+  "movement": {
+    "uphillPenaltyPerGrade": 2.5,
+    "maxWalkableGrade": { "lightFoot": 1.0, "foot": 0.9, "mounted": 0.6, "engine": 0.3 },
+    "eyeHeightM": 1.6,
+    "targetHeightM": 1.2,
+    "actionReserveAp": 1
+  }
+}

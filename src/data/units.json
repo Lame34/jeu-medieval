@@ -1,0 +1,20 @@
+{
+  "$comment": "Roster attaquant du brief §9.4. Les puissances d'attaque et précisions sont des valeurs de départ, à équilibrer par simulations en J7.",
+  "units": {
+    "archer":      { "name": "Archer",        "faction": "attacker", "hp": 12, "armor": "light",  "attack": { "type": "piercing", "power": 6,  "rangeM": 35, "accuracy": 0.70 }, "ap": 4, "movement": "lightFoot", "tags": ["fireArrows"] },
+    "soldier":     { "name": "Soldat",        "faction": "attacker", "hp": 20, "armor": "medium", "attack": { "type": "blunt",    "power": 7,  "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["shieldWall"] },
+    "knight":      { "name": "Chevalier",     "faction": "attacker", "hp": 35, "armor": "heavy",  "attack": { "type": "blunt",    "power": 10, "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["challenge", "altPiercing"] },
+    "cavalry":     { "name": "Cavalerie",     "faction": "attacker", "hp": 22, "armor": "medium", "attack": { "type": "piercing", "power": 8,  "rangeM": 0,  "accuracy": 0.75 }, "ap": 6, "movement": "mounted",   "tags": ["charge"] },
+    "catapult":    { "name": "Catapulte",     "faction": "attacker", "hp": 25, "armor": "wood",   "attack": { "type": "siege",    "power": 14, "rangeM": 70, "accuracy": 0.55 }, "ap": 2, "movement": "engine",    "tags": ["indirectFire", "siegeEngine"] },
+    "ram":         { "name": "Bélier",        "faction": "attacker", "hp": 40, "armor": "heavy",  "attack": { "type": "siege",    "power": 16, "rangeM": 0,  "accuracy": 0.90 }, "ap": 2, "movement": "engine",    "tags": ["gatesOnly", "roofed", "siegeEngine"] },
+    "siegeTower":  { "name": "Tour de siège", "faction": "attacker", "hp": 50, "armor": "heavy",  "attack": null,                                                          "ap": 2, "movement": "engine",    "tags": ["transport4", "siegeEngine"] },
+    "sapper":      { "name": "Sapeur",        "faction": "attacker", "hp": 15, "armor": "light",  "attack": { "type": "piercing", "power": 5,  "rangeM": 0,  "accuracy": 0.75 }, "ap": 4, "movement": "lightFoot", "tags": ["fillMoat", "undermine"] },
+
+    "towerArcher": { "name": "Archer de tour",     "faction": "defender", "hp": 12, "armor": "light",  "attack": { "type": "piercing", "power": 6,  "rangeM": 35, "accuracy": 0.70 }, "ap": 4, "movement": "lightFoot", "tags": [] },
+    "crossbowman": { "name": "Arbalétrier",        "faction": "defender", "hp": 14, "armor": "medium", "attack": { "type": "piercing", "power": 9,  "rangeM": 30, "accuracy": 0.75 }, "ap": 4, "movement": "foot",      "tags": ["slowReload"] },
+    "wallGuard":   { "name": "Soldat de rempart",  "faction": "defender", "hp": 20, "armor": "medium", "attack": { "type": "blunt",    "power": 7,  "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["boilingOil", "dropStones"] },
+    "sallyKnight": { "name": "Chevalier de sortie", "faction": "defender", "hp": 32, "armor": "heavy",  "attack": { "type": "blunt",    "power": 10, "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["sally"] },
+    "militia":     { "name": "Milicien",           "faction": "defender", "hp": 10, "armor": "light",  "attack": { "type": "piercing", "power": 4,  "rangeM": 0,  "accuracy": 0.65 }, "ap": 4, "movement": "lightFoot", "tags": ["garrisonHouse"] },
+    "officer":     { "name": "Officier",           "faction": "defender", "hp": 24, "armor": "heavy",  "attack": { "type": "blunt",    "power": 8,  "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["command"] }
+  }
+}
