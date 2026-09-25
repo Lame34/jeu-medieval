@@ -3,11 +3,15 @@
  * these exact objects by reference, so one update per frame reaches the whole scene.
  */
 import { Color, Vector2, Vector3 } from 'three';
-import type { ResolvedRig } from '../atmosphere/time-of-day.ts';
+import { resolveRig, type ResolvedRig } from '../atmosphere/time-of-day.ts';
 
-/** Luminance weights (Rec. 709, linear). */
-const LUMA = new Vector3(0.2126, 0.7152, 0.0722);
-const MIN_LUMA = 1e-4;
+/**
+ * The shadow colour is normalised by its channel MEAN (not Rec.709 luminance, where blue weighs
+ * 0.07 and would be boosted ×2), then each tint channel is clamped (art-director review v9, C1).
+ */
+const MIN_MEAN = 1e-4;
+const TINT_MIN = 0.75;
+const TINT_MAX = 1.45;
 
 export interface FogSettings {
   /** Fog starts this far beyond the camera→focus distance (m). */
@@ -22,7 +26,7 @@ export interface FogSettings {
 }
 
 export const DEFAULT_FOG: FogSettings = {
-  startBeyondFocusM: 60,
+  startBeyondFocusM: 40,
   endBeyondFocusM: 900,
   maxAmount: 0.72,
   valleyAmount: 0.22,
@@ -51,7 +55,26 @@ export const paintedGlobals = {
   uWindStrength: { value: 0.6 },
   /** Camera focus point on the ground (grass radius, fog reference). */
   uFocus: { value: new Vector3() },
+  /** Scene light level (≈ 1 at the reference afternoon): multiplies unlit shaders such as water. */
+  uSceneLight: { value: new Color(1, 1, 1) },
+  uExposure: { value: 1 },
+  /** Playable map rectangle: fog thickens outside it so the map edge never reads. */
+  uMapMin: { value: new Vector2(-1e6, -1e6) },
+  uMapMax: { value: new Vector2(1e6, 1e6) },
 };
+
+/** Scene light = sun · sin(elevation) + weighted sky ambient, normalised by the 16:30 rig. */
+const AMBIENT_WEIGHT = 0.5;
+const REFERENCE_HOUR = 16.5;
+let referenceLight: Color | null = null;
+
+function sceneLightOf(rig: ResolvedRig): Color {
+  const sunTerm = rig.sunIntensity * Math.max(0, rig.sunDirection[1]);
+  return rig.sunColor
+    .clone()
+    .multiplyScalar(sunTerm)
+    .add(rig.ambientSky.clone().multiplyScalar(rig.ambientIntensity * AMBIENT_WEIGHT));
+}
 
 export type PaintedGlobals = typeof paintedGlobals;
 
@@ -63,9 +86,15 @@ export function applyRigToGlobals(rig: ResolvedRig): void {
   g.uSunDir.value.set(rig.sunDirection[0], rig.sunDirection[1], rig.sunDirection[2]).normalize();
   g.uSunColor.value.copy(rig.sunColor);
   const shadow = rig.shadowColor;
-  const luma = Math.max(shadow.r * LUMA.x + shadow.g * LUMA.y + shadow.b * LUMA.z, MIN_LUMA);
-  scratchTint.set(shadow.r / luma, shadow.g / luma, shadow.b / luma);
+  const mean = Math.max((shadow.r + shadow.g + shadow.b) / 3, MIN_MEAN);
+  scratchTint.set(shadow.r / mean, shadow.g / mean, shadow.b / mean);
   g.uShadowTint.value.set(1, 1, 1).lerp(scratchTint, rig.shadowStrength);
+  g.uShadowTint.value.clampScalar(TINT_MIN, TINT_MAX);
+  // Overall scene light relative to the reference afternoon: dims self-lit shaders (water).
+  referenceLight ??= sceneLightOf(resolveRig(REFERENCE_HOUR));
+  const light = sceneLightOf(rig);
+  g.uSceneLight.value.setRGB(light.r / referenceLight.r, light.g / referenceLight.g, light.b / referenceLight.b);
+  g.uExposure.value = rig.exposure;
   g.uFogSun.value.copy(rig.fogSun);
   g.uFogAway.value.copy(rig.fogAway);
   g.uSkyZenith.value.copy(rig.skyZenith);

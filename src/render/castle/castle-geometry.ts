@@ -7,6 +7,7 @@ import { BufferAttribute, BufferGeometry, Color, ConeGeometry, CylinderGeometry,
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { TowerSite, WallRun } from '../../core/worldgen/types.ts';
+import { PALETTE } from '../materials/palette.ts';
 
 const BURY_M = 2;
 const MERLON_WIDTH_M = 0.85;
@@ -17,9 +18,13 @@ const PARAPET_HEIGHT_M = 0.45;
 const TOWER_SIDES = 18;
 const TOWER_MERLONS = 12;
 const TOWER_ROOF_RATIO = 0.95;
-const ROOF_OVERHANG_M = 0.55;
-const ROOF_COLOR = '#8e4f38';
+const ROOF_OVERHANG_M = 0.8;
+const ROOF_COLOR = PALETTE.towerRoof;
 const ROOF_SHINGLE_ROWS = 14;
+const GLACIS_HEIGHT_M = 1.4;
+const GLACIS_FLARE_M = 0.8;
+const FINIAL_HEIGHT_M = 1.3;
+const FINIAL_COLOR = '#4a4f57';
 
 interface Box {
   readonly center: Vector3;
@@ -49,13 +54,17 @@ function boxGeometry(box: Box): BufferGeometry {
   return g;
 }
 
-function finish(g: BufferGeometry, baseY: number, color: Color): BufferGeometry {
+/** Horizontal masonry coordinate of a vertex (arc length along the wall / around the tower). */
+type AlongFn = (x: number, z: number) => number;
+
+function finish(g: BufferGeometry, baseY: number, color: Color, along?: AlongFn): BufferGeometry {
   const out = g.index ? g.toNonIndexed() : g;
   const pos = out.getAttribute('position');
   const data = new Float32Array(pos.count * 4);
   const colors = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
     data[i * 4] = pos.getY(i) - baseY;
+    data[i * 4 + 3] = along ? along(pos.getX(i), pos.getZ(i)) : 0;
     colors.set([color.r, color.g, color.b], i * 3);
   }
   out.setAttribute('aPaintedData', new BufferAttribute(data, 4));
@@ -72,7 +81,9 @@ function segmentYaw(a: Vec2, b: Vec2): number {
 export function buildWallGeometry(wall: WallRun): BufferGeometry {
   const stone = new Color('#ffffff');
   const parts: BufferGeometry[] = [];
+  const alongs: AlongFn[] = [];
   const base = wall.baseHeightM;
+  let travelled = 0;
   for (let i = 0; i < wall.points.length - 1; i++) {
     const a = wall.points[i] as Vec2;
     const b = wall.points[i + 1] as Vec2;
@@ -80,10 +91,13 @@ export function buildWallGeometry(wall: WallRun): BufferGeometry {
     const yaw = segmentYaw(a, b);
     const mid = new Vector3((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
     const bodyH = wall.heightM + BURY_M;
+    const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const segmentStart = travelled;
+    const along: AlongFn = (x, z) => segmentStart + (x - a.x) * dir.x + (z - a.z) * dir.z;
+    const before = parts.length;
     // Body, extended by half the thickness so consecutive segments overlap at the joints.
     parts.push(boxGeometry({ center: mid.clone().setY(base - BURY_M + bodyH / 2), size: new Vector3(len + wall.thicknessM, bodyH, wall.thicknessM), yaw }));
     // Outer merlons and inner parapet along the wall-walk.
-    const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     const outward = new Vector3(dir.z, 0, -dir.x);
     const count = Math.floor(len / (MERLON_WIDTH_M + MERLON_GAP_M));
     const start = -((count - 1) * (MERLON_WIDTH_M + MERLON_GAP_M)) / 2;
@@ -98,8 +112,10 @@ export function buildWallGeometry(wall: WallRun): BufferGeometry {
     }
     const parapet = mid.clone().addScaledVector(outward, -wall.thicknessM / 2 + 0.15).setY(base + wall.heightM + PARAPET_HEIGHT_M / 2);
     parts.push(boxGeometry({ center: parapet, size: new Vector3(len, PARAPET_HEIGHT_M, 0.3), yaw }));
+    for (let k = before; k < parts.length; k++) alongs.push(along);
+    travelled += len;
   }
-  const merged = mergeGeometries(parts.map((p) => finish(p, base, stone)), false);
+  const merged = mergeGeometries(parts.map((p, k) => finish(p, base, stone, alongs[k])), false);
   parts.forEach((p) => p.dispose());
   if (!merged) throw new Error('wall merge failed');
   return merged;
@@ -113,6 +129,10 @@ export function buildTowerGeometry(tower: TowerSite): { stone: BufferGeometry; r
   const body = new CylinderGeometry(tower.radiusM * 0.96, tower.radiusM * 1.06, bodyH, TOWER_SIDES, 1, false);
   body.translate(tower.center.x, base - BURY_M + bodyH / 2, tower.center.z);
   parts.push(body);
+  // Battered base (glacis): the tower flares out where it meets the ground.
+  const glacis = new CylinderGeometry(tower.radiusM * 1.06, tower.radiusM * 1.06 + GLACIS_FLARE_M, GLACIS_HEIGHT_M + BURY_M, TOWER_SIDES, 1, true);
+  glacis.translate(tower.center.x, base - BURY_M + (GLACIS_HEIGHT_M + BURY_M) / 2, tower.center.z);
+  parts.push(glacis);
   // Corbelled crown: a slightly wider ring carrying the merlons.
   const crownH = 0.6;
   const crown = new CylinderGeometry(tower.radiusM + 0.35, tower.radiusM * 0.96, crownH, TOWER_SIDES, 1, false);
@@ -129,7 +149,8 @@ export function buildTowerGeometry(tower: TowerSite): { stone: BufferGeometry; r
       }),
     );
   }
-  const stone = mergeGeometries(parts.map((p) => finish(p, base, white)), false);
+  const around: AlongFn = (x, z) => Math.atan2(z - tower.center.z, x - tower.center.x) * tower.radiusM;
+  const stone = mergeGeometries(parts.map((p) => finish(p, base, white, around)), false);
   parts.forEach((p) => p.dispose());
   if (!stone) throw new Error('tower merge failed');
 
@@ -151,5 +172,12 @@ export function buildTowerGeometry(tower: TowerSite): { stone: BufferGeometry; r
     c.copy(shingle).multiplyScalar(tone);
     for (let k = 0; k < 3; k++) colors.setXYZ(tri * 3 + k, c.r, c.g, c.b);
   }
-  return { stone, roof };
+  // Iron finial at the apex.
+  const apexY = roofBase + roofH;
+  const finialGeo = new ConeGeometry(0.12, FINIAL_HEIGHT_M, 6, 1, false).toNonIndexed();
+  finialGeo.translate(tower.center.x, apexY + FINIAL_HEIGHT_M / 2 - 0.1, tower.center.z);
+  const finial = finish(finialGeo, base, new Color(FINIAL_COLOR));
+  const roofWithFinial = mergeGeometries([roof, finial], false);
+  if (!roofWithFinial) throw new Error('tower roof merge failed');
+  return { stone, roof: roofWithFinial };
 }

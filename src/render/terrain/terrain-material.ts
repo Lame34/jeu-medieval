@@ -35,15 +35,21 @@ const TERRAIN_ALBEDO = /* glsl */ `
   vec3 n = normalize(vPaintedWorldNormal);
   vec4 w = texture2D(uSplat, (p.xz - uSplatOrigin) / uSplatSize);
   float slope = 1.0 - n.y;
-  float nLarge = paintedFbm(p.xz / 38.0);
+  float nLarge = paintedFbm(p.xz / 26.0);
   float nMid = paintedFbm(p.xz / 7.0 + 7.3);
   float nFine = paintedValueNoise(p.xz * 1.9);
   float edgeNoise = (nMid - 0.5) * 0.55 + (nFine - 0.5) * 0.22;
 
-  float dry = smoothstep(0.5, 0.88, nLarge + slope * 0.8 + (p.y - uHeightRef) * 0.02);
+  // Slopes facing the sun dry out and blond; ridges too.
+  vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
+  float sunFacing = clamp(dot(n.xz, sunXZ) * 3.0, 0.0, 1.0) * clamp(slope * 4.0, 0.0, 1.0);
+  float dry = smoothstep(0.5, 0.88, nLarge + slope * 0.8 + sunFacing * 0.3 + (p.y - uHeightRef) * 0.02);
   vec3 lush = mix(uGrassLushBase, uGrassLushLit, 0.5 + 0.5 * nMid);
   vec3 dryC = mix(uGrassDryBase, uGrassDryLit, 0.45 + 0.55 * nMid);
-  vec3 col = mix(lush, dryC, dry * 0.55);
+  vec3 col = mix(lush, dryC, dry * 0.85);
+  // Third tone: darker clover patches.
+  float clover = smoothstep(0.55, 0.75, paintedFbm(p.xz / 11.0 + 31.0));
+  col = mix(col, max(paintedHueShift(col, 0.012), 0.0) * 0.86, clover * (1.0 - dry));
   col *= 0.9 + 0.2 * nFine;
 
   float wForest = smoothstep(0.3, 0.7, w.a + edgeNoise);

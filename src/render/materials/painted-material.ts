@@ -24,6 +24,9 @@ export interface PaintedOptions {
   readonly valueNoiseAmp?: number;
   readonly groundAO?: number;
   readonly groundAOHeightM?: number;
+  /** Saturation / value applied to the source albedo (tames over-saturated kit textures). */
+  readonly albedoSaturation?: number;
+  readonly albedoValue?: number;
   /** Units only: soft rim light that detaches silhouettes from the scenery. */
   readonly rim?: { readonly color: Color | string; readonly strength: number };
   /** Vegetation: vertex sway amplitude (m at the top of the object). */
@@ -61,6 +64,8 @@ export interface PaintedOptions {
    * flipping it for back faces, so a blade seen from behind is lit like the ground it grows on.
    */
   readonly keepNormalOnBackFaces?: boolean;
+  /** Leaves: brush-stroke light/dark clumps in the albedo. */
+  readonly foliage?: boolean;
 }
 
 /** Defaults from STYLE_BIBLE §4. */
@@ -159,6 +164,8 @@ uniform float uHueNoiseAmp;
 uniform float uValueNoiseAmp;
 uniform float uGroundAO;
 uniform float uGroundAOHeight;
+uniform float uAlbedoSat;
+uniform float uAlbedoVal;
 uniform vec3 uRimColor;
 uniform float uRimStrength;
 varying vec3 vPaintedWorldPos;
@@ -175,6 +182,7 @@ const FRAGMENT_ALBEDO = /* glsl */ `
 {
   float h01 = clamp(vPaintedHeight / max(uBoundsY.y, 1e-3), 0.0, 1.0);
   vec3 c = diffuseColor.rgb;
+  c = mix(vec3(paintedLuma(c)), c, uAlbedoSat) * uAlbedoVal;
   float l = paintedLuma(c);
   c = max(mix(vec3(l), c, 1.0 + uGradSat * (1.0 - h01)), 0.0);
   c *= mix(uGradBase, uGradTop, smoothstep(0.0, 1.0, h01));
@@ -182,10 +190,18 @@ const FRAGMENT_ALBEDO = /* glsl */ `
   c = max(paintedHueShift(c, (n - 0.5) * 2.0 * uHueNoiseAmp), 0.0);
   c *= 1.0 + (n - 0.5) * 2.0 * uValueNoiseAmp;
   c *= mix(1.0 - uGroundAO, 1.0, smoothstep(0.0, uGroundAOHeight, vPaintedHeight));
+  #ifdef PAINTED_FOLIAGE
+  // Brush-stroke clumps of light and dark leaves (world space, ~0.7 m strokes).
+  float stroke = smoothstep(0.45, 0.6, paintedValueNoise(vPaintedWorldPos.xz * 1.4 + vPaintedWorldPos.y * 1.1));
+  c *= mix(0.84, 1.1, stroke);
+  #endif
   #ifdef PAINTED_VERTEX_DATA
   // Per-building variation (y: hue, z: value) so merged repeats never look copy-pasted.
   c = max(paintedHueShift(c, vPaintedData.y * 0.025), 0.0);
   c *= 1.0 + vPaintedData.z * 0.07;
+  // w = 1 marks thatch: straw strands running down the slope, ±8 % value.
+  float strand = paintedValueNoise(vec2((vPaintedWorldPos.x + vPaintedWorldPos.z) * 7.0, vPaintedWorldPos.y * 0.9));
+  c *= mix(1.0, 0.92 + 0.16 * strand, step(0.5, vPaintedData.w));
   #endif
   diffuseColor.rgb = c;
 }
@@ -233,6 +249,8 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
     uValueNoiseAmp: { value: options.valueNoiseAmp ?? PAINTED_DEFAULTS.valueNoiseAmp },
     uGroundAO: { value: options.groundAO ?? PAINTED_DEFAULTS.groundAO },
     uGroundAOHeight: { value: options.groundAOHeightM ?? PAINTED_DEFAULTS.groundAOHeightM },
+    uAlbedoSat: { value: options.albedoSaturation ?? 1 },
+    uAlbedoVal: { value: options.albedoValue ?? 1 },
     uRimColor: { value: materialColor(options.rim?.color ?? '#fff1d6') },
     uRimStrength: { value: options.rim?.strength ?? 0 },
     uWindSway: { value: options.windSwayM ?? 0 },
@@ -248,6 +266,7 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
   if (options.worldNormal) defines.push('PAINTED_WORLD_NORMAL');
   if (options.vertexData) defines.push('PAINTED_VERTEX_DATA');
   if (options.keepNormalOnBackFaces) defines.push('PAINTED_KEEP_BACK_NORMAL');
+  if (options.foliage) defines.push('PAINTED_FOLIAGE');
   material.defines = Object.fromEntries(defines.map((d) => [d, '']));
 
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {

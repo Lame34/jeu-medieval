@@ -16,7 +16,7 @@ export const FLOOR_HEIGHT_M = 3.12;
 /** Wall pieces: exterior face at local z = +0.09. */
 const WALL_OUTSET_M = 0.09;
 const PLINTH_DEPTH_M = 1.2;
-const PLINTH_HEIGHT_M = 0.16;
+const PLINTH_HEIGHT_M = 0.06;
 const PLINTH_MARGIN_M = 0.25;
 const THATCH_OVERHANG_M = 0.7;
 const THATCH_THICKNESS_M = 0.38;
@@ -148,7 +148,7 @@ function plinth(W: number, D: number): BufferGeometry {
   const d = D / 2 + PLINTH_MARGIN_M;
   const top = PLINTH_HEIGHT_M;
   const bottom = -PLINTH_DEPTH_M;
-  const c = new Color(PALETTE.stone.base);
+  const c = new Color(PALETTE.mud.base);
   const corners = [
     [-w, -d],
     [w, -d],
@@ -171,7 +171,10 @@ function plinth(W: number, D: number): BufferGeometry {
   return g;
 }
 
-function withData(g: BufferGeometry, world: Matrix4, baseY: number, hue: number, value: number): BufferGeometry {
+/** aPaintedData.w flag: 1 = thatch (straw strands in the painted albedo). */
+const THATCH_FLAG = 1;
+
+function withData(g: BufferGeometry, world: Matrix4, baseY: number, hue: number, value: number, flag = 0): BufferGeometry {
   const out = g.clone();
   out.applyMatrix4(world);
   const pos = out.getAttribute('position');
@@ -180,6 +183,7 @@ function withData(g: BufferGeometry, world: Matrix4, baseY: number, hue: number,
     data[i * 4] = pos.getY(i) - baseY;
     data[i * 4 + 1] = hue;
     data[i * 4 + 2] = value;
+    data[i * 4 + 3] = flag;
   }
   out.setAttribute('aPaintedData', new BufferAttribute(data, 4));
   if (!out.getAttribute('color')) {
@@ -210,7 +214,7 @@ export function buildHouses(sites: readonly HouseSite[], kit: Kit): Map<string, 
       for (const part of parts) add(part.material, withData(part.geometry, m, site.baseHeightM, hue, value));
     }
     add(PROCEDURAL_MATERIAL, withData(plinth(site.widthM, site.depthM), world, site.baseHeightM, hue, value));
-    if (thatch) add(PROCEDURAL_MATERIAL, withData(thatchRoof(site.widthM, site.depthM, site.floors * FLOOR_HEIGHT_M), world, site.baseHeightM, hue, value));
+    if (thatch) add(PROCEDURAL_MATERIAL, withData(thatchRoof(site.widthM, site.depthM, site.floors * FLOOR_HEIGHT_M), world, site.baseHeightM, hue, value, THATCH_FLAG));
   }
   const merged = new Map<string, BufferGeometry>();
   for (const [key, list] of byMaterial) {

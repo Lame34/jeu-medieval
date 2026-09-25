@@ -25,6 +25,10 @@ uniform vec3 uHorizonAway;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
 uniform vec3 uFocus;
+uniform vec3 uSceneLight;
+uniform float uExposure;
+uniform vec2 uMapMin;
+uniform vec2 uMapMax;
 `;
 
 /** Cheap hash/value-noise helpers (no sin-based hash: stable across GPUs). */
@@ -65,7 +69,10 @@ float paintedLuma(vec3 c) {
 }
 `;
 
-/** Atmospheric perspective: sun-oriented fog colour, distance from camera, valley haze. */
+/**
+ * Atmospheric perspective: sun-oriented fog colour, ease-out distance curve (the middle ground
+ * already softens), valley haze, and extra haze beyond the playable map so its edge never reads.
+ */
 export const PAINTED_FOG_FN = /* glsl */ `
 vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   vec3 toFrag = worldPos - cameraPosition;
@@ -73,9 +80,12 @@ vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   vec3 viewDir = toFrag / max(dist, 1e-4);
   float sunAmount = pow(clamp(dot(viewDir, uSunDir) * 0.5 + 0.5, 0.0, 1.0), 3.0);
   vec3 fogColor = mix(uFogAway, uFogSun, sunAmount);
-  float fogF = uFogMax * smoothstep(uFogStart, uFogEnd, dist);
+  float t = clamp((dist - uFogStart) / max(uFogEnd - uFogStart, 1.0), 0.0, 1.0);
+  float fogF = uFogMax * (1.0 - (1.0 - t) * (1.0 - t));
   float valley = uValleyFog * (1.0 - smoothstep(uValleyLow, uValleyHigh, worldPos.y)) * smoothstep(0.0, uFogStart, dist);
-  return mix(color, fogColor, max(fogF, valley));
+  vec2 outside = max(max(uMapMin - worldPos.xz, worldPos.xz - uMapMax), 0.0);
+  float edge = 0.55 * smoothstep(0.0, 90.0, length(outside));
+  return mix(color, fogColor, max(max(fogF, valley), edge));
 }
 `;
 
@@ -102,7 +112,9 @@ void RE_Direct_Painted(const in IncidentLight directLight, const in vec3 geometr
 
 void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geometryNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
   float vis = paintedWrap(geometryNormal, directLight.direction) * paintedShadow;
-  paintedSunLit = max(paintedSunLit, vis);
+  // "Is this surface in the sun?" — a narrow step around the terminator, not the wrap term:
+  // flat ground under a grazing sun must stay neutral, only true shade takes the tint.
+  paintedSunLit = max(paintedSunLit, paintedShadow * smoothstep(-0.1, 0.1, dot(geometryNormal, directLight.direction)));
   reflectedLight.directDiffuse += vis * directLight.color * BRDF_Lambert(material.diffuseColor);
 }
 

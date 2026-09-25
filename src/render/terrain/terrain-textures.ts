@@ -52,12 +52,39 @@ function boxBlur(src: Float32Array, width: number, depth: number): Float32Array<
   return out;
 }
 
+/** Beaten-earth apron around houses (R) and mud/rubble strip at the foot of walls (B), in cells. */
+const APRON_CELLS = 2;
+const APRON_WEIGHT = 0.8;
+const WALL_FOOT_CELLS = 2;
+const WALL_FOOT_WEIGHT = 0.7;
+
+/** Raises `channel` around cells of `layer` (square neighbourhood of `radius` cells). */
+function dilate(t: TerrainData, weights: Float32Array, layer: TerrainLayerId, channel: SplatChannel, radius: number, weight: number): void {
+  for (let cz = 0; cz < t.depth; cz++) {
+    for (let cx = 0; cx < t.width; cx++) {
+      if (t.layers[cz * t.width + cx] !== layer) continue;
+      for (let dz = -radius; dz <= radius; dz++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const x = cx + dx;
+          const z = cz + dz;
+          if (x < 0 || z < 0 || x >= t.width || z >= t.depth) continue;
+          const i = (z * t.width + x) * CHANNELS + channel;
+          weights[i] = Math.max(weights[i] as number, weight);
+        }
+      }
+    }
+  }
+}
+
 export function buildSplatTexture(t: TerrainData): DataTexture {
   let weights = new Float32Array(t.width * t.depth * CHANNELS);
   for (let i = 0; i < t.width * t.depth; i++) {
     const channel = LAYER_CHANNEL[t.layers[i] as TerrainLayerId];
     if (channel !== undefined) weights[i * CHANNELS + channel] = 1;
   }
+  // Anchoring: nothing stands on untouched lawn (brief §5.2 "objets sans ancrage").
+  dilate(t, weights, TerrainLayer.Building, 0, APRON_CELLS, APRON_WEIGHT);
+  dilate(t, weights, TerrainLayer.Wall, 2, WALL_FOOT_CELLS, WALL_FOOT_WEIGHT);
   for (let pass = 0; pass < BLUR_PASSES; pass++) weights = boxBlur(weights, t.width, t.depth);
   const bytes = new Uint8Array(weights.length);
   for (let i = 0; i < weights.length; i++) bytes[i] = Math.round(Math.min(1, weights[i] as number) * BYTE_MAX);

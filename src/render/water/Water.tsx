@@ -6,6 +6,7 @@
 import { useEffect, useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, type Texture, type Vector2 } from 'three';
 import type { Vec2 } from '../../core/math/vec2.ts';
+import { extendedRiver } from './river-extension.ts';
 import type { WaterBody } from '../../core/worldgen/types.ts';
 import { PAINTED_FOG_FN, PAINTED_GLOBALS_PARS, PAINTED_NOISE } from '../materials/painted-chunks.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
@@ -100,13 +101,14 @@ void main() {
   float r2 = paintedValueNoise(flowUv * vec2(1.4, 3.2) + 5.0);
   float ripple = mix(r1, r2, 0.35);
 
-  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 1.8, depth));
+  // The water body is lit like the scene (it would glow at dusk otherwise); reflections are not.
+  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 1.8, depth)) * uSceneLight;
   vec3 view = normalize(cameraPosition - vWorldPos);
   float fresnel = pow(1.0 - clamp(view.y, 0.0, 1.0), 3.0);
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float towardSun = dot(normalize(-view.xz + vec2(1e-5)), sunXZ) * 0.5 + 0.5;
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun * towardSun), uSkyZenith, 0.35);
-  col = mix(col, skyRefl * 0.9, clamp(fresnel * 0.45 + (ripple - 0.5) * 0.18, 0.0, 0.5));
+  col = mix(col, skyRefl * 0.9, clamp(fresnel * 0.45 + (ripple - 0.5) * 0.18, 0.0, 0.35));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));
@@ -114,13 +116,13 @@ void main() {
 
   // Sun glints.
   vec3 n = normalize(vec3((ripple - 0.5) * 0.35, 1.0, (r2 - 0.5) * 0.35));
-  float spec = pow(max(dot(reflect(-uSunDir, n), view), 0.0), 90.0);
-  col += uSunColor * spec * 0.9;
+  float spec = pow(max(dot(reflect(-uSunDir, n), view), 0.0), 160.0);
+  col += uSunColor * spec * 0.3;
 
   // Bank foam: thin, broken, drifting.
   float foamBand = 1.0 - smoothstep(0.03, 0.32, depth);
   float foamNoise = smoothstep(0.35, 0.75, paintedValueNoise(flowUv * vec2(0.8, 4.0) + 11.0));
-  col = mix(col, uFoam, foamBand * foamNoise * 0.85 * (1.0 - uStill * 0.6));
+  col = mix(col, uFoam * uSceneLight, foamBand * foamNoise * 0.85 * (1.0 - uStill * 0.6));
 
   float alpha = smoothstep(-0.02, 0.22, depth);
   col = paintedApplyFog(col, vWorldPos);
@@ -150,7 +152,8 @@ export function Water({ bodies, heights, heightsSize }: { readonly bodies: reado
           transparent: true,
           depthWrite: false,
         });
-        const mesh = new Mesh(buildRibbon(body.centerline, body.widthM / 2 + BANK_OVERLAP_M, body.levelM), material);
+        const line = body.kind === 'river' ? extendedRiver(body.centerline) : body.centerline;
+        const mesh = new Mesh(buildRibbon(line, body.widthM / 2 + BANK_OVERLAP_M, body.levelM), material);
         mesh.name = `Water:${body.id}`;
         mesh.renderOrder = 10;
         return mesh;

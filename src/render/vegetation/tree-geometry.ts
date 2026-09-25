@@ -11,7 +11,7 @@ import { Rng } from '../../core/rng.ts';
 import type { TreeSpecies } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
-export const TREE_VARIANTS = 3;
+export const TREE_VARIANTS = 5;
 
 export interface SpeciesStyle {
   readonly heightM: number;
@@ -28,6 +28,9 @@ export const SPECIES_STYLE: Readonly<Record<TreeSpecies, SpeciesStyle>> = {
 };
 
 const BARK = '#5b4633';
+const CANOPY_BUMP = 0.28;
+const CANOPY_BUMP_FINE = 0.08;
+const CANOPY_NORMAL_BLEND = 0.5;
 const BIRCH_BARK = '#d9d2c1';
 const BIRCH_MARK = '#3b342c';
 
@@ -86,6 +89,23 @@ function trunk(rng: Rng, heightM: number, radius: number, bark: string, marks?: 
   });
 }
 
+/** 2–3 main boughs leaving the trunk under the crown (visible from the tactical angle). */
+function branches(rng: Rng, trunkTopM: number, radius: number, bark: string): BufferGeometry[] {
+  const count = rng.int(2, 3);
+  const out: BufferGeometry[] = [];
+  for (let i = 0; i < count; i++) {
+    const len = rng.float(1.4, 2.0);
+    const g = new CylinderGeometry(radius * 0.5, radius, len, 5, 1, true);
+    g.translate(0, len / 2, 0);
+    g.rotateZ(rng.float(0.6, 0.95));
+    g.rotateY((i / count) * Math.PI * 2 + rng.float(-0.4, 0.4));
+    g.translate(0, trunkTopM * rng.float(0.75, 0.95), 0);
+    const barkColor = new Color(bark);
+    out.push(paint(g, () => barkColor.clone().multiplyScalar(0.85)));
+  }
+  return out;
+}
+
 function canopy(rng: Rng, spec: CanopySpec): BufferGeometry {
   const noise = createSimplex(rng.fork('canopy-noise'));
   const blobs: Blob[] = [];
@@ -117,19 +137,23 @@ function canopy(rng: Rng, spec: CanopySpec): BufferGeometry {
     const e = new Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
-      const bump = 1 + 0.16 * noise((v.x + blob.center.x) * 0.9, (v.y + blob.center.z) * 0.9 + v.z * 0.5);
+      // Two octaves of bumps: scalloped, leafy silhouettes instead of smooth spheres.
+      const nx = v.x + blob.center.x;
+      const nz = v.y + blob.center.z + v.z * 0.5;
+      const bump = 1 + CANOPY_BUMP * noise(nx * 0.9, nz * 0.9) + CANOPY_BUMP_FINE * noise(nx * 2.6 + 11, nz * 2.6);
       v.multiplyScalar(bump).add(blob.center);
       pos.setXYZ(i, v.x, v.y, v.z);
-      // Soft crown lighting: blob normal blended with the crown ellipsoid normal.
+      // Soft crown lighting: blob normal blended with the crown ellipsoid normal (clumps stay legible).
       n.fromBufferAttribute(nor, i);
       e.copy(v).sub(spec.center).divide(spec.radii).divide(spec.radii).normalize();
-      n.lerp(e, 0.7).normalize();
+      n.lerp(e, CANOPY_NORMAL_BLEND).normalize();
       nor.setXYZ(i, n.x, n.y, n.z);
     }
     return paint(g, (p, nn) => {
       const height01 = Math.min(1, Math.max(0, (p.y - (spec.center.y - spec.radii.y)) / (2 * spec.radii.y)));
       const outward = Math.min(1, Math.max(0, p.clone().sub(spec.center).divide(spec.radii).length()));
-      const t = Math.min(1, 0.15 + 0.55 * height01 + 0.35 * outward + 0.15 * nn.y);
+      // Darker core, lit outer top: painted depth inside the crown.
+      const t = Math.min(1, 0.05 + 0.5 * height01 + 0.5 * outward * outward + 0.15 * nn.y);
       return base.clone().lerp(lit, t);
     });
   });
@@ -218,9 +242,9 @@ function fern(rng: Rng): BufferGeometry {
 const BUSH_STYLES = [
   { lit: PALETTE.moss.lit, base: PALETTE.moss.base, flowers: null },
   { lit: '#7d8c46', base: '#3b4724', flowers: null },
-  { lit: '#6f8c3e', base: '#3d5426', flowers: '#cfc49a' },
+  { lit: '#77894a', base: '#404f2a', flowers: null },
 ] as const;
-const FLOWER_DENSITY = 0.06;
+const FLOWER_DENSITY = 0;
 
 /** Paints small flower speckles on the upper, outward faces of a bush. */
 function sprinkleFlowers(g: BufferGeometry, rng: Rng, hex: string): void {
@@ -260,15 +284,17 @@ export function buildTreeGeometry(species: TreeSpecies, variant: number, lod: 0 
     case 'oak': {
       const h = rng.float(2.3, 2.9);
       return mergeAll([
-        trunk(rng, h + 1.2, 0.34, BARK),
-        canopy(rng, { center: new Vector3(0, h + 2.2, 0), radii: new Vector3(3.0, 2.3, 2.9), blobCount: blobs(8), blobRadius: [1.3, 1.9], lit: PALETTE.foliage.lit, base: PALETTE.foliage.base, detail }),
+        trunk(rng, h + 1.2, 0.42, BARK),
+        ...(lod === 0 ? branches(rng, h, 0.16, BARK) : []),
+        canopy(rng, { center: new Vector3(0, h + 2.2, 0), radii: new Vector3(3.0, 2.3, 2.9), blobCount: blobs(12), blobRadius: [1.0, 1.5], lit: PALETTE.foliage.lit, base: PALETTE.foliage.base, detail }),
       ]);
     }
     case 'beech': {
       const h = rng.float(3.0, 3.6);
       return mergeAll([
-        trunk(rng, h + 1.6, 0.3, '#6b5a48'),
-        canopy(rng, { center: new Vector3(0, h + 2.9, 0), radii: new Vector3(2.6, 3.0, 2.6), blobCount: blobs(9), blobRadius: [1.2, 1.7], lit: '#96ae4e', base: '#3c5528', detail }),
+        trunk(rng, h + 1.6, 0.36, '#6b5a48'),
+        ...(lod === 0 ? branches(rng, h + 0.4, 0.13, '#6b5a48') : []),
+        canopy(rng, { center: new Vector3(0, h + 2.9, 0), radii: new Vector3(2.6, 3.0, 2.6), blobCount: blobs(12), blobRadius: [0.95, 1.4], lit: '#96ae4e', base: '#3c5528', detail }),
       ]);
     }
     case 'birch': {

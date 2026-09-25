@@ -29,7 +29,7 @@ function tuftGeometry(lit: string, base: string): BufferGeometry {
   const colors: number[] = [];
   const cLit = new Color(lit);
   const cBase = new Color(base);
-  const earColor = new Color(lit).offsetHSL(0.01, 0.05, 0.08);
+  const earColor = new Color(lit).offsetHSL(0, -0.04, 0.06);
   const quad = (a: Vector3, b: Vector3, c: Vector3, d: Vector3, ca: Color, cb: Color) => {
     for (const [p, col] of [
       [a, ca],

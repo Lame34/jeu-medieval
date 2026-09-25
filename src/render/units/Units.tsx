@@ -6,12 +6,13 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { AnimationMixer, Group, PropertyBinding, type AnimationClip } from 'three';
+import { AnimationMixer, Group, PropertyBinding, type AnimationClip, type Object3D } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
-import { createFactionRing } from './FactionRing.ts';
+import { paintedGlobals } from '../materials/painted-globals.ts';
+import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
 import { mergeCharacter, type WeaponMount } from './merge-character.ts';
 import { BODY_CLOTH_HUES } from './team-colors.ts';
 
@@ -83,6 +84,7 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     const mixers: AnimationMixer[] = [];
     const starts: (() => void)[] = [];
     const roots: Group[] = [];
+    const rings: Object3D[] = [];
     units.forEach((unit, index) => {
       const loadout = loadoutFor(unit.typeKey);
       const source = bodyScene(loadout.body);
@@ -104,7 +106,9 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       const root = new Group();
       root.name = `Unit:${unit.id}`;
       body.scale.setScalar(UNIT_SCALE);
-      root.add(body, createFactionRing(unit.faction));
+      const ring = createFactionRing(unit.faction);
+      rings.push(ring);
+      root.add(body, ring);
       root.position.set(unit.position.x, sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
       root.rotation.y = unit.facingTurns * 2 * Math.PI;
       const mixer = new AnimationMixer(body);
@@ -118,7 +122,7 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       });
       roots.push(root);
     });
-    return { roots, mixers, starts, material };
+    return { roots, rings, mixers, starts, material };
   }, [anims, bodies, weapons, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -127,8 +131,10 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     return () => built.mixers.forEach((m) => m.stopAllAction());
   }, [built]);
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     for (const mixer of built.mixers) mixer.update(delta);
+    const scale = Math.min(RING_MAX_SCALE, Math.max(1, camera.position.distanceTo(paintedGlobals.uFocus.value) / RING_SCALE_DISTANCE_M));
+    for (const ring of built.rings) ring.scale.setScalar(scale);
   });
 
   useEffect(

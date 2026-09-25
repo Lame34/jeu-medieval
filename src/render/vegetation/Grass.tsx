@@ -51,7 +51,7 @@ const GRASS_BODY = /* glsl */ `
   float clump = smoothstep(0.25, 0.75, paintedValueNoise(world * 0.35));
   float scale = fade * allowed * mix(0.55, 1.0, clump);
   float ground = texture2D(uGrassHeights, (world + 0.5) / uGrassHeightsSize).r;
-  float height = mix(0.2, 0.5, h3) * mix(0.7, 1.15, clump) * scale;
+  float height = mix(0.25, 0.55, h3) * mix(0.7, 1.15, clump) * scale;
   float width = 0.11 * scale;
   float angle = h1 * 6.2831853;
   vec2 side = vec2(cos(angle), sin(angle)) * width;
@@ -63,14 +63,20 @@ const GRASS_BODY = /* glsl */ `
   } else {
     float phase = dot(world, vec2(0.13, 0.09));
     float gust = sin(uTime * 1.6 + phase) * 0.5 + 0.5 + 0.35 * sin(uTime * 3.1 + phase * 2.3);
-    vec2 lean = (vec2(h2, h1) - 0.5) * 0.5 * height + uWindDir * uWindStrength * gust * 0.35 * height;
+    // Constant lean downwind (blades read as oriented brush strokes) + gusts + jitter.
+    vec2 lean = (vec2(h2, h1) - 0.5) * 0.45 * height + uWindDir * (0.25 + uWindStrength * gust * 0.35) * height;
     p = vec3(world.x + lean.x, ground + height, world.y + lean.y);
   }
   transformed = p;
-  float dry = smoothstep(0.5, 0.88, paintedFbm(world / 38.0)) * 0.55;
+  // Same large-scale tones as the painted ground (dry patches, darker clover).
+  float dry = smoothstep(0.5, 0.88, paintedFbm(world / 26.0)) * 0.85;
+  float clover = smoothstep(0.55, 0.75, paintedFbm(world / 11.0 + 31.0)) * (1.0 - dry);
   vec3 base = mix(uGrassLushBase, uGrassDryBase, dry);
   vec3 tip = mix(uGrassLushTip, uGrassDryTip, dry);
-  vec3 c = (aBlade.y < 1.5 ? base : tip) * mix(0.86, 1.1, h2);
+  vec3 c = (aBlade.y < 1.5 ? base : tip) * mix(0.86, 1.1, h2) * (1.0 - 0.14 * clover);
+  // A few flowering tips (desaturated: allegiance colours keep the monopoly on saturation).
+  float flower = step(0.985, grassHash(cell + 73.7));
+  if (aBlade.y > 1.5 && flower > 0.5) c = h3 > 0.5 ? vec3(0.55, 0.5, 0.34) : vec3(0.34, 0.29, 0.4);
   #ifdef USE_COLOR
   vColor = vec4(c, 1.0);
   #endif
@@ -143,7 +149,7 @@ export function Grass({
           uGrassSpacing: { value: spacing },
           // Blade roots match the painted ground so the carpet has no dark seams.
           uGrassLushBase: { value: lushBase.clone().lerp(new Color(PALETTE.grassLush.lit), 0.45) },
-          uGrassLushTip: { value: new Color(PALETTE.grassLush.lit).offsetHSL(0.01, 0.04, 0.05) },
+          uGrassLushTip: { value: new Color(PALETTE.grassLush.lit).offsetHSL(0.005, 0, 0.03) },
           uGrassDryBase: { value: new Color(PALETTE.grassDry.base) },
           uGrassDryTip: { value: new Color(PALETTE.grassDry.lit) },
         },

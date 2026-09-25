@@ -1,13 +1,17 @@
 /**
  * Painted faction ring under each unit (brief §5.1 pillar "lisibilité tactique"): a soft,
- * brush-edged ring in the allegiance colour, readable at tactical zoom without shouting.
- * Shape is also encoded (attacker: full ring, defender: dashed) for colour-blind players.
+ * brush-edged ring in the allegiance colour with an ink inner stroke, normal-blended (additive
+ * blending turned red to orange on grass). Shape also encodes the side for colour-blind
+ * players (attacker: full ring, defender: dashed). Rings grow with camera distance.
  */
-import { AdditiveBlending, Color, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial } from 'three';
+import { Color, DoubleSide, Mesh, NormalBlending, PlaneGeometry, ShaderMaterial } from 'three';
 import type { Faction } from '../../core/rules/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
 const RING_SIZE_M = 2.2;
+/** Ring scale = clamp(cameraDistance / RING_SCALE_DISTANCE_M, 1, RING_MAX_SCALE). */
+export const RING_SCALE_DISTANCE_M = 60;
+export const RING_MAX_SCALE = 1.8;
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
@@ -19,6 +23,7 @@ void main() {
 
 const fragmentShader = /* glsl */ `
 uniform vec3 uColor;
+uniform vec3 uInk;
 uniform float uDashed;
 varying vec2 vUv;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -27,12 +32,14 @@ void main() {
   float r = length(d);
   float angle = atan(d.y, d.x);
   float wobble = 0.03 * sin(angle * 7.0) + 0.02 * sin(angle * 13.0 + 1.3);
-  float ring = smoothstep(0.62 + wobble, 0.72 + wobble, r) * (1.0 - smoothstep(0.84 + wobble, 0.95 + wobble, r));
+  float ring = smoothstep(0.62 + wobble, 0.7 + wobble, r) * (1.0 - smoothstep(0.86 + wobble, 0.95 + wobble, r));
+  float ink = smoothstep(0.56 + wobble, 0.62 + wobble, r) * (1.0 - smoothstep(0.62 + wobble, 0.67 + wobble, r));
   float dash = mix(1.0, step(0.5, fract(angle / 6.2831853 * 10.0)), uDashed);
-  float brush = 0.75 + 0.25 * hash(floor(vec2(angle * 20.0, r * 8.0)));
-  float alpha = ring * dash * brush * 0.85;
+  float brush = 0.8 + 0.2 * hash(floor(vec2(angle * 20.0, r * 8.0)));
+  float alpha = max(ring * dash * brush * 0.85, ink * dash * 0.45);
   if (alpha < 0.01) discard;
-  gl_FragColor = vec4(uColor, alpha);
+  vec3 color = mix(uColor, uInk, ink * (1.0 - ring));
+  gl_FragColor = vec4(color, alpha);
 }
 `;
 
@@ -44,15 +51,15 @@ const materials: Partial<Record<Faction, ShaderMaterial>> = {};
 function ringMaterial(faction: Faction): ShaderMaterial {
   const existing = materials[faction];
   if (existing) return existing;
-  const color = new Color(faction === 'attacker' ? PALETTE.attacker.primary : PALETTE.defender.primary).multiplyScalar(1.4);
+  const color = new Color(faction === 'attacker' ? PALETTE.attacker.primary : PALETTE.defender.primary);
   const material = new ShaderMaterial({
-    uniforms: { uColor: { value: color }, uDashed: { value: faction === 'defender' ? 1 : 0 } },
+    uniforms: { uColor: { value: color }, uInk: { value: new Color('#1c1a24') }, uDashed: { value: faction === 'defender' ? 1 : 0 } },
     vertexShader,
     fragmentShader,
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
-    blending: AdditiveBlending,
+    blending: NormalBlending,
     polygonOffset: true,
     polygonOffsetFactor: -2,
   });

@@ -15,6 +15,7 @@ import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
 import type { WaterBody } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import { extendedRiver } from '../water/river-extension.ts';
 import { createTerrainMaterial } from './terrain-material.ts';
 
 const RING_RADIUS_M = 2600;
@@ -24,8 +25,8 @@ const STEP_GROWTH = 1.22;
 const HIDDEN_DROP_M = 1.5;
 const EDGE_BLEND_M = 140;
 const SPLAT_SIZE = 256;
-const FAR_CLUMPS = 2200;
-const CLUMP_MIN_DIST_M = 25;
+const FAR_CLUMPS = 1500;
+const CLUMP_MIN_DIST_M = 60;
 const CLUMP_MAX_DIST_M = 900;
 const HILLS: FbmOptions = { octaves: 4, lacunarity: 2.1, gain: 0.5, frequency: 1 / 420 };
 const FOREST: FbmOptions = { octaves: 3, lacunarity: 2, gain: 0.5, frequency: 1 / 260 };
@@ -54,9 +55,12 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     const forestNoise = createSimplex(rng.fork('forest'));
     const outside = (x: number, z: number) => Math.hypot(Math.max(0, -x, x - W), Math.max(0, -z, z - D));
     /** 0 far from rivers, 1 in a river bed (outside the map only; inside, the map carries them). */
+    const rivers = water
+      .filter((b) => b.kind === 'river')
+      .map((b) => ({ ...b, centerline: extendedRiver(b.centerline) }));
     const riverAt = (x: number, z: number): { carve: number; level: number; distance: number } => {
       let best = { carve: 0, level: 0, distance: Number.POSITIVE_INFINITY };
-      for (const body of water) {
+      for (const body of rivers) {
         const d = projectOnPolyline({ x, z }, body.centerline).distance;
         const half = body.widthM / 2;
         const carve = 1 - smoothstep(half * 0.55, half + RIVER_BANK_M, d);
@@ -126,10 +130,11 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     ring.receiveShadow = true;
 
     // --- Forest clumps --------------------------------------------------------------------
-    const clumpParts = [0, 1, 2].map((k) => {
-      const g = new IcosahedronGeometry(1, 0);
-      g.scale(1.1 - k * 0.15, 0.95, 1.1 - k * 0.15);
-      g.translate(k === 0 ? 0 : (k - 1.5) * 1.1, 1.3 + k * 0.25, k === 2 ? 0.8 : -0.4);
+    // Two soft blobs per clump (smooth sphere normals: no facets at distance), sitting on the ground.
+    const clumpParts = [0, 1].map((k) => {
+      const g = new IcosahedronGeometry(1, 1);
+      g.scale(1.1 - k * 0.2, 0.9, 1.1 - k * 0.2);
+      g.translate(k === 0 ? 0 : 0.9, 0.75 + k * 0.2, k === 0 ? 0 : 0.5);
       return g.index ? g.toNonIndexed() : g;
     });
     const clump = mergeGeometries(clumpParts, false);
@@ -160,7 +165,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       if (rng.next() > forestAt(x, z)) continue;
       if (riverAt(x, z).distance < CLUMP_WATER_CLEARANCE_M) continue;
       const scale = rng.float(2.2, 3.4) * (1 + d / 900);
-      p.set(x, heightAt(x, z) - 0.5, z);
+      p.set(x, heightAt(x, z) - 0.2 * scale, z);
       q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
       s.set(scale, scale * rng.float(0.85, 1.2), scale);
       clumps.setMatrixAt(placed++, m.compose(p, q, s));

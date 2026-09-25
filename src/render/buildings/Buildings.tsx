@@ -9,6 +9,11 @@ import { extractKit } from './kit.ts';
 export const VILLAGE_KIT_URL = '/assets/kits/village-kit.glb';
 const HOUSE_HEIGHT_M = 8;
 const GLASS_COLOR = '#3b4b57';
+/** Kit textures that break the saturation rule (STYLE_BIBLE §2) are toned down at load. */
+const KIT_ALBEDO_GRADE: Readonly<Record<string, { saturation: number; value: number }>> = {
+  MI_RoundTiles: { saturation: 0.6, value: 0.92 },
+  MI_Brick: { saturation: 0.75, value: 0.95 },
+};
 
 export function Buildings({ houses }: { readonly houses: readonly HouseSite[] }) {
   const gltf = useGLTF(VILLAGE_KIT_URL, false, true);
@@ -18,7 +23,9 @@ export function Buildings({ houses }: { readonly houses: readonly HouseSite[] })
     const out: Mesh[] = [];
     for (const [key, geometry] of [...geometries.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
       const glass = key.toLowerCase().includes('glass');
+      const grade = KIT_ALBEDO_GRADE[key];
       const material: PaintedMaterial = createPaintedMaterial({
+        ...(grade ? { albedoSaturation: grade.saturation, albedoValue: grade.value } : {}),
         name: `House:${key}`,
         map: key === PROCEDURAL_MATERIAL ? null : (kit.textures.get(key) ?? null),
         color: glass ? new Color(GLASS_COLOR) : '#ffffff',

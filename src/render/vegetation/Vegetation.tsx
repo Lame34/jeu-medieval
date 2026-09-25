@@ -47,6 +47,7 @@ function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData): 
         groundAO: 0.25,
         side: species === 'fern' ? DoubleSide : FrontSide,
         keepNormalOnBackFaces: species === 'fern',
+        foliage: species !== 'fern',
       }),
     );
   }
@@ -65,8 +66,8 @@ function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData): 
     const material = materials.get(species) as PaintedMaterial;
     const mesh = new InstancedMesh(geometry, material, list.length);
     mesh.name = `Veg:${key}`;
-    // Small plants do not cast into the sun's shadow map: invisible difference, fewer draw calls.
-    mesh.castShadow = species !== 'fern' && species !== 'bush';
+    // Bushes cast (they would float otherwise); ferns are too small to matter.
+    mesh.castShadow = species !== 'fern';
     mesh.receiveShadow = true;
     list.forEach((tree, i) => {
       p.set(tree.position.x, sampleHeight(terrain, tree.position.x, tree.position.z) - SINK_M * tree.scale, tree.position.z);

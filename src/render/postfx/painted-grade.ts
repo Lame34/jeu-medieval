@@ -29,11 +29,29 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   c = mix(c, s * s * (3.0 - 2.0 * s), uContrast);
   vec2 d = (uv - 0.5) * vec2(1.15, 1.0);
   c *= 1.0 - uVignette * smoothstep(0.32, 0.92, length(d));
+  // Multiplicative paper grain: never lifts dark flats into grey noise.
   float g = gradeHash(floor(uv * resolution * 0.75));
-  c += (g - 0.5) * uGrain;
+  c *= 1.0 + (g - 0.5) * 2.0 * uGrain;
   outputColor = vec4(max(c, 0.0), inputColor.a);
 }
 `;
+
+const exposureShader = /* glsl */ `
+uniform float uExposure;
+void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+  outputColor = vec4(inputColor.rgb * uExposure, inputColor.a);
+}
+`;
+
+/** Linear-light gain applied before tone mapping (driven by the time-of-day rig). */
+export class ExposureEffect extends Effect {
+  constructor(exposure: { value: number }) {
+    super('ExposureEffect', exposureShader, {
+      blendFunction: BlendFunction.NORMAL,
+      uniforms: new Map<string, Uniform>([['uExposure', exposure as Uniform<number>]]),
+    });
+  }
+}
 
 export interface GradeParams {
   readonly saturation: number;
@@ -43,7 +61,7 @@ export interface GradeParams {
   readonly grain: number;
 }
 
-export const DEFAULT_GRADE: GradeParams = { saturation: 1.05, warmth: 0.07, contrast: 0.12, vignette: 0.32, grain: 0.018 };
+export const DEFAULT_GRADE: GradeParams = { saturation: 1.0, warmth: 0.07, contrast: 0.12, vignette: 0.22, grain: 0.007 };
 
 export class PaintedGradeEffect extends Effect {
   constructor(params: GradeParams = DEFAULT_GRADE) {

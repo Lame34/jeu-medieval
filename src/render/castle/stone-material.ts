@@ -21,27 +21,30 @@ const STONE_ALBEDO = /* glsl */ `
   vec3 p = vPaintedWorldPos;
   vec3 n = normalize(vPaintedWorldNormal);
   float h = vPaintedData.x;
-  // Horizontal coordinate along the face (rotated with the face normal).
-  vec2 nxz = normalize(n.xz + vec2(1e-4));
-  float u = dot(p.xz, vec2(-nxz.y, nxz.x));
-  float course = floor(p.y / uCourseM);
+  // Arc length along the wall / around the tower (continuous across facets and segments).
+  float u = vPaintedData.w;
+  // Irregular course heights: a warped vertical coordinate gives thin and thick courses.
+  float yc = p.y / uCourseM;
+  yc += 0.3 * sin(yc * 1.7);
+  float course = floor(yc);
   float rowJitter = paintedHash12(vec2(course, 3.7));
-  float stoneW = uCourseM * (1.7 + 0.8 * rowJitter);
+  float stoneW = uCourseM * (1.2 + 1.6 * rowJitter);
   float su = u / stoneW + rowJitter * 0.5 + mod(course, 2.0) * 0.5;
   float stoneId = floor(su);
-  vec2 f = vec2(fract(su), fract(p.y / uCourseM));
+  vec2 f = vec2(fract(su), fract(yc));
   float edgeX = min(f.x, 1.0 - f.x) * stoneW;
   float edgeY = min(f.y, 1.0 - f.y) * uCourseM;
-  float jointW = 0.035 + 0.02 * paintedValueNoise(p.xz * 3.0 + p.y);
+  // Irregular joints: width wanders along each joint so stones read hand-laid, not brick.
+  float jointW = 0.028 + 0.03 * paintedValueNoise(vec2(u * 2.3, p.y * 2.9));
   float stoneMask = smoothstep(jointW, jointW + 0.03, min(edgeX, edgeY));
   float horizontal = step(0.75, abs(n.y));
   stoneMask = mix(stoneMask, 1.0, horizontal);
 
   float tone = paintedHash12(vec2(stoneId, course));
-  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.35 + 0.55 * tone);
+  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.2 + 0.8 * tone);
   stoneC = max(paintedHueShift(stoneC, (paintedHash12(vec2(course, stoneId + 9.1)) - 0.5) * 0.04), 0.0);
-  // Soft rounding of each stone: slightly darker towards its edges.
-  stoneC *= 0.86 + 0.14 * smoothstep(0.0, 0.25, min(edgeX, edgeY));
+  // Rounded stone faces: darker towards the joints.
+  stoneC *= 0.75 + 0.25 * smoothstep(0.0, 0.25, min(edgeX, edgeY));
   vec3 col = mix(uMortar, stoneC, stoneMask);
 
   float nLarge = paintedFbm(vec2(u, p.y) / 6.0);
@@ -58,7 +61,10 @@ const STONE_ALBEDO = /* glsl */ `
 }
 `;
 
-export function createStoneMaterial(wallHeightM: number): PaintedMaterial {
+/** Default course height of castle masonry (m). */
+const CASTLE_COURSE_M = 0.64;
+
+export function createStoneMaterial(wallHeightM: number, courseM = CASTLE_COURSE_M): PaintedMaterial {
   return createPaintedMaterial({
     name: 'CastleStone',
     worldNormal: true,
@@ -72,9 +78,9 @@ export function createStoneMaterial(wallHeightM: number): PaintedMaterial {
       uniforms: {
         uStoneLit: { value: new Color(PALETTE.stone.lit) },
         uStoneBase: { value: new Color(PALETTE.stone.base) },
-        uMortar: { value: new Color('#8d8576') },
+        uMortar: { value: new Color(PALETTE.mortar) },
         uMoss: { value: new Color(PALETTE.moss.base) },
-        uCourseM: { value: 0.64 },
+        uCourseM: { value: courseM },
         uWallHeightM: { value: wallHeightM },
       },
     },

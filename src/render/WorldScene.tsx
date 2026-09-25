@@ -9,12 +9,14 @@ import type { WorldLayout } from '../core/worldgen/types.ts';
 import { Atmosphere } from './atmosphere/Atmosphere.tsx';
 import { Buildings } from './buildings/Buildings.tsx';
 import { Castle } from './castle/Castle.tsx';
+import { Hedges } from './fields/Hedges.tsx';
 import { Fields } from './fields/WheatField.tsx';
 import { PostFX } from './postfx/PostFX.tsx';
 import { Sky } from './sky/Sky.tsx';
 import { DistantLandscape } from './terrain/DistantLandscape.tsx';
 import { Terrain } from './terrain/Terrain.tsx';
 import { useSettings } from '../state/settings.ts';
+import { paintedGlobals } from './materials/painted-globals.ts';
 import { QUALITY_PRESETS } from './quality/presets.ts';
 import { buildHeightTexture, buildSplatTexture } from './terrain/terrain-textures.ts';
 import { Units } from './units/Units.tsx';
@@ -57,6 +59,10 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
     },
     [heights, splat],
   );
+  useEffect(() => {
+    paintedGlobals.uMapMin.value.set(layout.playable.minX, layout.playable.minZ);
+    paintedGlobals.uMapMax.value.set(layout.playable.maxX, layout.playable.maxZ);
+  }, [layout]);
 
   return (
     <>
@@ -68,6 +74,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
       <Grass terrain={t} heights={heights} splat={splat} preset={preset} />
       <Vegetation trees={layout.trees} terrain={t} />
       <Fields fields={layout.fields} terrain={t} />
+      <Hedges hedges={layout.hedges} terrain={t} />
       <Castle walls={layout.walls} towers={layout.towers} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} />
