@@ -17,29 +17,32 @@ const KAYKIT = 'assets-src/raw/kaykit-adventurers/KayKit-Character-Pack-Adventur
 const OUT_ROOT = 'public/assets';
 const MANIFEST = 'src/render/assets/asset-manifest.json';
 
+/**
+ * Quaternius RPG Characters, converted by scripts/blender/convert_rpg_characters.py
+ * (npm run assets:characters): retuned proportions, body+weapon atlas, shared clip library.
+ */
+const RPG = 'assets-src/work/rpg';
+const RPG_BODIES = ['warrior', 'ranger', 'rogue'] as const;
+
 /** Animation clips the game plays (brief §6.5); everything else is stripped. */
 const CHARACTER_CLIPS = [
   'Idle',
-  'Walking_A',
-  'Running_A',
-  '1H_Melee_Attack_Chop',
-  '1H_Melee_Attack_Slice_Horizontal',
-  '2H_Melee_Attack_Chop',
-  '1H_Ranged_Aiming',
-  '1H_Ranged_Shoot',
-  '2H_Ranged_Aiming',
-  '2H_Ranged_Shoot',
-  'Block',
-  'Blocking',
-  'Hit_A',
-  'Hit_B',
-  'Death_A',
-  'Death_B',
-  'Cheer',
-  'Dodge_Backward',
-  'Interact',
-  'Use_Item',
-  'Throw',
+  'Idle_Weapon',
+  'Idle_Attacking',
+  'Walk',
+  'Run',
+  'Run_Weapon',
+  'Run_Holding',
+  'Sword_Attack',
+  'Sword_AttackFast',
+  'Dagger_Attack',
+  'Bow_Attack_Draw',
+  'Bow_Attack_Shoot',
+  'Punch',
+  'RecieveHit',
+  'Death',
+  'Roll',
+  'PickUp',
 ] as const;
 
 interface AssetJob {
@@ -55,24 +58,26 @@ interface AssetJob {
 }
 
 const JOBS: readonly AssetJob[] = [
-  // All KayKit adventurers share one 41-bone rig: one animation library for every body.
+  // Every RPG body shares one 44-bone rig: one animation library for all of them.
   {
-    id: 'animations.kaykit',
+    id: 'animations.rpg',
     kind: 'animations',
-    source: `${KAYKIT}/Characters/gltf/Knight.glb`,
-    out: 'characters/kaykit-animations.glb',
+    source: `${RPG}/rpg-animations.glb`,
+    out: 'characters/rpg-animations.glb',
     textureSize: 0,
     keepClips: CHARACTER_CLIPS,
     animationsOnly: true,
   },
-  ...['Knight', 'Barbarian', 'Rogue', 'Rogue_Hooded', 'Mage'].map((name) => ({
-    id: `character.${name.toLowerCase()}`,
+  ...RPG_BODIES.map((name) => ({
+    id: `character.${name}`,
     kind: 'character' as const,
-    source: `${KAYKIT}/Characters/gltf/${name}.glb`,
-    out: `characters/${name.toLowerCase()}.glb`,
-    textureSize: 512,
+    source: `${RPG}/${name}.glb`,
+    out: `characters/${name}.glb`,
+    // 1536×1024 body+weapon atlas → 768×512.
+    textureSize: 768,
     keepClips: [],
   })),
+  // KayKit props (CC0): shields and crossbows kept for the J3 loadouts.
   ...['sword_1handed', 'axe_1handed', 'crossbow_2handed', 'crossbow_1handed', 'shield_round_color', 'shield_square_color', 'shield_badge_color', 'quiver', 'arrow_bundle'].map((name) => ({
     id: `weapon.${name}`,
     kind: 'weapon' as const,

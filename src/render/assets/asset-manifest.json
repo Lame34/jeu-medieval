@@ -2,67 +2,49 @@
   "generated": "scripts/process-assets.ts",
   "assets": [
     {
-      "id": "animations.kaykit",
+      "id": "animations.rpg",
       "kind": "animations",
-      "url": "/assets/characters/kaykit-animations.glb",
-      "bytes": 668168,
+      "url": "/assets/characters/rpg-animations.glb",
+      "bytes": 489812,
       "clips": [
-        "1H_Melee_Attack_Chop",
-        "1H_Melee_Attack_Slice_Horizontal",
-        "1H_Ranged_Aiming",
-        "1H_Ranged_Shoot",
-        "2H_Melee_Attack_Chop",
-        "2H_Ranged_Aiming",
-        "2H_Ranged_Shoot",
-        "Block",
-        "Blocking",
-        "Cheer",
-        "Death_A",
-        "Death_B",
-        "Dodge_Backward",
-        "Hit_A",
-        "Hit_B",
+        "Bow_Attack_Draw",
+        "Bow_Attack_Shoot",
+        "Dagger_Attack",
+        "Death",
         "Idle",
-        "Interact",
-        "Running_A",
-        "Throw",
-        "Use_Item",
-        "Walking_A"
+        "Idle_Attacking",
+        "Idle_Weapon",
+        "PickUp",
+        "Punch",
+        "RecieveHit",
+        "Roll",
+        "Run",
+        "Run_Holding",
+        "Run_Weapon",
+        "Sword_Attack",
+        "Sword_AttackFast",
+        "Walk"
       ]
     },
     {
-      "id": "character.knight",
+      "id": "character.warrior",
       "kind": "character",
-      "url": "/assets/characters/knight.glb",
-      "bytes": 161748,
+      "url": "/assets/characters/warrior.glb",
+      "bytes": 118748,
       "clips": []
     },
     {
-      "id": "character.barbarian",
+      "id": "character.ranger",
       "kind": "character",
-      "url": "/assets/characters/barbarian.glb",
-      "bytes": 142916,
+      "url": "/assets/characters/ranger.glb",
+      "bytes": 105056,
       "clips": []
     },
     {
       "id": "character.rogue",
       "kind": "character",
       "url": "/assets/characters/rogue.glb",
-      "bytes": 140672,
-      "clips": []
-    },
-    {
-      "id": "character.rogue_hooded",
-      "kind": "character",
-      "url": "/assets/characters/rogue_hooded.glb",
-      "bytes": 135888,
-      "clips": []
-    },
-    {
-      "id": "character.mage",
-      "kind": "character",
-      "url": "/assets/characters/mage.glb",
-      "bytes": 134740,
+      "bytes": 63216,
       "clips": []
     },
     {
@@ -126,6 +108,13 @@
       "kind": "weapon",
       "url": "/assets/weapons/arrow_bundle.glb",
       "bytes": 11872,
+      "clips": []
+    },
+    {
+      "id": "kit.village",
+      "kind": "kit",
+      "url": "/assets/kits/village-kit.glb",
+      "bytes": 616680,
       "clips": []
     }
   ]
