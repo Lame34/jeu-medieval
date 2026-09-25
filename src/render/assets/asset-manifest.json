@@ -1,0 +1,132 @@
+{
+  "generated": "scripts/process-assets.ts",
+  "assets": [
+    {
+      "id": "animations.kaykit",
+      "kind": "animations",
+      "url": "/assets/characters/kaykit-animations.glb",
+      "bytes": 668168,
+      "clips": [
+        "1H_Melee_Attack_Chop",
+        "1H_Melee_Attack_Slice_Horizontal",
+        "1H_Ranged_Aiming",
+        "1H_Ranged_Shoot",
+        "2H_Melee_Attack_Chop",
+        "2H_Ranged_Aiming",
+        "2H_Ranged_Shoot",
+        "Block",
+        "Blocking",
+        "Cheer",
+        "Death_A",
+        "Death_B",
+        "Dodge_Backward",
+        "Hit_A",
+        "Hit_B",
+        "Idle",
+        "Interact",
+        "Running_A",
+        "Throw",
+        "Use_Item",
+        "Walking_A"
+      ]
+    },
+    {
+      "id": "character.knight",
+      "kind": "character",
+      "url": "/assets/characters/knight.glb",
+      "bytes": 161748,
+      "clips": []
+    },
+    {
+      "id": "character.barbarian",
+      "kind": "character",
+      "url": "/assets/characters/barbarian.glb",
+      "bytes": 142916,
+      "clips": []
+    },
+    {
+      "id": "character.rogue",
+      "kind": "character",
+      "url": "/assets/characters/rogue.glb",
+      "bytes": 140672,
+      "clips": []
+    },
+    {
+      "id": "character.rogue_hooded",
+      "kind": "character",
+      "url": "/assets/characters/rogue_hooded.glb",
+      "bytes": 135888,
+      "clips": []
+    },
+    {
+      "id": "character.mage",
+      "kind": "character",
+      "url": "/assets/characters/mage.glb",
+      "bytes": 134740,
+      "clips": []
+    },
+    {
+      "id": "weapon.sword_1handed",
+      "kind": "weapon",
+      "url": "/assets/weapons/sword_1handed.glb",
+      "bytes": 9940,
+      "clips": []
+    },
+    {
+      "id": "weapon.axe_1handed",
+      "kind": "weapon",
+      "url": "/assets/weapons/axe_1handed.glb",
+      "bytes": 9920,
+      "clips": []
+    },
+    {
+      "id": "weapon.crossbow_2handed",
+      "kind": "weapon",
+      "url": "/assets/weapons/crossbow_2handed.glb",
+      "bytes": 19068,
+      "clips": []
+    },
+    {
+      "id": "weapon.crossbow_1handed",
+      "kind": "weapon",
+      "url": "/assets/weapons/crossbow_1handed.glb",
+      "bytes": 15364,
+      "clips": []
+    },
+    {
+      "id": "weapon.shield_round_color",
+      "kind": "weapon",
+      "url": "/assets/weapons/shield_round_color.glb",
+      "bytes": 9584,
+      "clips": []
+    },
+    {
+      "id": "weapon.shield_square_color",
+      "kind": "weapon",
+      "url": "/assets/weapons/shield_square_color.glb",
+      "bytes": 9184,
+      "clips": []
+    },
+    {
+      "id": "weapon.shield_badge_color",
+      "kind": "weapon",
+      "url": "/assets/weapons/shield_badge_color.glb",
+      "bytes": 9092,
+      "clips": []
+    },
+    {
+      "id": "weapon.quiver",
+      "kind": "weapon",
+      "url": "/assets/weapons/quiver.glb",
+      "bytes": 11116,
+      "clips": []
+    },
+    {
+      "id": "weapon.arrow_bundle",
+      "kind": "weapon",
+      "url": "/assets/weapons/arrow_bundle.glb",
+      "bytes": 11872,
+      "clips": []
+    }
+  ]
+}
