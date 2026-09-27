@@ -1,6 +1,7 @@
 import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import { Color, DoubleSide, Mesh } from 'three';
+import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { HouseSite } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { buildHouses, PROCEDURAL_MATERIAL } from './houses.ts';
@@ -17,11 +18,11 @@ const KIT_ALBEDO_GRADE: Readonly<Record<string, { saturation: number; value: num
 /** Every other kit texture (thatch, plaster, timber): stays under the allegiance saturations. */
 const KIT_DEFAULT_GRADE = { saturation: 0.85, value: 1 };
 
-export function Buildings({ houses }: { readonly houses: readonly HouseSite[] }) {
+export function Buildings({ houses, terrain }: { readonly houses: readonly HouseSite[]; readonly terrain?: TerrainData }) {
   const gltf = useGLTF(VILLAGE_KIT_URL, false, true);
   const meshes = useMemo(() => {
     const kit = extractKit(gltf.scene);
-    const geometries = buildHouses(houses, kit);
+    const geometries = buildHouses(houses, kit, terrain);
     const out: Mesh[] = [];
     for (const [key, geometry] of [...geometries.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
       const glass = key.toLowerCase().includes('glass');
@@ -35,6 +36,7 @@ export function Buildings({ houses }: { readonly houses: readonly HouseSite[] })
         vertexData: true,
         heightM: HOUSE_HEIGHT_M,
         gradientBase: 0.74,
+        groundAOHeightM: 1.0,
         // The kit is authored double-sided (thin walls, roof undersides seen from the eaves).
         side: DoubleSide,
       });
@@ -45,7 +47,7 @@ export function Buildings({ houses }: { readonly houses: readonly HouseSite[] })
       out.push(mesh);
     }
     return out;
-  }, [gltf, houses]);
+  }, [gltf, houses, terrain]);
 
   useEffect(
     () => () => {

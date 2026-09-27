@@ -64,7 +64,7 @@ const TERRAIN_ALBEDO = /* glsl */ `
   // Slopes facing the sun dry out and blond; ridges too.
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float sunFacing = clamp(dot(n.xz, sunXZ) * 3.0, 0.0, 1.0) * clamp(slope * 4.0, 0.0, 1.0);
-  float dry = smoothstep(0.5, 0.88, nLarge + slope * 0.8 + sunFacing * 0.3 + (p.y - uHeightRef) * 0.02);
+  float dry = smoothstep(0.42, 0.8, nLarge + slope * 0.8 + sunFacing * 0.3 + (p.y - uHeightRef) * 0.02);
   vec3 lush = mix(uGrassLushBase, uGrassLushLit, 0.5 + 0.5 * nMid);
   vec3 dryC = mix(uGrassDryBase, uGrassDryLit, 0.45 + 0.55 * nMid);
   vec3 col = mix(lush, dryC, dry * 0.85);
@@ -79,6 +79,10 @@ const TERRAIN_ALBEDO = /* glsl */ `
   // Under the crop the ground reads as a golden straw bed, not as bare soil.
   // Stubble tone close to the crop: sparse distant tufts (and the unstreamed far fields) keep their mass.
   vec3 fieldBed = uFieldBed * (0.88 + 0.24 * nFine) * (0.94 + 0.12 * nMid);
+  // Beyond the streamed tufts (WheatField, 72 m around the focus) the bed carries the crop
+  // itself: the ripe mass, not the shade between the stalks.
+  vec3 cropMass = mix(uWheatBase, uWheatLit, 0.5 + 0.25 * nMid) * (0.92 + 0.16 * nFine);
+  fieldBed = mix(fieldBed, cropMass, smoothstep(56.0, 72.0, distance(p.xz, uFocus.xz)));
   col = mix(col, fieldBed, wField * 0.9);
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);

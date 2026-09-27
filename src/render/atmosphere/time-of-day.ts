@@ -75,7 +75,7 @@ export const LIGHT_RIGS: readonly LightRig[] = [
     hour: 19.5,
     sunElevationDeg: 6,
     sunAzimuthDeg: 285,
-    sunColor: '#ffac6e',
+    sunColor: '#ffb47a',
     sunIntensity: 2.2,
     skyZenith: '#4c5a8c',
     horizonSun: '#f29a62',

@@ -54,7 +54,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
   const t = layout.terrain;
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const heights = useMemo(() => buildHeightTexture(t), [t]);
-  const splat = useMemo(() => buildSplatTexture(t, layout.trees, layout.hedges), [t, layout.trees, layout.hedges]);
+  const splat = useMemo(() => buildSplatTexture(t, layout.trees, layout.hedges, layout.roads), [t, layout.trees, layout.hedges, layout.roads]);
   const heightsSize = useMemo(() => new Vector2(t.width + 1, t.depth + 1), [t]);
   useEffect(
     () => () => {
@@ -81,7 +81,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
       <Hedges hedges={layout.hedges} terrain={t} />
       <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} />
       <Suspense fallback={null}>
-        <Buildings houses={layout.houses} />
+        <Buildings houses={layout.houses} terrain={t} />
         <Units units={layout.units} terrain={t} />
         <SceneReady />
       </Suspense>

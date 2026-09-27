@@ -11,8 +11,9 @@ uniform float uTime;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform vec3 uShadowTint;
-uniform vec3 uShadowColor;
 uniform float uShadowHue;
+uniform float uShadowHueAngle;
+uniform vec2 uShadowIQ;
 uniform vec3 uFogSun;
 uniform vec3 uFogAway;
 uniform float uFogStart;
@@ -76,6 +77,15 @@ float paintedLuma(vec3 c) {
  * already softens), valley haze, and extra haze beyond the playable map so its edge never reads.
  */
 export const PAINTED_FOG_FN = /* glsl */ `
+// Scene saturation ceiling (STYLE_BIBLE §2): only allegiance colours may exceed it. HSV
+// saturation measured in approximate display space (sqrt of linear), value preserved.
+vec3 paintedSaturationCeiling(vec3 c, float ceiling) {
+  vec3 d = sqrt(max(c, 0.0));
+  float mx = max(d.r, max(d.g, d.b));
+  float s = mx > 1e-4 ? (mx - min(d.r, min(d.g, d.b))) / mx : 0.0;
+  if (s > ceiling) d = mix(vec3(mx), d, ceiling / s);
+  return d * d;
+}
 vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   vec3 toFrag = worldPos - cameraPosition;
   float dist = length(toFrag);
@@ -86,7 +96,8 @@ vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   float fogF = uFogMax * (1.0 - (1.0 - t) * (1.0 - t));
   float valley = uValleyFog * (1.0 - smoothstep(uValleyLow, uValleyHigh, worldPos.y)) * smoothstep(0.0, uFogStart, dist);
   vec2 outside = max(max(uMapMin - worldPos.xz, worldPos.xz - uMapMax), 0.0);
-  float edge = 0.7 * smoothstep(0.0, 45.0, length(outside));
+  // Stepped planes of haze beyond the map, not a milky wall (review v15).
+  float edge = 0.5 * smoothstep(10.0, 140.0, length(outside));
   return mix(color, fogColor, max(max(fogF, valley), edge));
 }
 `;
@@ -123,11 +134,25 @@ void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geom
 void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
   vec3 tint = mix(uShadowTint, vec3(1.0), paintedSunLit);
   vec3 c = irradiance * tint * BRDF_Lambert(material.diffuseColor);
-  // Shade turns blue-violet at constant luminance, whatever the albedo: green grass, grey
-  // stone and orange tiles all get the same painted shadow (a multiplicative tint cannot tint
-  // a colour that lacks blue, and over-tints the ones that have it).
-  float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  c = mix(c, lum * uShadowColor, uShadowHue * (1.0 - paintedSunLit));
+  // Shade turns the hue towards blue-violet at constant luminance (YIQ rotation, at most
+  // ~25°): wheat goes ochre, grass blue-green, plaster sienna, stone blue-violet. A straight
+  // mix towards violet would pass through grey (review v15). Greys take the shadow chroma.
+  float shade = (1.0 - paintedSunLit) * clamp(uShadowHue / 0.28, 0.0, 1.2);
+  #ifdef PAINTED_ALLEGIANCE
+  shade = 0.0; // allegiance colours never drift (a red tabard would turn magenta)
+  #endif
+  if (shade > 0.001) {
+    vec3 yiq = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312) * c;
+    float chroma = length(yiq.yz);
+    float a = atan(yiq.z, yiq.y);
+    float d = mod(uShadowHueAngle - a + 3.14159265, 6.28318531) - 3.14159265;
+    // Warm hues (I > 0) would reach blue-violet through magenta: they only cool slightly
+    // (sienna, ochre) instead of turning pink.
+    a += clamp(d, -0.44, 0.44) * shade * mix(1.0, 0.35, smoothstep(0.0, 0.02, yiq.y));
+    yiq.yz = vec2(cos(a), sin(a)) * chroma * (1.0 + 0.12 * shade);
+    yiq.yz += uShadowIQ * yiq.x * 0.35 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
+    c = max(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * yiq, 0.0);
+  }
   reflectedLight.indirectDiffuse += c;
 }
 

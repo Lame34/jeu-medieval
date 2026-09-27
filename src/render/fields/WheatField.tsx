@@ -91,7 +91,7 @@ function tuftGeometry(lit: string, base: string, stalks: number): BufferGeometry
   const nor = g.getAttribute('normal');
   const n = new Vector3();
   for (let i = 0; i < nor.count; i++) {
-    n.fromBufferAttribute(nor, i).lerp(UP, 0.65).normalize();
+    n.fromBufferAttribute(nor, i).lerp(UP, 0.35).normalize();
     nor.setXYZ(i, n.x, n.y, n.z);
   }
   return g;

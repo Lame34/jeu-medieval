@@ -23,11 +23,11 @@ type Body = (typeof BODIES)[number];
 const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
 
 /**
- * Converted bodies stand ~2.9 units tall. Units are shown ~2.15 m: slightly heroic (brief §5.1),
- * readable at tactical zoom, and a 1.05 m merlon still reaches the chest.
+ * Converted bodies stand ~2.9 units tall. Units are shown ~2.4 m: heroic (brief §5.1) and
+ * readable at tactical zoom (review v15 asked ×1.2 of 2.15 m; ×1.12 keeps merlons at the hip).
  */
-export const UNIT_SCALE = 0.74;
-const UNIT_HEIGHT_M = 2.15;
+export const UNIT_SCALE = 0.83;
+const UNIT_HEIGHT_M = 2.4;
 const RIM = { color: '#fff1d6', strength: 0.55 };
 /** Quaternius atlases are painted dark for Blender's studio light; the warrior's steel most. */
 const ALBEDO_VALUE: Readonly<Record<Body, number>> = { warrior: 1.7, ranger: 1.3, rogue: 1.35 };
@@ -91,6 +91,7 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
         groundAO: 0.2,
         groundAOHeightM: 0.3,
         rim: RIM,
+        saturationCeiling: false,
       });
       materials.set(key, material);
       return material;

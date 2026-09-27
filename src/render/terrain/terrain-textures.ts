@@ -8,7 +8,7 @@ import { DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, RGBAFor
 import { TerrainLayer, type TerrainLayerId } from '../../core/rules/types.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
-import type { HedgeLine, TreeInstance } from '../../core/worldgen/types.ts';
+import type { HedgeLine, RoadLine, TreeInstance } from '../../core/worldgen/types.ts';
 
 const CHANNELS = 4;
 const BLUR_PASSES = 2;
@@ -67,6 +67,43 @@ const HEDGE_FLOOR_WEIGHT = 0.7;
 const FOREST_CHANNEL = 3;
 const CROWN_SPECIES = new Set(['oak', 'beech', 'birch', 'pine']);
 
+/** Road edge ramp (m around the half-width): soft painted verges instead of 1 m steps. */
+const ROAD_EDGE_INNER_M = 0.5;
+const ROAD_EDGE_OUTER_M = 1.0;
+const ROAD_CHANNEL = 0;
+
+/**
+ * Road weight from the exact distance to each centreline segment (the cell layer only says
+ * "road or not", which blurs into a staircase at 1 texel per metre).
+ */
+function stampRoads(t: TerrainData, weights: Float32Array, roads: readonly RoadLine[]): void {
+  for (const road of roads) {
+    const hw = road.widthM / 2;
+    const reach = hw + ROAD_EDGE_OUTER_M + 1;
+    for (let k = 0; k < road.centerline.length - 1; k++) {
+      const a = road.centerline[k] as { x: number; z: number };
+      const b = road.centerline[k + 1] as { x: number; z: number };
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const len2 = dx * dx + dz * dz || 1;
+      for (let cz = Math.floor(Math.min(a.z, b.z) - reach); cz <= Math.ceil(Math.max(a.z, b.z) + reach); cz++) {
+        if (cz < 0 || cz >= t.depth) continue;
+        for (let cx = Math.floor(Math.min(a.x, b.x) - reach); cx <= Math.ceil(Math.max(a.x, b.x) + reach); cx++) {
+          if (cx < 0 || cx >= t.width) continue;
+          const px = cx + 0.5;
+          const pz = cz + 0.5;
+          const s = Math.min(1, Math.max(0, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
+          const d = Math.hypot(px - (a.x + dx * s), pz - (a.z + dz * s));
+          const e = (d - (hw - ROAD_EDGE_INNER_M)) / (ROAD_EDGE_INNER_M + ROAD_EDGE_OUTER_M);
+          const w = 1 - Math.min(1, Math.max(0, e * e * (3 - 2 * e)));
+          const i = (cz * t.width + cx) * CHANNELS + ROAD_CHANNEL;
+          if (w > (weights[i] as number)) weights[i] = w;
+        }
+      }
+    }
+  }
+}
+
 /** Moss and leaf litter under crowns and hedges: anchors every tree at any distance. */
 function stampUnderstory(t: TerrainData, weights: Float32Array, trees: readonly TreeInstance[], hedges: readonly HedgeLine[]): void {
   const raise = (cx: number, cz: number, w: number) => {
@@ -115,12 +152,17 @@ function dilate(t: TerrainData, weights: Float32Array, layer: TerrainLayerId, ch
   }
 }
 
-export function buildSplatTexture(t: TerrainData, trees: readonly TreeInstance[] = [], hedges: readonly HedgeLine[] = []): DataTexture {
+export function buildSplatTexture(t: TerrainData, trees: readonly TreeInstance[] = [], hedges: readonly HedgeLine[] = [], roads: readonly RoadLine[] = []): DataTexture {
   let weights = new Float32Array(t.width * t.depth * CHANNELS);
+  const analyticRoads = roads.length > 0;
   for (let i = 0; i < t.width * t.depth; i++) {
-    const channel = LAYER_CHANNEL[t.layers[i] as TerrainLayerId];
+    const layer = t.layers[i] as TerrainLayerId;
+    // With centrelines at hand, roads come from their exact distance (stampRoads).
+    if (analyticRoads && layer === TerrainLayer.Road) continue;
+    const channel = LAYER_CHANNEL[layer];
     if (channel !== undefined) weights[i * CHANNELS + channel] = 1;
   }
+  stampRoads(t, weights, roads);
   // Anchoring: nothing stands on untouched lawn (brief §5.2 "objets sans ancrage").
   dilate(t, weights, TerrainLayer.Building, 0, APRON_CELLS, APRON_WEIGHT);
   dilate(t, weights, TerrainLayer.Wall, 2, WALL_FOOT_CELLS, WALL_FOOT_WEIGHT);

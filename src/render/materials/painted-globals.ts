@@ -12,8 +12,7 @@ import { resolveRig, type ResolvedRig } from '../atmosphere/time-of-day.ts';
 const MIN_MEAN = 1e-4;
 const TINT_MIN = 0.75;
 const TINT_MAX = 1.25;
-/** Share of the rig's shadow hue kept in the constant-luminance shift. */
-const SHADOW_HUE_SATURATION = 0.6;
+
 
 export interface FogSettings {
   /** Fog starts this far beyond the camera→focus distance (m). */
@@ -42,9 +41,10 @@ export const paintedGlobals = {
   uSunColor: { value: new Color(1, 1, 1) },
   /** Luminance-preserving tint applied to ambient light where the sun does not reach. */
   uShadowTint: { value: new Vector3(1, 1, 1) },
-  /** Shadow hue normalised to unit luminance, and the share of shade that takes it. */
-  uShadowColor: { value: new Vector3(1, 1, 1) },
+  /** Strength of the shade hue rotation, the target hue (YIQ angle) and its chroma per luma. */
   uShadowHue: { value: 0 },
+  uShadowHueAngle: { value: 0 },
+  uShadowIQ: { value: new Vector2() },
   uFogSun: { value: new Color() },
   uFogAway: { value: new Color() },
   uFogStart: { value: 120 },
@@ -95,10 +95,11 @@ export function applyRigToGlobals(rig: ResolvedRig): void {
   scratchTint.set(shadow.r / mean, shadow.g / mean, shadow.b / mean);
   g.uShadowTint.value.set(1, 1, 1).lerp(scratchTint, rig.shadowStrength);
   g.uShadowTint.value.clampScalar(TINT_MIN, TINT_MAX);
-  const luminance = Math.max(0.2126 * shadow.r + 0.7152 * shadow.g + 0.0722 * shadow.b, MIN_MEAN);
-  // Unit luminance, and only part of the hue: a fully saturated violet turns sunlit colours
-  // (wheat, plaster) lavender in the shade.
-  g.uShadowColor.value.set(shadow.r / luminance, shadow.g / luminance, shadow.b / luminance).lerp(scratchTint.set(1, 1, 1), 1 - SHADOW_HUE_SATURATION);
+  const y = Math.max(0.299 * shadow.r + 0.587 * shadow.g + 0.114 * shadow.b, MIN_MEAN);
+  const i = 0.596 * shadow.r - 0.274 * shadow.g - 0.322 * shadow.b;
+  const q = 0.211 * shadow.r - 0.523 * shadow.g + 0.312 * shadow.b;
+  g.uShadowHueAngle.value = Math.atan2(q, i);
+  g.uShadowIQ.value.set(i / y, q / y);
   g.uShadowHue.value = rig.shadowHue;
   // Overall scene light relative to the reference afternoon: dims self-lit shaders (water).
   referenceLight ??= sceneLightOf(resolveRig(REFERENCE_HOUR));

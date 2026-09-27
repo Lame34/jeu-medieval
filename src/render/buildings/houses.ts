@@ -1,12 +1,14 @@
 /**
  * House recipes (brief §6.2): every house is assembled from the village kit on its 2 m grid —
  * ground floor in rough brick or plaster, timber-framed upper floor, kit tile roof or a
- * procedural thatch roof, gables, chimney, door and shutters — then merged per material so a
- * whole village costs a handful of draw calls.
+ * procedural thatch roof, gables, chimney, door and shutters — plus a yard (wagon, crates,
+ * fence) behind it — then merged per material so a whole village costs a handful of draw calls.
  */
-import { BufferAttribute, BufferGeometry, Color, Matrix4, Vector3 } from 'three';
+import { Box3, BufferAttribute, BufferGeometry, Color, Matrix4, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Rng } from '../../core/rng.ts';
+import { TerrainLayer } from '../../core/rules/types.ts';
+import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { HouseSite } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import type { Kit } from './kit.ts';
@@ -16,7 +18,8 @@ export const FLOOR_HEIGHT_M = 3.12;
 /** Wall pieces: exterior face at local z = +0.09. */
 const WALL_OUTSET_M = 0.09;
 const PLINTH_DEPTH_M = 1.2;
-const PLINTH_HEIGHT_M = 0.06;
+/** Barely proud of the ground: a taller plinth read as a black outline in the shade. */
+const PLINTH_HEIGHT_M = 0.02;
 const PLINTH_MARGIN_M = 0.25;
 const THATCH_OVERHANG_M = 0.7;
 const THATCH_THICKNESS_M = 0.38;
@@ -33,6 +36,50 @@ interface Placement {
 }
 
 const Y = new Vector3(0, 1, 0);
+
+/** Yard props stand on free ground only (not on roads, fields, water or other buildings). */
+const YARD_BLOCKING: ReadonlySet<number> = new Set([
+  TerrainLayer.Road,
+  TerrainLayer.Bridge,
+  TerrainLayer.Field,
+  TerrainLayer.River,
+  TerrainLayer.Moat,
+  TerrainLayer.Ford,
+  TerrainLayer.Wall,
+  TerrainLayer.Hedge,
+  TerrainLayer.DryStoneWall,
+]);
+const YARD_SINK_M = 0.03;
+const YARD_BACK_M = 2.4;
+
+/** Wagon, a few crates and a fence run behind the house (local frame: front is +z). */
+function yard(site: HouseSite, rng: Rng, fenceWidthM: number): Placement[] {
+  const W = site.widthM;
+  const D = site.depthM;
+  const out: Placement[] = [];
+  const side = rng.chance(0.5) ? 1 : -1;
+  if (rng.chance(0.65)) out.push({ piece: 'Prop_Wagon', local: at(side * (W / 2 + 1.6), 0, rng.float(-D / 4, D / 4), (Math.PI / 2) * side + rng.float(-0.25, 0.25)) });
+  const crates = rng.int(1, 3);
+  for (let k = 0; k < crates; k++) {
+    out.push({ piece: 'Prop_Crate', local: at(-side * (W / 2 - 0.6 - k * 0.95), 0, -D / 2 - 0.75, rng.float(-0.3, 0.3)) });
+  }
+  if (rng.chance(0.7) && fenceWidthM > 0.2) {
+    const run = Math.max(1, Math.floor((W + 2) / fenceWidthM));
+    for (let k = 0; k < run; k++) out.push({ piece: 'Prop_WoodenFence_Single', local: at(-(run * fenceWidthM) / 2 + fenceWidthM * (k + 0.5), 0, -D / 2 - YARD_BACK_M - 1.2, 0) });
+  }
+  return out;
+}
+
+function pieceWidth(kit: Kit, piece: string): number {
+  const parts = kit.pieces.get(piece);
+  if (!parts) return 0;
+  const box = new Box3();
+  for (const part of parts) {
+    part.geometry.computeBoundingBox();
+    if (part.geometry.boundingBox) box.union(part.geometry.boundingBox);
+  }
+  return box.max.x - box.min.x;
+}
 
 function at(x: number, y: number, z: number, rotY = 0): Matrix4 {
   return new Matrix4().makeRotationAxis(Y, rotY).setPosition(x, y, z);
@@ -148,7 +195,7 @@ function plinth(W: number, D: number): BufferGeometry {
   const d = D / 2 + PLINTH_MARGIN_M;
   const top = PLINTH_HEIGHT_M;
   const bottom = -PLINTH_DEPTH_M;
-  const c = new Color(PALETTE.mud.base);
+  const c = new Color(PALETTE.dirt.base);
   const corners = [
     [-w, -d],
     [w, -d],
@@ -194,13 +241,15 @@ function withData(g: BufferGeometry, world: Matrix4, baseY: number, hue: number,
 }
 
 /** Builds every house and returns one merged geometry per material key. */
-export function buildHouses(sites: readonly HouseSite[], kit: Kit): Map<string, BufferGeometry> {
+export function buildHouses(sites: readonly HouseSite[], kit: Kit, terrain?: TerrainData): Map<string, BufferGeometry> {
   const byMaterial = new Map<string, BufferGeometry[]>();
   const add = (key: string, g: BufferGeometry) => {
     const list = byMaterial.get(key) ?? [];
     list.push(g);
     byMaterial.set(key, list);
   };
+  const fenceWidthM = pieceWidth(kit, 'Prop_WoodenFence_Single');
+  const origin = new Vector3();
   for (const site of sites) {
     const rng = Rng.create(`house:${site.id}:${site.seed}`);
     const world = new Matrix4().makeRotationAxis(Y, site.rotationTurns * 2 * Math.PI).setPosition(site.center.x, site.baseHeightM, site.center.z);
@@ -214,6 +263,21 @@ export function buildHouses(sites: readonly HouseSite[], kit: Kit): Map<string, 
       for (const part of parts) add(part.material, withData(part.geometry, m, site.baseHeightM, hue, value));
     }
     add(PROCEDURAL_MATERIAL, withData(plinth(site.widthM, site.depthM), world, site.baseHeightM, hue, value));
+    if (terrain) {
+      for (const placement of yard(site, Rng.create(`yard:${site.id}:${site.seed}`), fenceWidthM)) {
+        const parts = kit.pieces.get(placement.piece);
+        if (!parts) continue;
+        const m = world.clone().multiply(placement.local);
+        origin.setFromMatrixPosition(m);
+        const cx = Math.floor(origin.x);
+        const cz = Math.floor(origin.z);
+        if (cx < 0 || cz < 0 || cx >= terrain.width || cz >= terrain.depth) continue;
+        if (YARD_BLOCKING.has(terrain.layers[cz * terrain.width + cx] as number)) continue;
+        // Props sit on the real ground (the house pad is flattened, the yard is not).
+        m.elements[13] = sampleHeight(terrain, origin.x, origin.z) - YARD_SINK_M;
+        for (const part of parts) add(part.material, withData(part.geometry, m, site.baseHeightM, hue, value));
+      }
+    }
     if (thatch) add(PROCEDURAL_MATERIAL, withData(thatchRoof(site.widthM, site.depthM, site.floors * FLOOR_HEIGHT_M), world, site.baseHeightM, hue, value, THATCH_FLAG));
   }
   const merged = new Map<string, BufferGeometry>();

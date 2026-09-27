@@ -27,10 +27,10 @@ export const SPECIES_STYLE: Readonly<Record<TreeSpecies, SpeciesStyle>> = {
   fern: { heightM: 0.8, windSwayM: 0.08 },
 };
 
-const BARK = '#5b4633';
+const BARK = '#6b4a36';
 const CANOPY_BUMP = 0.28;
 const CANOPY_BUMP_FINE = 0.08;
-const CANOPY_NORMAL_BLEND = 0.5;
+const CANOPY_NORMAL_BLEND = 0.7;
 const BIRCH_BARK = '#d9d2c1';
 const BIRCH_MARK = '#3b342c';
 

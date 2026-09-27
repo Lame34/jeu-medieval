@@ -72,6 +72,8 @@ export interface PaintedOptions {
    * vegetation never walls off the view (shadows are unaffected).
    */
   readonly nearFade?: boolean;
+  /** Units (allegiance colours) opt out of the scene saturation ceiling and of the shade hue drift. */
+  readonly saturationCeiling?: boolean;
 }
 
 /** Defaults from STYLE_BIBLE §4. */
@@ -224,6 +226,9 @@ const FRAGMENT_ALBEDO = /* glsl */ `
 }
 `;
 
+/** HSV saturation ceiling of everything but the allegiance colours (STYLE_BIBLE §2). */
+const MAX_SCENE_SATURATION = 0.52;
+
 /** Cutaway (m): the camera sphere (dissolved below START, opaque beyond END) and the
  * line-of-sight cylinder (radius, fade width), which spares the last part near the focus. */
 const NEAR_FADE_START_M = 2.5;
@@ -254,9 +259,11 @@ const FRAGMENT_NEAR_FADE = /* glsl */ `
 const FRAGMENT_RIM = /* glsl */ `
 #ifdef PAINTED_RIM
 {
-  // Wide rim, kept strong in the shade: units never turn into black silhouettes (review v13).
-  float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 2.0);
-  reflectedLight.directDiffuse += uRimColor * rim * uRimStrength * (0.7 + 0.3 * paintedSunLit);
+  // Warm rim in the sun, cool sky-tinted and weaker in the shade (review v15: a warm rim at
+  // full strength in the shade turned pale cloth milky white).
+  float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 3.0);
+  vec3 rimColor = mix(uHorizonAway * 1.1, uRimColor, paintedSunLit);
+  reflectedLight.directDiffuse += rimColor * rim * uRimStrength * (0.35 + 0.65 * paintedSunLit);
 }
 #endif
 `;
@@ -313,6 +320,8 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
   if (options.keepNormalOnBackFaces) defines.push('PAINTED_KEEP_BACK_NORMAL');
   if (options.foliage) defines.push('PAINTED_FOLIAGE');
   if (options.nearFade) defines.push('PAINTED_NEAR_FADE');
+  if (options.saturationCeiling !== false) defines.push('PAINTED_SAT_CEILING');
+  else defines.push('PAINTED_ALLEGIANCE');
   material.defines = Object.fromEntries(defines.map((d) => [d, '']));
 
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
@@ -331,7 +340,10 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
     fs = inject(fs, 'color_fragment', custom ? custom.body : FRAGMENT_ALBEDO, 'after');
     fs = inject(fs, 'lights_fragment_begin', paintedLightsBegin(), 'replace');
     fs = inject(fs, 'lights_fragment_end', FRAGMENT_RIM, 'after');
-    fs = inject(fs, 'fog_fragment', 'gl_FragColor.rgb = paintedApplyFog(gl_FragColor.rgb, vPaintedWorldPos);', 'replace');
+    fs = inject(fs, 'fog_fragment', `#ifdef PAINTED_SAT_CEILING
+gl_FragColor.rgb = paintedSaturationCeiling(gl_FragColor.rgb, ${MAX_SCENE_SATURATION.toFixed(2)});
+#endif
+gl_FragColor.rgb = paintedApplyFog(gl_FragColor.rgb, vPaintedWorldPos);`, 'replace');
     shader.fragmentShader = fs;
   };
   // One program per feature combination; values live in uniforms.

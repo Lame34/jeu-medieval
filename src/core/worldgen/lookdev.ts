@@ -170,7 +170,7 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     const hedgeFoot = 1 - smoothstep(1, 4, projectOnPolyline(p, hedge.points).distance);
     // Band in front of the wood (forest mask just below its edge), not the edge line itself.
     const woodFront = smoothstep(0.18, 0.3, m) * (1 - smoothstep(0.45, 0.55, m));
-    const zone = Math.max(woodFront, edge * 0.5, bank * 0.6, fieldBorder * 0.45, wallFoot * 0.9, hedgeFoot * 0.9, 0.04);
+    const zone = Math.max(woodFront, edge * 0.5, bank * 0.6, fieldBorder * 0.45, wallFoot * 0.35, hedgeFoot * 0.9, 0.04);
     const cluster = smoothstep(0.1, 0.35, fbm(clusterNoise, p.x, p.z, { octaves: 2, lacunarity: 2, gain: 0.5, frequency: 1 / 9 }));
     return clamp((zone * cluster + m * 0.25) * clearOfPath, 0, 0.9);
   });
@@ -208,10 +208,10 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     units: [
       // A skirmish in the close-up (one unit of each side), an archer behind, and a guard on
       // the wall-walk who gives the wall its scale.
-      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.33 },
+      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.387 },
       { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 63.5, z: 73.5 }, facingTurns: 0.1 },
       { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: wallWalk, facingTurns: 0.5, elevationM: wallBase + WALL.heightM },
-      { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 73.5, z: 63 }, facingTurns: 0.93 },
+      { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 73.5, z: 63 }, facingTurns: 0.887 },
     ],
     focus: { x: 74, z: 66 },
   };

@@ -25,8 +25,9 @@ const STEP_GROWTH = 1.22;
 const HIDDEN_DROP_M = 3.5;
 const EDGE_BLEND_M = 140;
 const SPLAT_SIZE = 256;
-const FAR_CLUMPS = 1500;
-const CLUMP_MIN_DIST_M = 60;
+const FAR_CLUMPS = 1800;
+/** Clumps start right at the map edge: a bare first strip is what signs "outside". */
+const CLUMP_MIN_DIST_M = 6;
 const CLUMP_MAX_DIST_M = 900;
 const HILLS: FbmOptions = { octaves: 4, lacunarity: 2.1, gain: 0.5, frequency: 1 / 420 };
 const FOREST: FbmOptions = { octaves: 3, lacunarity: 2, gain: 0.5, frequency: 1 / 260 };

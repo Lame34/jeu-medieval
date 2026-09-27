@@ -109,9 +109,11 @@ void main() {
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float towardSun = dot(normalize(-view.xz + vec2(1e-5)), sunXZ) * 0.5 + 0.5;
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun * towardSun), uSkyZenith, 0.35);
+  // Running water reflects a teal sky, not a glacier blue (review v15).
+  skyRefl = mix(skyRefl, uShallow, 0.4 * (1.0 - uStill));
   // Still water (moats) mirrors the sky much more than running water: it must read as water.
   float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill);
-  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.25, 0.5, uStill)));
+  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.15, 0.5, uStill)));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));
@@ -128,6 +130,7 @@ void main() {
   col = mix(col, uFoam * uSceneLight, foamBand * foamNoise * 0.85 * (1.0 - uStill * 0.6));
 
   float alpha = smoothstep(-0.02, 0.22, depth);
+  col = paintedSaturationCeiling(col, 0.52);
   col = paintedApplyFog(col, vWorldPos);
   gl_FragColor = vec4(col, alpha * mix(0.92, 0.97, smoothstep(0.2, 1.5, depth)));
 }

@@ -36,11 +36,13 @@ export interface FactionTint {
   readonly saturation: number;
   readonly lightnessBias: number;
   readonly goldToIron: boolean;
+  /** Lightness gain of grey metal (armour): bright steel for the attacker, dark iron for the defender. */
+  readonly metalGain: number;
 }
 
 export const FACTION_TINTS: Readonly<Record<Faction, FactionTint>> = {
-  attacker: { hue: 0.617, saturation: 0.72, lightnessBias: 0.0, goldToIron: false },
-  defender: { hue: 0.992, saturation: 0.78, lightnessBias: -0.03, goldToIron: true },
+  attacker: { hue: 0.617, saturation: 0.72, lightnessBias: 0.0, goldToIron: false, metalGain: 1.3 },
+  defender: { hue: 0.992, saturation: 0.78, lightnessBias: -0.03, goldToIron: true, metalGain: 0.85 },
 };
 
 function inRange(h: number, s: number, r: HueRange): boolean {
@@ -79,6 +81,10 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
 }
 
 const BYTE = 255;
+/** Grey armour and iron fittings (skin and leather are more saturated). */
+const METAL_MAX_SATURATION = 0.12;
+const METAL_MIN_LIGHTNESS = 0.08;
+const METAL_MAX_LIGHTNESS = 0.55;
 
 export function recolorTexture(source: Texture, clothHues: readonly HueRange[], faction: Faction): Texture {
   const image = source.image as CanvasImageSource & { width: number; height: number };
@@ -114,6 +120,8 @@ export function recolorPixels(data: Uint8ClampedArray, clothHues: readonly HueRa
       out = hslToRgb(tint.hue, Math.max(tint.saturation, s * 0.9), Math.min(0.92, Math.max(0.06, lit)));
     } else if (tint.goldToIron && inRange(h, s, GOLD)) {
       out = hslToRgb(0.6, 0.06, l * 0.75);
+    } else if (s < METAL_MAX_SATURATION && l > METAL_MIN_LIGHTNESS && l < METAL_MAX_LIGHTNESS) {
+      out = hslToRgb(h, s, Math.min(0.9, l * tint.metalGain));
     }
     if (out) {
       data[i] = Math.round(out[0] * BYTE);
