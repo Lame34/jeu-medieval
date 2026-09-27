@@ -1,10 +1,12 @@
 /**
  * Hedges and dry-stone walls along field borders (brief §5.4): hedges are dense rows of leafy
- * blobs (one InstancedMesh), dry-stone walls a low masonry run sharing the castle stone shader
- * (one merged mesh). Both follow the terrain.
+ * blobs (one level-of-detail batch: detailed bushes near the camera, light ones further out),
+ * dry-stone walls a low masonry run sharing the castle stone shader (one merged mesh). Both
+ * follow the terrain.
  */
+import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { BufferAttribute, BufferGeometry, Color, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, Color, Matrix4, Mesh, Quaternion, Vector3, type BatchedMesh } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { Rng } from '../../core/rng.ts';
@@ -13,11 +15,16 @@ import { pointAlong, polylineLength } from '../../core/worldgen/geometry.ts';
 import type { HedgeLine } from '../../core/worldgen/types.ts';
 import { createStoneMaterial } from '../castle/stone-material.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import { createLodBatch, type LodBatch } from '../vegetation/lod-batch.ts';
 import { buildTreeGeometry } from '../vegetation/tree-geometry.ts';
 
 const HEDGE_STEP_M = 0.9;
 const HEDGE_HEIGHT_M = 1.7;
 const HEDGE_WIND_M = 0.05;
+/** Camera distance (m) under which hedge blobs use the detailed bush. */
+const HEDGE_DETAIL_DISTANCE_M = 60;
+const REEVALUATE_STEP_M = 4;
+const HEDGE_VARIANTS = [1, 2] as const;
 const WALL_HEIGHT_M = 1.0;
 const WALL_THICKNESS_M = 0.7;
 const WALL_STEP_M = 1.5;
@@ -89,31 +96,33 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
         along += len;
       }
     }
-    const meshes: (InstancedMesh | Mesh)[] = [];
+    const meshes: (BatchedMesh | Mesh)[] = [];
     const disposables: { dispose(): void }[] = [];
+    let batch: LodBatch | null = null;
     if (spots.length > 0) {
-      const geometry = buildTreeGeometry('bush', 1);
       const material = createPaintedMaterial({ name: 'Hedge', vertexColors: true, heightM: HEDGE_HEIGHT_M, windSwayM: HEDGE_WIND_M, gradientBase: 0.72, foliage: true, nearFade: true });
-      const mesh = new InstancedMesh(geometry, material, spots.length);
-      const m = new Matrix4();
       const q = new Quaternion();
       const sc = new Vector3();
       const pos = new Vector3();
-      const tint = new Color();
-      spots.forEach((spot, i) => {
+      const instances = spots.map((spot, i) => {
         pos.set(spot.p.x, sampleHeight(terrain, spot.p.x, spot.p.z) - 0.15, spot.p.z);
         q.setFromAxisAngle(UP, spot.r * Math.PI * 2);
         sc.set(spot.s * 0.9, spot.s * 1.3, spot.s * 0.9);
-        mesh.setMatrixAt(i, m.compose(pos, q, sc));
-        mesh.setColorAt(i, tint.setRGB(0.92 + 0.12 * spot.r, 0.95 + 0.08 * spot.s, 0.9));
+        return { matrix: new Matrix4().compose(pos, q, sc), color: new Color(0.92 + 0.12 * spot.r, 0.95 + 0.08 * spot.s, 0.9), variant: i };
       });
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.name = 'Hedges';
-      meshes.push(mesh);
-      disposables.push(geometry, material);
+      batch = createLodBatch(
+        {
+          name: 'Hedges',
+          material,
+          near: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 0)),
+          far: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 1)),
+          detailDistanceM: HEDGE_DETAIL_DISTANCE_M,
+          castShadow: true,
+        },
+        instances,
+      );
+      meshes.push(batch.mesh);
+      disposables.push(batch);
     }
     if (walls.length > 0) {
       const geometry = mergeGeometries(walls, false);
@@ -128,8 +137,14 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
         disposables.push(geometry, material);
       }
     }
-    return { meshes, disposables };
+    return { meshes, disposables, batch, last: new Vector3(Number.POSITIVE_INFINITY, 0, 0) };
   }, [hedges, terrain]);
+
+  useFrame(({ camera }) => {
+    if (!built.batch || camera.position.distanceToSquared(built.last) < REEVALUATE_STEP_M ** 2) return;
+    built.last.copy(camera.position);
+    built.batch.update(camera.position);
+  });
 
   useEffect(() => () => built.disposables.forEach((d) => d.dispose()), [built]);
 

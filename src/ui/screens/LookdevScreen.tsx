@@ -32,6 +32,7 @@ export default function LookdevScreen() {
       }) as (...args: never[]) => unknown;
       perf.control['setHour'] = ((h: number) => setHour(h)) as (...args: never[]) => unknown;
       perf.control['viewCount'] = () => LOOKDEV_VIEWS.length;
+      perf.control['viewIds'] = () => LOOKDEV_VIEWS.map((v) => v.id);
       return true;
     };
     if (install()) return undefined;

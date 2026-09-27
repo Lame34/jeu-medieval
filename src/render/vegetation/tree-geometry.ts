@@ -137,6 +137,8 @@ function canopy(rng: Rng, spec: CanopySpec): BufferGeometry {
     const e = new Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
+      // Sphere normal at every detail level (detail 0 would otherwise be flat-shaded facets).
+      n.copy(v).normalize();
       // Two octaves of bumps: scalloped, leafy silhouettes instead of smooth spheres.
       const nx = v.x + blob.center.x;
       const nz = v.y + blob.center.z + v.z * 0.5;
@@ -144,7 +146,6 @@ function canopy(rng: Rng, spec: CanopySpec): BufferGeometry {
       v.multiplyScalar(bump).add(blob.center);
       pos.setXYZ(i, v.x, v.y, v.z);
       // Soft crown lighting: blob normal blended with the crown ellipsoid normal (clumps stay legible).
-      n.fromBufferAttribute(nor, i);
       e.copy(v).sub(spec.center).divide(spec.radii).divide(spec.radii).normalize();
       n.lerp(e, CANOPY_NORMAL_BLEND).normalize();
       nor.setXYZ(i, n.x, n.y, n.z);

@@ -124,6 +124,9 @@ const VERTEX_WIND = /* glsl */ `
 #ifdef PAINTED_WIND
 {
   vec4 baseW = vec4(0.0, 0.0, 0.0, 1.0);
+  #ifdef USE_BATCHING
+  baseW = batchingMatrix * baseW;
+  #endif
   #ifdef USE_INSTANCING
   baseW = instanceMatrix * baseW;
   #endif
@@ -136,6 +139,9 @@ const VERTEX_WIND = /* glsl */ `
   #ifdef USE_INSTANCING
   toWorld = toWorld * mat3(instanceMatrix);
   #endif
+  #ifdef USE_BATCHING
+  toWorld = toWorld * mat3(batchingMatrix);
+  #endif
   transformed += inverse(toWorld) * worldOffset;
 }
 #endif
@@ -145,6 +151,11 @@ const VERTEX_WORLD = /* glsl */ `
 {
   vec4 pW = vec4(transformed, 1.0);
   vec4 pB = vec4(0.0, 0.0, 0.0, 1.0);
+  // Same order as three's project_vertex: model · instance · batching.
+  #ifdef USE_BATCHING
+  pW = batchingMatrix * pW;
+  pB = batchingMatrix * pB;
+  #endif
   #ifdef USE_INSTANCING
   pW = instanceMatrix * pW;
   pB = instanceMatrix * pB;

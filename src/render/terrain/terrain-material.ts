@@ -27,6 +27,7 @@ uniform vec3 uMudBase;
 uniform vec3 uStoneLit;
 uniform vec3 uStoneBase;
 uniform vec3 uWheatBase;
+uniform vec3 uWheatLit;
 `;
 
 const TERRAIN_ALBEDO = /* glsl */ `
@@ -56,7 +57,8 @@ const TERRAIN_ALBEDO = /* glsl */ `
   col = mix(col, mix(uMossBase, uMossLit, 0.35 + 0.5 * nMid), wForest * 0.9);
   float wField = smoothstep(0.35, 0.65, w.g + edgeNoise * 0.6);
   // Under the crop the ground reads as a golden straw bed, not as bare soil.
-  vec3 fieldBed = mix(mix(uDirtBase, uDirtLit, 0.35 + 0.35 * nFine), uWheatBase, 0.6);
+  // Stubble tone close to the crop: sparse distant tufts (and the unstreamed far fields) keep their mass.
+  vec3 fieldBed = mix(mix(uDirtBase, uDirtLit, 0.35 + 0.35 * nFine), mix(uWheatBase, uWheatLit, 0.3 + 0.3 * nFine), 0.72);
   col = mix(col, fieldBed, wField * 0.9);
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
@@ -111,6 +113,7 @@ export function createTerrainMaterial(
         uStoneLit: c(PALETTE.stone.lit),
         uStoneBase: c(PALETTE.stone.base),
         uWheatBase: c(PALETTE.wheat.base),
+        uWheatLit: c(PALETTE.wheat.lit),
       },
     },
   });

@@ -4,6 +4,7 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
+import { BatchedMesh, InstancedMesh, Mesh, type Object3D } from 'three';
 
 const RING_SIZE = 8192;
 
@@ -43,8 +44,39 @@ export function readGpuString(gl: WebGLRenderingContext | WebGL2RenderingContext
   return String(raw);
 }
 
+/**
+ * Triangles per object family (name prefix before ':'), main pass, before frustum culling
+ * (batched meshes: what they drew last). Shadow casters are listed apart. Debug aid for budgets.
+ */
+function triangleBreakdown(scene: Object3D): Record<string, { triangles: number; shadow: boolean }> {
+  const out: Record<string, { triangles: number; shadow: boolean }> = {};
+  const visit = (o: Object3D) => {
+    if (!o.visible) return;
+    if (o instanceof Mesh) {
+      const g = o.geometry;
+      const perDraw = Math.min(g.index ? g.index.count : (g.getAttribute('position')?.count ?? 0), g.drawRange.count) / 3;
+      let triangles = perDraw;
+      if (o instanceof InstancedMesh) triangles = perDraw * o.count;
+      if (o instanceof BatchedMesh) {
+        const internals = o as unknown as { _multiDrawCount: number; _multiDrawCounts: Int32Array };
+        triangles = 0;
+        for (let i = 0; i < internals._multiDrawCount; i++) triangles += (internals._multiDrawCounts[i] ?? 0) / 3;
+      }
+      const key = (o.name || o.type).split(':')[0] as string;
+      const entry = out[key] ?? { triangles: 0, shadow: false };
+      entry.triangles += Math.round(triangles);
+      entry.shadow ||= o.castShadow;
+      out[key] = entry;
+    }
+    for (const child of o.children) visit(child);
+  };
+  visit(scene);
+  return out;
+}
+
 export function PerfProbe() {
   const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
   const ring = useRef(new Float32Array(RING_SIZE));
   const count = useRef(0);
   const last = useRef(0);
@@ -74,12 +106,13 @@ export function PerfProbe() {
       }),
       control: window.__perf?.control ?? {},
     };
+    api.control['breakdown'] = () => triangleBreakdown(scene);
     window.__perf = api;
     return () => {
       gl.info.autoReset = true;
       if (window.__perf === api) delete window.__perf;
     };
-  }, [gl]);
+  }, [gl, scene]);
 
   useFrame(() => {
     const perf = window.__perf;

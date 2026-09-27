@@ -13,6 +13,7 @@ import { Hedges } from './fields/Hedges.tsx';
 import { Fields } from './fields/WheatField.tsx';
 import { PostFX } from './postfx/PostFX.tsx';
 import { Sky } from './sky/Sky.tsx';
+import { ChunkedTerrain } from './terrain/ChunkedTerrain.tsx';
 import { DistantLandscape } from './terrain/DistantLandscape.tsx';
 import { Terrain } from './terrain/Terrain.tsx';
 import { useSettings } from '../state/settings.ts';
@@ -23,6 +24,9 @@ import { Units } from './units/Units.tsx';
 import { Grass } from './vegetation/Grass.tsx';
 import { Vegetation } from './vegetation/Vegetation.tsx';
 import { Water } from './water/Water.tsx';
+
+/** Look-dev-sized terrains stay one mesh; battle maps (512 m) use chunked LOD terrain. */
+const SINGLE_MESH_TERRAIN_CELLS = 256;
 
 /** Signals (bench/capture scripts) that suspended assets are in and shaders are compiled. */
 function SceneReady() {
@@ -68,7 +72,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
     <>
       <Atmosphere />
       <Sky />
-      <Terrain terrain={t} splat={splat} />
+      {t.width > SINGLE_MESH_TERRAIN_CELLS || t.depth > SINGLE_MESH_TERRAIN_CELLS ? <ChunkedTerrain terrain={t} splat={splat} /> : <Terrain terrain={t} splat={splat} />}
       <DistantLandscape terrain={t} seed={layout.name} water={layout.water} />
       <Water bodies={layout.water} heights={heights} heightsSize={heightsSize} />
       <Grass terrain={t} heights={heights} splat={splat} preset={preset} />

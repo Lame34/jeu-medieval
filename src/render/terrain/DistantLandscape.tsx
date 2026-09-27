@@ -93,8 +93,11 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       }
     }
     const indices: number[] = [];
+    // Quads well inside the map lie under the terrain: skip them (one border row is kept).
+    const hidden = (x0: number, x1: number, z0: number, z1: number) => x0 >= BORDER_STEP_M && x1 <= W - BORDER_STEP_M && z0 >= BORDER_STEP_M && z1 <= D - BORDER_STEP_M;
     for (let j = 0; j < zs.length - 1; j++) {
       for (let i = 0; i < xs.length - 1; i++) {
+        if (hidden(xs[i] as number, xs[i + 1] as number, zs[j] as number, zs[j + 1] as number)) continue;
         const a = j * xs.length + i;
         const b = a + 1;
         const c = a + xs.length;
@@ -130,9 +133,16 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     ring.receiveShadow = true;
 
     // --- Forest clumps --------------------------------------------------------------------
-    // Two soft blobs per clump (smooth sphere normals: no facets at distance), sitting on the ground.
+    // Two soft blobs per clump, sitting on the ground: 20-face icosahedra with sphere normals
+    // (smooth shading, and the polygonal silhouette is lost in the distance and the haze).
     const clumpParts = [0, 1].map((k) => {
-      const g = new IcosahedronGeometry(1, 1);
+      const g = new IcosahedronGeometry(1, 0);
+      const pos = g.getAttribute('position');
+      const nor = g.getAttribute('normal');
+      for (let i = 0; i < pos.count; i++) {
+        const len = Math.hypot(pos.getX(i), pos.getY(i), pos.getZ(i));
+        nor.setXYZ(i, pos.getX(i) / len, pos.getY(i) / len, pos.getZ(i) / len);
+      }
       g.scale(1.1 - k * 0.2, 0.9, 1.1 - k * 0.2);
       g.translate(k === 0 ? 0 : 0.9, 0.75 + k * 0.2, k === 0 ? 0 : 0.5);
       return g.index ? g.toNonIndexed() : g;
