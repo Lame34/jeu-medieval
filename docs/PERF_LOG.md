@@ -31,6 +31,8 @@
 ## Mesures
 Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire des 4 ; draw calls et triangles sont le maximum sur les vues, passe d'ombre et post-process compris.
 
+> **Note du 27/09, 16 h 30 — mesures v16 (b0f36ba) marquées ❌.** Le 1 % low est tombé à 21–35 sur toutes les vues, avec des rafales d'une dizaine de frames à ~25 ms toutes les ~1 s, et 92 % d'inactivité CPU (profil CDP). Le même banc, relancé aussitôt sur le build v15 (0b029ab, 53,5 à 15 h 55), donne aussi 19,6 : la cause est l'état de la machine (plusieurs heures de benchs d'affilée, étranglement thermique probable du GPU intégré ; secteur, mode « Utilisation normale »), pas le code. Les mesures seront refaites machine reposée.
+
 <!-- perf-bench --log ajoute une ligne à la fin du tableau ci-dessous (garder ce tableau en fin de fichier) -->
 
 | Date (UTC) | Commit | Scène | Préréglage | CPU | FPS moy. | 1 % low | Draw calls | Triangles | Textures | Budget |
@@ -46,3 +48,7 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-09-27 15:56 | 24a7624 | lookdev | portable | ×4 | 90.6 | 39.5 | 55 | 0.53 M | 48 | ✅ |
 | 2026-09-27 15:58 | 67f3ca7 | battle | portable | ×1 | 99.9 | 52.4 | 111 | 1.42 M | 61 | ✅ |
 | 2026-09-27 16:00 | 67f3ca7 | battle | portable | ×4 | 92.1 | 20.7 | 111 | 1.42 M | 61 | ✅ |
+| 2026-09-27 16:22 | b0f36ba | lookdev | portable | ×1 | 114.5 | 25.3 | 55 | 0.55 M | 48 | ❌ |
+| 2026-09-27 16:23 | b0f36ba | lookdev | portable | ×4 | 79.7 | 27.2 | 55 | 0.55 M | 48 | ✅ |
+| 2026-09-27 16:25 | b0f36ba | battle | portable | ×1 | 89.3 | 22.1 | 111 | 1.46 M | 61 | ❌ |
+| 2026-09-27 16:27 | b0f36ba | battle | portable | ×4 | 52.9 | 24.2 | 111 | 1.46 M | 61 | ✅ |
