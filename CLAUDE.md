@@ -22,9 +22,10 @@ La bible du projet est **`docs/GAME_BRIEF.md`**, qui fait foi. La direction arti
 | `npm test` / `npm run test:cov` | Vitest (`tests/core`), couverture ≥ 80 % sur `src/core` |
 | `npm run e2e` | Playwright (`tests/e2e`) |
 | `npm run bench:core` | Micro-bench navigation 512² (budgets du core) |
-| `npm run bench:perf -- --preset portable [--cpu-throttle 4] [--log]` | Bench GPU (Intel Arc obligatoire), écrit dans `docs/PERF_LOG.md` |
-| `npm run capture:lookdev` | Captures 4 angles × 3 heures dans `docs/captures/` |
-| `npm run assets:process` | Pipeline d'assets (gltf-transform, meshopt, KTX2) |
+| `npm run bench:perf -- --preset portable [--scene lookdev,battle] [--cpu-throttle 4] [--log]` | Bench GPU (Intel Arc obligatoire), écrit dans `docs/PERF_LOG.md` |
+| `npm run capture:lookdev [-- <tag> --scene battle --breakdown]` | Captures des vues × 3 heures dans `docs/captures/` (ventilation des triangles avec `--breakdown`) |
+| `npm run assets:characters` | Blender headless : RPG Characters → GLB (proportions, atlas, tabard, clips) dans `assets-src/work/rpg` |
+| `npm run assets:process` | Pipeline d'assets (gltf-transform, meshopt, KTX2) vers `public/assets` |
 | `node scripts/<x>.ts` | Scripts TypeScript exécutés nativement par Node 24 (ADR-013) |
 
 ## Architecture (détails dans `docs/ARCHITECTURE.md`)

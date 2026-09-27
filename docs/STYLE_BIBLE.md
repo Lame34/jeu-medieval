@@ -17,7 +17,7 @@ Trois règles guident chaque décision :
 ### Paysage (saturation moyenne à faible)
 | Rôle | Lumière | Base / ombre propre | Notes |
 |---|---|---|---|
-| Herbe grasse | `#86A34E` | `#4F6D2F` | Vert mousse, légèrement jaune dans la lumière |
+| Herbe grasse | `#8C9C5C` | `#566A3C` | Vert mousse, légèrement jaune dans la lumière |
 | Herbe sèche | `#B7A862` | `#7E7440` | Dans les zones exposées et en crête |
 | Sous-bois / mousse | `#6B8A3A` | `#3F5626` | Au pied des arbres et des murs |
 | Feuillage (houppier) | `#8FAE52` | `#3E5A2A` | Le haut du houppier capte la lumière chaude |
@@ -26,13 +26,15 @@ Trois règles guident chaque décision :
 | Chemin | `#BC9E70` | `#8A7050` | Routes, plus clair que la terre |
 | Boue / gué | `#6E5842` | `#4A3B2C` | Berges, gué, pluie |
 | Roche / pierre chaude | `#A0978A` | `#6A6258` | Pentes fortes, falaises, château |
-| Blé mûr | `#DCB65C` | `#A3813A` | Champs, ondule au vent |
+| Blé mûr | `#D2AE62` | `#977D4C` | Champs, ondule au vent ; lit du champ entre les touffes `#806A40` |
 | Seigle | `#C6AA6A` | `#8F7A48` | Plus gris que le blé |
 | Jachère | `#8F8A56` | `#5F5C38` | Parcelles au repos |
 | Bois chaud | `#7A5234` | `#4E3322` | Colombages, charpente, engins |
 | Bois clair | `#A67B4F` | `#6E5034` | Planches neuves, palissades |
-| Chaume | `#C9A45C` | `#8B6E3C` | Toits de chaume |
-| Tuile | `#A5573C` | `#6E3628` | Toits de tuiles ; **moins saturée** que le rouge d'allégeance |
+| Chaume | `#B89C68` | `#7F6A48` | Toits de chaume (brins peints dans le shader) |
+| Tuile | `#9A6450` | `#6A4436` | Toits de tuiles ; **moins saturée** que le rouge d'allégeance (textures du kit : saturation ×0,6) |
+| Toit des tours | `#7E5646` | — | Bardeaux en rangs alternés |
+| Mortier | `#6D665A` | — | Joints de la maçonnerie procédurale |
 | Torchis / enduit | `#E2D4B6` | `#A89A7E` | Murs des maisons |
 
 ### Eau
@@ -40,7 +42,7 @@ Trois règles guident chaque décision :
 |---|---|
 | Rivière, eau peu profonde | `#6E9C8E` |
 | Rivière, eau profonde | `#2F5963` |
-| Douves (eau stagnante) | `#3A4A3C` → `#26332B` |
+| Douves (eau stagnante) | `#4A5C48` → `#2E3D33`, reflet du ciel renforcé |
 | Écume, reflet peint | `#EDE6D2` |
 
 ### Allégeances (les seules couleurs très saturées de la scène)
@@ -53,30 +55,34 @@ Règle : aucun autre élément de la scène ne dépasse une saturation HSV de 0,
 
 ## 3. Lumière — trois heures de référence
 
-Les valeurs sont interpolées selon l'heure du tour. Élévation du soleil en degrés ; intensités pour `MeshLambertMaterial` avec `renderer.toneMapping = ACESFilmic`, exposition 1.0.
+Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmosphere/time-of-day.ts`). Élévation du soleil en degrés ; intensités pour `MeshLambertMaterial`, exposition puis ACES Filmic dans le post-process.
 
 | Paramètre | Matin (8 h) | **Fin d'après-midi (16 h 30, défaut)** | Crépuscule (19 h 30) |
 |---|---|---|---|
 | Élévation / azimut | 18° / 110° | **24° / 245°** | 6° / 285° |
-| Couleur du soleil | `#FFE7C8` | **`#FFD39A`** | `#FF9A58` |
-| Intensité du soleil | 2.4 | **2.8** | 1.8 |
+| Couleur du soleil | `#FFE7C8` | **`#FFD8A6`** | `#FFAC6E` |
+| Intensité du soleil | 2.3 | **2.5** | 2.2 |
 | Ciel au zénith | `#7FA6CF` | **`#6F96C4`** | `#4C5A8C` |
 | Horizon, côté soleil | `#F4E2C4` | **`#F3D09C`** | `#F29A62` |
 | Horizon, côté opposé | `#C5D3DF` | **`#B8C6D4`** | `#8A7FA0` |
-| Ambiante, ciel | `#A9BCD8` | **`#9DB2D4`** | `#6A6C98` |
-| Ambiante, sol (rebond) | `#6E6450` | **`#7A5E3C`** | `#5A3E36` |
+| Ambiante, ciel | `#AEC0DC` | **`#A4B8D8`** | `#7D84B4` |
+| Ambiante, sol (rebond) | `#6E6450` | **`#7A6242`** | `#74523A` |
+| Intensité ambiante | 1.9 | **1.9** | 2.3 |
 | Couleur de l'ombre | `#5F6C98` | **`#5B5A8E`** | `#4A4278` |
-| Force de teinte de l'ombre | 0.50 | **0.58** | 0.65 |
+| Teinte multiplicative de l'ombre (`shadowStrength`) | 0.25 | **0.28** | 0.30 |
+| Décalage de teinte à luminance constante (`shadowHue`) | 0.22 | **0.28** | 0.24 |
+| Chaleur de l'étalonnage / exposition | 0.03 / 1.0 | **0.045 / 1.0** | 0.06 / 1.15 |
 | Brume, côté soleil | `#E8DCC6` | **`#EBC896`** | `#E39A6C` |
 | Brume, côté opposé | `#B4C3D2` | **`#A8B8CA`** | `#7E7896` |
 
 ### Ombres
-- Aucune ombre grise ou noire. La lumière reçue est calculée par `shadowTint = mix(shadowColor * albedo * ambient, litColor, shadowFactor)`, jamais par une simple multiplication vers le noir.
+- Aucune ombre grise ou noire. À l'ombre, la lumière ambiante reçoit une teinte multiplicative normalisée par la moyenne des canaux, bornée entre 0,75 et 1,25. Elle glisse ensuite vers la couleur d'ombre **à luminance constante** (`shadowHue`, teinte gardée à 60 %). Herbe, pierre et tuiles prennent ainsi la même ombre bleu-violet (revue v13).
 - Une seule lumière projette des ombres (le soleil), avec une carte de 2048 px au maximum et un frustum resserré qui suit la caméra. Les ombres du terrain et l'AO sont précalculées dans une texture au chargement.
 
 ### Perspective aérienne
-- La brume commence à **80 m** du point visé et atteint **70 %** vers 900 m. Au-delà, les montagnes peintes sont presque entièrement noyées (90 %).
-- La brume se teinte selon l'angle avec le soleil (doré côté soleil, bleu gris à l'opposé), avec un léger brouillard de hauteur dans les vallons (densité ×1,6 sous 4 m).
+- La brume commence à **70 m** au-delà du point visé et atteint **72 %** à 900 m, en ease-out. Hors de la carte jouable, un voile supplémentaire (jusqu'à 70 % à 45 m du bord) cache le bord.
+- La brume se teinte selon l'angle avec le soleil (doré côté soleil, bleu gris à l'opposé), avec un léger brouillard de vallon (0,12 sous 3 m).
+- Le ciel porte des bancs de nuages peints, précalculés au chargement (panorama 1024 × 256), concentrés juste au-dessus des montagnes.
 - Les montagnes du fond sont trois couches de silhouettes, de plus en plus claires et bleues.
 
 ## 4. PaintedMaterial — paramètres par défaut
@@ -91,7 +97,7 @@ Les valeurs sont interpolées selon l'heure du tour. Élévation du soleil en de
 | `hueNoiseAmp` | 0.035 | Décalage de teinte (en tours HSV) |
 | `valueNoiseAmp` | 0.07 | Variation de valeur |
 | `instanceJitter` | 0.05 | Variation de teinte par instance (arbres, maisons) |
-| `rimStrength` (unités uniquement) | 0.35, `#FFF1D6` | Détache les silhouettes du décor |
+| `rimStrength` (unités uniquement) | 0.55, `#FFF1D6`, exposant 2, 70 % à l'ombre | Détache les silhouettes du décor, même à l'ombre |
 | `groundAO` | 0.35 sur 0,6 m | Assombrissement peint au contact du sol (ancrage) |
 
 ## 5. Interface
