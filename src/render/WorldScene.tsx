@@ -54,7 +54,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
   const t = layout.terrain;
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const heights = useMemo(() => buildHeightTexture(t), [t]);
-  const splat = useMemo(() => buildSplatTexture(t), [t]);
+  const splat = useMemo(() => buildSplatTexture(t, layout.trees, layout.hedges), [t, layout.trees, layout.hedges]);
   const heightsSize = useMemo(() => new Vector2(t.width + 1, t.depth + 1), [t]);
   useEffect(
     () => () => {

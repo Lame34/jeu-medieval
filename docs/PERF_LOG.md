@@ -38,3 +38,7 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-09-25 12:32 | 0411f98 | lookdev | portable | ×1 | 101.6 | 4.5 | 65 | 0.82 M | 22 | ❌ |
 | 2026-09-25 12:36 | 0411f98 | lookdev | portable | ×1 | 106.5 | 52.9 | 65 | 0.82 M | 22 | ✅ |
 | 2026-09-25 12:38 | 0411f98 | lookdev | portable | ×4 | 81.3 | 16.1 | 65 | 0.82 M | 22 | ✅ |
+| 2026-09-27 15:24 | aead228 | lookdev | portable | ×1 | 112.5 | 31.3 | 53 | 0.61 M | 44 | ❌ |
+| 2026-09-27 15:26 | aead228 | lookdev | portable | ×4 | 84.2 | 29.8 | 53 | 0.61 M | 44 | ✅ |
+| 2026-09-27 15:27 | aead228 | battle | portable | ×1 | 91.7 | 54.6 | 110 | 1.66 M | 60 | ❌ |
+| 2026-09-27 15:29 | aead228 | battle | portable | ×4 | 56.8 | 26.5 | 110 | 1.66 M | 60 | ❌ |

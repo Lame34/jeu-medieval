@@ -15,15 +15,14 @@ import { pointAlong, polylineLength } from '../../core/worldgen/geometry.ts';
 import type { HedgeLine } from '../../core/worldgen/types.ts';
 import { createStoneMaterial } from '../castle/stone-material.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
-import { createLodBatch, type LodBatch } from '../vegetation/lod-batch.ts';
+import { CameraTrigger, createLodBatch, type LodBatch } from '../vegetation/lod-batch.ts';
 import { buildTreeGeometry } from '../vegetation/tree-geometry.ts';
 
-const HEDGE_STEP_M = 0.9;
+const HEDGE_STEP_M = 0.7;
 const HEDGE_HEIGHT_M = 1.7;
 const HEDGE_WIND_M = 0.05;
 /** Camera distance (m) under which hedge blobs use the detailed bush. */
 const HEDGE_DETAIL_DISTANCE_M = 60;
-const REEVALUATE_STEP_M = 4;
 const HEDGE_VARIANTS = [1, 2] as const;
 const WALL_HEIGHT_M = 1.0;
 const WALL_THICKNESS_M = 0.7;
@@ -86,7 +85,7 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
     for (const hedge of hedges) {
       const len = polylineLength(hedge.points);
       if (hedge.kind === 'hedge') {
-        for (let s = 0; s <= len; s += HEDGE_STEP_M * rng.float(0.8, 1.2)) spots.push({ p: pointAlong(hedge.points, s), s: rng.float(0.8, 1.25), r: rng.next() });
+        for (let s = 0; s <= len; s += HEDGE_STEP_M * rng.float(0.8, 1.2)) spots.push({ p: pointAlong(hedge.points, s), s: rng.float(0.6, 1.4), r: rng.next() });
       } else {
         for (let s = 0; s < len; s += WALL_STEP_M) {
           const a = pointAlong(hedge.points, s);
@@ -137,13 +136,12 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
         disposables.push(geometry, material);
       }
     }
-    return { meshes, disposables, batch, last: new Vector3(Number.POSITIVE_INFINITY, 0, 0) };
+    return { meshes, disposables, batch, trigger: new CameraTrigger() };
   }, [hedges, terrain]);
 
   useFrame(({ camera }) => {
-    if (!built.batch || camera.position.distanceToSquared(built.last) < REEVALUATE_STEP_M ** 2) return;
-    built.last.copy(camera.position);
-    built.batch.update(camera.position);
+    if (!built.batch || !built.trigger.moved(camera)) return;
+    built.batch.update(camera);
   });
 
   useEffect(() => () => built.disposables.forEach((d) => d.dispose()), [built]);

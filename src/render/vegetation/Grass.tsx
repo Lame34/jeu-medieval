@@ -51,8 +51,10 @@ const GRASS_BODY = /* glsl */ `
   float clump = smoothstep(0.25, 0.75, paintedValueNoise(world * 0.35));
   float scale = fade * allowed * mix(0.55, 1.0, clump);
   float ground = texture2D(uGrassHeights, (world + 0.5) / uGrassHeightsSize).r;
-  float height = mix(0.25, 0.55, h3) * mix(0.7, 1.15, clump) * scale;
-  float width = 0.11 * scale;
+  // A few flowering blades: shorter, wider, cream or butter heads that read as dots.
+  float flower = step(0.985, grassHash(cell + 73.7));
+  float height = mix(0.2, 0.45, h3) * mix(0.7, 1.15, clump) * scale * mix(1.0, 0.6, flower);
+  float width = 0.065 * scale * mix(1.0, 1.5, flower);
   float angle = h1 * 6.2831853;
   vec2 side = vec2(cos(angle), sin(angle)) * width;
   vec3 p;
@@ -74,9 +76,7 @@ const GRASS_BODY = /* glsl */ `
   vec3 base = mix(uGrassLushBase, uGrassDryBase, dry);
   vec3 tip = mix(uGrassLushTip, uGrassDryTip, dry);
   vec3 c = (aBlade.y < 1.5 ? base : tip) * mix(0.86, 1.1, h2) * (1.0 - 0.14 * clover);
-  // A few flowering tips (desaturated: allegiance colours keep the monopoly on saturation).
-  float flower = step(0.985, grassHash(cell + 73.7));
-  if (aBlade.y > 1.5 && flower > 0.5) c = h3 > 0.5 ? vec3(0.55, 0.5, 0.34) : vec3(0.34, 0.29, 0.4);
+  if (aBlade.y > 1.5 && flower > 0.5) c = h3 > 0.5 ? vec3(0.79, 0.72, 0.52) : vec3(0.69, 0.55, 0.14);
   #ifdef USE_COLOR
   vColor = vec4(c, 1.0);
   #endif
@@ -149,7 +149,7 @@ export function Grass({
           uGrassSpacing: { value: spacing },
           // Blade roots match the painted ground so the carpet has no dark seams.
           uGrassLushBase: { value: lushBase.clone().lerp(new Color(PALETTE.grassLush.lit), 0.45) },
-          uGrassLushTip: { value: new Color(PALETTE.grassLush.lit).offsetHSL(0.005, 0, 0.03) },
+          uGrassLushTip: { value: new Color(PALETTE.grassLush.lit).offsetHSL(0.005, 0, 0.06) },
           uGrassDryBase: { value: new Color(PALETTE.grassDry.base) },
           uGrassDryTip: { value: new Color(PALETTE.grassDry.lit) },
         },

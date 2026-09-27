@@ -18,6 +18,8 @@ export interface LightRig {
   readonly ambientIntensity: number;
   readonly shadowColor: string;
   readonly shadowStrength: number;
+  /** Share of shade that turns to the shadow hue at constant luminance (review v13, #1). */
+  readonly shadowHue: number;
   readonly fogSun: string;
   readonly fogAway: string;
   /** Grading: warmth of the split-tone (highlights) and overall saturation. */
@@ -40,7 +42,8 @@ export const LIGHT_RIGS: readonly LightRig[] = [
     ambientGround: '#6e6450',
     ambientIntensity: 1.9,
     shadowColor: '#5f6c98',
-    shadowStrength: 0.4,
+    shadowStrength: 0.25,
+    shadowHue: 0.22,
     fogSun: '#e8dcc6',
     fogAway: '#b4c3d2',
     gradeWarmth: 0.03,
@@ -60,7 +63,8 @@ export const LIGHT_RIGS: readonly LightRig[] = [
     ambientGround: '#7a6242',
     ambientIntensity: 1.9,
     shadowColor: '#5b5a8e',
-    shadowStrength: 0.45,
+    shadowStrength: 0.28,
+    shadowHue: 0.28,
     fogSun: '#ebc896',
     fogAway: '#a8b8ca',
     gradeWarmth: 0.045,
@@ -71,19 +75,20 @@ export const LIGHT_RIGS: readonly LightRig[] = [
     hour: 19.5,
     sunElevationDeg: 6,
     sunAzimuthDeg: 285,
-    sunColor: '#ff9a58',
-    sunIntensity: 2.6,
+    sunColor: '#ffac6e',
+    sunIntensity: 2.2,
     skyZenith: '#4c5a8c',
     horizonSun: '#f29a62',
     horizonAway: '#8a7fa0',
-    ambientSky: '#8a8aa6',
+    ambientSky: '#7d84b4',
     ambientGround: '#74523a',
-    ambientIntensity: 1.4,
+    ambientIntensity: 2.3,
     shadowColor: '#4a4278',
-    shadowStrength: 0.5,
+    shadowStrength: 0.3,
+    shadowHue: 0.24,
     fogSun: '#e39a6c',
     fogAway: '#7e7896',
-    gradeWarmth: 0.11,
+    gradeWarmth: 0.06,
     gradeSaturation: 1.0,
     exposure: 1.15,
   },
@@ -101,6 +106,7 @@ export interface ResolvedRig {
   readonly ambientIntensity: number;
   readonly shadowColor: Color;
   readonly shadowStrength: number;
+  readonly shadowHue: number;
   readonly fogSun: Color;
   readonly fogAway: Color;
   readonly gradeWarmth: number;
@@ -150,6 +156,7 @@ export function resolveRig(hour: number): ResolvedRig {
     ambientIntensity: mix(a.ambientIntensity, b.ambientIntensity),
     shadowColor: lerpColor(a.shadowColor, b.shadowColor, t),
     shadowStrength: mix(a.shadowStrength, b.shadowStrength),
+    shadowHue: mix(a.shadowHue, b.shadowHue),
     fogSun: lerpColor(a.fogSun, b.fogSun, t),
     fogAway: lerpColor(a.fogAway, b.fogAway, t),
     gradeWarmth: mix(a.gradeWarmth, b.gradeWarmth),

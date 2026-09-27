@@ -19,10 +19,13 @@ export interface HueRange {
  * warrior red tabard, ranger green-teal hood and cloak (its red hair is left alone), rogue
  * maroon tunic.
  */
+/** Tabard key colour painted by convert_rpg_characters.py (magenta, used by no source texture). */
+const TABARD: HueRange = { from: 0.8, to: 0.92, minSaturation: 0.4, lightnessGain: 1.45 };
+
 export const BODY_CLOTH_HUES: Readonly<Record<string, readonly HueRange[]>> = {
-  warrior: [{ from: 0.95, to: 0.03, minSaturation: 0.28, lightnessGain: 1.8 }],
-  ranger: [{ from: 0.2, to: 0.55, minSaturation: 0.1, lightnessGain: 2.0 }],
-  rogue: [{ from: 0.95, to: 0.03, minSaturation: 0.3, lightnessGain: 2.2 }],
+  warrior: [TABARD, { from: 0.95, to: 0.03, minSaturation: 0.28, lightnessGain: 1.8 }],
+  ranger: [TABARD, { from: 0.2, to: 0.55, minSaturation: 0.1, lightnessGain: 2.0 }],
+  rogue: [TABARD, { from: 0.95, to: 0.03, minSaturation: 0.3, lightnessGain: 2.2 }],
 };
 
 /** Gold accents (not skin nor leather, hue < 0.1): kept for the attacker, iron for the defender. */

@@ -28,6 +28,7 @@ uniform vec3 uStoneLit;
 uniform vec3 uStoneBase;
 uniform vec3 uWheatBase;
 uniform vec3 uWheatLit;
+uniform vec3 uFieldBed;
 // Triplanar blend weights: steep banks (moats, butte) sample their detail noise on the vertical
 // planes instead of stretching the ground projection.
 vec3 terrainTriWeights(vec3 n) {
@@ -77,7 +78,7 @@ const TERRAIN_ALBEDO = /* glsl */ `
   float wField = smoothstep(0.35, 0.65, w.g + edgeNoise * 0.6);
   // Under the crop the ground reads as a golden straw bed, not as bare soil.
   // Stubble tone close to the crop: sparse distant tufts (and the unstreamed far fields) keep their mass.
-  vec3 fieldBed = mix(mix(uDirtBase, uDirtLit, 0.35 + 0.35 * nFine), mix(uWheatBase, uWheatLit, 0.3 + 0.3 * nFine), 0.72);
+  vec3 fieldBed = uFieldBed * (0.88 + 0.24 * nFine) * (0.94 + 0.12 * nMid);
   col = mix(col, fieldBed, wField * 0.9);
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
@@ -134,6 +135,7 @@ export function createTerrainMaterial(
         uStoneBase: c(PALETTE.stone.base),
         uWheatBase: c(PALETTE.wheat.base),
         uWheatLit: c(PALETTE.wheat.lit),
+        uFieldBed: c(PALETTE.fieldBed),
       },
     },
   });

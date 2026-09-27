@@ -67,8 +67,9 @@ export interface PaintedOptions {
   /** Leaves: brush-stroke light/dark clumps in the albedo. */
   readonly foliage?: boolean;
   /**
-   * Tactical cutaway: fragments close to the camera dissolve with an ordered dither, so
-   * vegetation never walls off a close-up view (shadows are unaffected).
+   * Tactical cutaway (XCOM rule): fragments right at the camera, or on the line of sight
+   * between the camera and its focus, dissolve with an interleaved-gradient dither, so
+   * vegetation never walls off the view (shadows are unaffected).
    */
   readonly nearFade?: boolean;
 }
@@ -223,19 +224,29 @@ const FRAGMENT_ALBEDO = /* glsl */ `
 }
 `;
 
-/** Near-camera cutaway (m): fully dissolved below START, fully opaque beyond END. */
-const NEAR_FADE_START_M = 4.5;
-const NEAR_FADE_END_M = 8;
+/** Cutaway (m): the camera sphere (dissolved below START, opaque beyond END) and the
+ * line-of-sight cylinder (radius, fade width), which spares the last part near the focus. */
+const NEAR_FADE_START_M = 2.5;
+const NEAR_FADE_END_M = 4.5;
+const SIGHT_RADIUS_M = 2.5;
+const SIGHT_FADE_M = 1.0;
+const SIGHT_SPARED_FRACTION = 0.15;
 
 const FRAGMENT_NEAR_FADE = /* glsl */ `
 #ifdef PAINTED_NEAR_FADE
 {
-  float keep = smoothstep(${NEAR_FADE_START_M.toFixed(1)}, ${NEAR_FADE_END_M.toFixed(1)}, distance(vPaintedWorldPos, cameraPosition));
-  if (keep < 1.0) {
-    const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
-    ivec2 q = ivec2(gl_FragCoord.xy) & 3;
-    if (keep <= (bayer[q.x + q.y * 4] + 0.5) / 16.0) discard;
-  }
+  vec3 toFrag = vPaintedWorldPos - cameraPosition;
+  vec3 sight = uFocus - cameraPosition;
+  float t = clamp(dot(toFrag, sight) / max(dot(sight, sight), 1e-4), 0.0, 1.0);
+  float offSight = distance(vPaintedWorldPos, cameraPosition + sight * t);
+  // Only when zoomed in (the XCOM case): from afar the line of sight crosses scenery, not walls of leaves.
+  float closeUp = 1.0 - smoothstep(15.0, 25.0, length(sight));
+  float occluder = closeUp * (1.0 - smoothstep(${SIGHT_RADIUS_M.toFixed(1)}, ${(SIGHT_RADIUS_M + SIGHT_FADE_M).toFixed(1)}, offSight)) * (1.0 - smoothstep(${(1 - SIGHT_SPARED_FRACTION - 0.05).toFixed(2)}, ${(1 - SIGHT_SPARED_FRACTION).toFixed(2)}, t));
+  float nearCam = 1.0 - smoothstep(${NEAR_FADE_START_M.toFixed(1)}, ${NEAR_FADE_END_M.toFixed(1)}, length(toFrag));
+  float dissolve = max(occluder, nearCam);
+  // Interleaved gradient noise (Jimenez 2014): far less visible than a Bayer matrix.
+  float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  if (dissolve > 0.0 && dissolve >= ign) discard;
 }
 #endif
 `;
@@ -243,8 +254,9 @@ const FRAGMENT_NEAR_FADE = /* glsl */ `
 const FRAGMENT_RIM = /* glsl */ `
 #ifdef PAINTED_RIM
 {
-  float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 3.0);
-  reflectedLight.directDiffuse += uRimColor * rim * uRimStrength * (0.35 + 0.65 * paintedSunLit);
+  // Wide rim, kept strong in the shade: units never turn into black silhouettes (review v13).
+  float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 2.0);
+  reflectedLight.directDiffuse += uRimColor * rim * uRimStrength * (0.7 + 0.3 * paintedSunLit);
 }
 #endif
 `;

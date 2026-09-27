@@ -14,6 +14,7 @@ import os
 import re
 import sys
 
+import bmesh
 import bpy
 import numpy as np
 from mathutils import Vector
@@ -28,6 +29,15 @@ WEAPON_PX = 512
 ATLAS_W = BODY_PX + WEAPON_PX
 ATLAS_H = BODY_PX
 UV_TOLERANCE = 1e-3
+# Tabard (brief §6.5: allegiance on tabards): painted in the free bottom-right quarter of the
+# atlas in a key colour no source texture uses (magenta, hue 0.83), recoloured per faction at
+# runtime like the cloth; the gold border and chevron follow the gold rule (iron for defenders).
+TABARD_KEY = (0.46, 0.12, 0.40)
+TABARD_GOLD = (0.78, 0.60, 0.22)
+TABARD_COLUMNS = 4
+TABARD_ROWS = 8
+EYE_COLOR = (0.17, 0.12, 0.08)
+TRUNK_BONES = ('Body', 'Hips', 'Abdomen', 'Torso', 'Neck', 'Shoulder.L', 'Shoulder.R', 'UpperLeg.L', 'UpperLeg.R')
 
 
 def log(*args):
@@ -164,12 +174,11 @@ def image_rgba(image, size):
     return px.reshape(size, size, 4)
 
 
-def build_atlas(body, name, out_dir):
-    """One material: weapon UVs move into the top-right quarter of a body+weapon atlas."""
+def build_atlas(body, arm, name, out_dir):
+    """One material: weapon UVs move into the top-right quarter of a body+weapon atlas; the
+    bottom-right quarter carries the tabard; the eyes are painted on the face."""
     slots = body.material_slots
     main = next(i for i, s in enumerate(slots) if s.material.name == f'{name}_Texture')
-    if len(slots) == 1:
-        return
     tex_of = lambda mat: next(n.image for n in mat.node_tree.nodes if n.type == 'TEX_IMAGE')
     atlas_px = np.zeros((ATLAS_H, ATLAS_W, 4), dtype=np.float32)
     atlas_px[..., 3] = 1
@@ -196,6 +205,9 @@ def build_atlas(body, name, out_dir):
     if lo < -UV_TOLERANCE or hi > 1 + UV_TOLERANCE:
         raise RuntimeError(f'{name}: UVs outside [0, 1] ({lo:.3f}..{hi:.3f}), cannot atlas')
 
+    paint_eyes(body, arm, name, atlas_px)
+    add_tabard(body, arm, name, atlas_px, main)
+
     atlas = bpy.data.images.new(f'{name}_Atlas', ATLAS_W, ATLAS_H, alpha=False)
     atlas.pixels.foreach_set(atlas_px.ravel())
     atlas.filepath_raw = os.path.abspath(os.path.join(out_dir, f'{name.lower()}_atlas.png'))
@@ -208,6 +220,154 @@ def build_atlas(body, name, out_dir):
         body.active_material_index = i
         bpy.ops.object.material_slot_remove()
     log(name, f'atlas {ATLAS_W}x{ATLAS_H}, uv range {lo:.3f}..{hi:.3f}')
+
+
+def bone_world(arm, name, tail=False):
+    bone = arm.data.bones[name]
+    return arm.matrix_world @ (bone.tail_local if tail else bone.head_local)
+
+
+def facing_sign(arm):
+    """-1 when the character faces -Y (its right hand on -X), +1 otherwise."""
+    return -1.0 if bone_world(arm, 'Fist.R').x < bone_world(arm, 'Fist.L').x else 1.0
+
+
+def paint_disc(px, u, v, radius_px, color):
+    h, w = px.shape[:2]
+    cx, cy = u * w, v * h
+    r = int(radius_px) + 2
+    for y in range(max(0, int(cy) - r), min(h, int(cy) + r + 1)):
+        for x in range(max(0, int(cx) - r), min(w, int(cx) + r + 1)):
+            d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+            a = min(1.0, max(0.0, radius_px + 0.5 - d))
+            if a > 0:
+                px[y, x, :3] = px[y, x, :3] * (1 - a) + np.array(color) * a
+
+
+def paint_eyes(body, arm, name, px):
+    """Two dark eyes where the face looks forward at eye level (the faces ship blank)."""
+    front = facing_sign(arm)
+    head = bone_world(arm, 'Head')
+    head_h = bone_world(arm, 'Head_end').z - head.z
+    eye_z = head.z + 0.42 * head_h
+    mesh = body.data
+    m = body.matrix_world
+    nm = m.to_3x3().inverted().transposed()
+    uv = mesh.uv_layers.active.data
+    best = {}
+    for poly in mesh.polygons:
+        c = m @ poly.center
+        n = (nm @ poly.normal).normalized()
+        if abs(c.z - eye_z) > 0.12 * head_h or n.y * front < 0.6:
+            continue
+        dx = c.x - head.x
+        if not 0.05 * head_h < abs(dx) < 0.3 * head_h:
+            continue
+        side = 'L' if dx > 0 else 'R'
+        # Frontmost face polygon, preferably at the usual eye spacing.
+        score = c.y * front - 0.3 * abs(abs(dx) - 0.16 * head_h)
+        if side not in best or score > best[side][0]:
+            u = sum(uv[li].uv[0] for li in poly.loop_indices) / poly.loop_total
+            v = sum(uv[li].uv[1] for li in poly.loop_indices) / poly.loop_total
+            best[side] = (score, u, v)
+    for _, u, v in best.values():
+        paint_disc(px, u, v, 5.5, EYE_COLOR)
+    log(name, 'eyes painted on', sorted(best))
+
+
+def add_tabard(body, arm, name, px, material_index):
+    """Front and back cloth panels hugging the torso and hanging to mid-thigh, each band rigid
+    to its bone (torso, abdomen, hips)."""
+    front = facing_sign(arm)
+    m = body.matrix_world
+    # Body surface = vertices ruled by the trunk and pelvis only: the weapon and the hands pass
+    # in front of the belt in the rest pose and would pull the cloth off the body.
+    trunk = {body.vertex_groups[n].index for n in TRUNK_BONES if n in body.vertex_groups}
+
+    def dominant(v):
+        return max(v.groups, key=lambda g: g.weight).group if len(v.groups) else -1
+
+    verts = np.array([tuple(m @ v.co) for v in body.data.vertices if dominant(v) in trunk], dtype=np.float64)
+    hips = bone_world(arm, 'Hips')
+    torso = bone_world(arm, 'Torso')
+    shoulder_l = bone_world(arm, 'UpperArm.L')
+    shoulder_r = bone_world(arm, 'UpperArm.R')
+    knee = bone_world(arm, 'LowerLeg.L')
+    span = shoulder_l.z - knee.z
+    width = 0.72 * abs(shoulder_l.x - shoulder_r.x)
+    z_top = shoulder_l.z - 0.35 * (shoulder_l.z - torso.z)
+    z_belt = hips.z
+    z_bottom = knee.z + 0.4 * (hips.z - knee.z)
+    cx = hips.x
+    reach = 0.06 * span
+    offset = 0.018 * span
+
+    def extreme_y(x, z, side):
+        near = verts[(np.abs(verts[:, 0] - x) < reach) & (np.abs(verts[:, 2] - z) < reach)]
+        if len(near) == 0:
+            near = verts[(np.abs(verts[:, 0] - cx) < reach) & (np.abs(verts[:, 2] - z) < reach)]
+        return near[:, 1].min() if side < 0 else near[:, 1].max()
+
+    row_z = [z_top + (z_bottom - z_top) * r / TABARD_ROWS for r in range(TABARD_ROWS + 1)]
+    belt_row = max(r for r, z in enumerate(row_z) if z >= z_belt)
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    uv_layer = bm.loops.layers.uv.active
+    deform = bm.verts.layers.deform.verify()
+    groups = {n: body.vertex_groups[n].index for n in ('Torso', 'Abdomen', 'Hips')}
+    to_local = m.inverted()
+    for side in (front, -front):
+        grid = []
+        for r, z in enumerate(row_z):
+            row = []
+            for c in range(TABARD_COLUMNS + 1):
+                x = cx - width / 2 + width * c / TABARD_COLUMNS
+                if r <= belt_row:
+                    y = extreme_y(x, z, side) + side * offset
+                else:
+                    # Below the belt the cloth hangs straight, drifting a little off the legs.
+                    y = grid[belt_row][c][1] + side * offset * 0.8 * (z_belt - z) / (z_belt - z_bottom)
+                vert = bm.verts.new(to_local @ Vector((x, y, z)))
+                bone = 'Torso' if z >= torso.z else ('Abdomen' if z >= hips.z else 'Hips')
+                vert[deform][groups[bone]] = 1.0
+                row.append((vert, y))
+            grid.append(row)
+        for r in range(TABARD_ROWS):
+            for c in range(TABARD_COLUMNS):
+                corners = [(r + 1, c), (r + 1, c + 1), (r, c + 1), (r, c)]
+                # Outward normals: the winding flips with the side the panel faces.
+                if side > 0:
+                    corners.reverse()
+                face = bm.faces.new([grid[rr][cc][0] for rr, cc in corners])
+                face.material_index = material_index
+                face.smooth = True
+                for loop, (rr, cc) in zip(face.loops, corners):
+                    u = (BODY_PX + (cc / TABARD_COLUMNS) * WEAPON_PX) / ATLAS_W
+                    v = (1 - rr / TABARD_ROWS) * (ATLAS_H - WEAPON_PX) / ATLAS_H
+                    loop[uv_layer].uv = (u, v)
+    bm.normal_update()
+    bm.to_mesh(body.data)
+    bm.free()
+    paint_tabard(px)
+    log(name, f'tabard {width:.2f} m wide, {z_top - z_bottom:.2f} m long')
+
+
+def paint_tabard(px):
+    """Key-coloured field with a gold border and chevron, lightly brushed (painted, not flat)."""
+    region = px[: ATLAS_H - WEAPON_PX, BODY_PX:]
+    h, w = region.shape[:2]
+    rng = np.random.default_rng(7)
+    noise = np.kron(rng.normal(0.0, 1.0, (h // 16 + 1, w // 16 + 1)), np.ones((16, 16)))[:h, :w]
+    ys, xs = np.mgrid[0:h, 0:w]
+    u = xs / w
+    v = ys / h
+    field = np.array(TABARD_KEY)[None, None, :] * (1 + 0.06 * noise[..., None])
+    gold = np.array(TABARD_GOLD)[None, None, :] * (1 + 0.05 * noise[..., None])
+    border = (u < 0.07) | (u > 0.93) | (v < 0.05)
+    # Chevron pointing up on the chest (v grows upwards: row 0 is the hem).
+    chevron = np.abs(v - (0.62 - 0.55 * np.abs(u - 0.5))) < 0.045
+    region[..., :3] = np.clip(np.where((border | chevron)[..., None], gold, field), 0, 1)
+    region[..., 3] = 1
 
 
 def rest_signature(arm):
@@ -282,7 +442,7 @@ def convert(pack_dir, out_dir, name):
     retune_proportions(arm)
     rename_actions()
     body = join_meshes(arm, name)
-    build_atlas(body, name, out_dir)
+    build_atlas(body, arm, name, out_dir)
     log(name, f'height {height_of(body):.3f}', f'tris {sum(len(p.vertices) - 2 for p in body.data.polygons)}')
     out = os.path.join(out_dir, f'{name.lower()}.glb')
     select_only(arm)

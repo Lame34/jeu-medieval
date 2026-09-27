@@ -25,7 +25,8 @@ const STONE_ALBEDO = /* glsl */ `
   float u = vPaintedData.w;
   // Irregular course heights: a warped vertical coordinate gives thin and thick courses.
   float yc = p.y / uCourseM;
-  yc += 0.3 * sin(yc * 1.7);
+  // Kept well below 1/1.7: a stronger warp squeezes courses into dark horizontal bands.
+  yc += 0.25 * sin(yc * 1.7);
   float course = floor(yc);
   float rowJitter = paintedHash12(vec2(course, 3.7));
   float stoneW = uCourseM * (1.2 + 1.6 * rowJitter);
@@ -35,16 +36,18 @@ const STONE_ALBEDO = /* glsl */ `
   float edgeX = min(f.x, 1.0 - f.x) * stoneW;
   float edgeY = min(f.y, 1.0 - f.y) * uCourseM;
   // Irregular joints: width wanders along each joint so stones read hand-laid, not brick.
-  float jointW = 0.028 + 0.03 * paintedValueNoise(vec2(u * 2.3, p.y * 2.9));
-  float stoneMask = smoothstep(jointW, jointW + 0.03, min(edgeX, edgeY));
+  float jointW = 0.02 + 0.025 * paintedValueNoise(vec2(u * 2.3, p.y * 2.9));
+  float stoneMask = smoothstep(jointW, jointW + 0.05, min(edgeX, edgeY));
   float horizontal = step(0.75, abs(n.y));
   stoneMask = mix(stoneMask, 1.0, horizontal);
 
   float tone = paintedHash12(vec2(stoneId, course));
-  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.2 + 0.8 * tone);
+  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.45 + 0.45 * tone);
   stoneC = max(paintedHueShift(stoneC, (paintedHash12(vec2(course, stoneId + 9.1)) - 0.5) * 0.04), 0.0);
   // Rounded stone faces: darker towards the joints.
-  stoneC *= 0.75 + 0.25 * smoothstep(0.0, 0.25, min(edgeX, edgeY));
+  stoneC *= 0.88 + 0.12 * smoothstep(0.0, 0.25, min(edgeX, edgeY));
+  // Catch light on the upper arris of each stone.
+  stoneC *= 1.0 + 0.06 * smoothstep(0.75, 0.95, f.y) * (1.0 - horizontal);
   vec3 col = mix(uMortar, stoneC, stoneMask);
 
   float nLarge = paintedFbm(vec2(u, p.y) / 6.0);
@@ -56,7 +59,7 @@ const STONE_ALBEDO = /* glsl */ `
   float fromTop = smoothstep(uWallHeightM * 0.35, uWallHeightM, h);
   col *= 1.0 - 0.28 * smoothstep(0.25, 0.55, streakNoise) * fromTop * (1.0 - horizontal);
   col *= mix(0.78, 1.04, smoothstep(0.0, uWallHeightM, h));
-  col *= 0.94 + 0.12 * nLarge;
+  col *= 0.88 + 0.24 * nLarge;
   diffuseColor.rgb = col * vColor.rgb;
 }
 `;

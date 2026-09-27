@@ -14,6 +14,8 @@ const KIT_ALBEDO_GRADE: Readonly<Record<string, { saturation: number; value: num
   MI_RoundTiles: { saturation: 0.6, value: 0.92 },
   MI_Brick: { saturation: 0.75, value: 0.95 },
 };
+/** Every other kit texture (thatch, plaster, timber): stays under the allegiance saturations. */
+const KIT_DEFAULT_GRADE = { saturation: 0.85, value: 1 };
 
 export function Buildings({ houses }: { readonly houses: readonly HouseSite[] }) {
   const gltf = useGLTF(VILLAGE_KIT_URL, false, true);
@@ -23,7 +25,7 @@ export function Buildings({ houses }: { readonly houses: readonly HouseSite[] })
     const out: Mesh[] = [];
     for (const [key, geometry] of [...geometries.entries()].sort(([a], [b]) => (a < b ? -1 : 1))) {
       const glass = key.toLowerCase().includes('glass');
-      const grade = KIT_ALBEDO_GRADE[key];
+      const grade = KIT_ALBEDO_GRADE[key] ?? (key === PROCEDURAL_MATERIAL ? undefined : KIT_DEFAULT_GRADE);
       const material: PaintedMaterial = createPaintedMaterial({
         ...(grade ? { albedoSaturation: grade.saturation, albedoValue: grade.value } : {}),
         name: `House:${key}`,

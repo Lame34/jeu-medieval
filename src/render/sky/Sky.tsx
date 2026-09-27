@@ -1,16 +1,67 @@
 /**
- * Painted sky dome: zenith→horizon gradient warmed towards the sun, sun glow, soft fBm clouds
- * and three layers of distant mountain silhouettes (bluer and paler with distance). The dome
- * follows the camera, so the horizon is always a painted backdrop, never the map edge.
+ * Painted sky dome: zenith→horizon gradient warmed towards the sun, sun glow, painted cloud
+ * banks and three layers of distant mountain silhouettes (bluer and paler with distance). The
+ * dome follows the camera, so the horizon is always a painted backdrop, never the map edge.
+ * Clouds are painted once at load into a seamless panorama (azimuth × elevation): the
+ * tactical camera mostly sees the band just above the horizon, so that is where they gather.
  */
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { BackSide, Mesh, ShaderMaterial, SphereGeometry } from 'three';
+import { BackSide, DataTexture, LinearFilter, Mesh, RGBAFormat, RepeatWrapping, ClampToEdgeWrapping, ShaderMaterial, SphereGeometry, UnsignedByteType } from 'three';
+import { smoothstep } from '../../core/math/scalar.ts';
+import { createSimplex, fbm, type FbmOptions } from '../../core/noise/noise.ts';
+import { Rng } from '../../core/rng.ts';
 import { PAINTED_GLOBALS_PARS, PAINTED_NOISE } from '../materials/painted-chunks.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 
 const SKY_RADIUS_M = 4000;
 const SKY_SEGMENTS = 48;
+const CLOUD_W = 1024;
+const CLOUD_H = 256;
+/** Elevation (d.y) covered by the panorama; clouds above it fade out. */
+const CLOUD_TOP = 0.5;
+const CLOUD_FBM: FbmOptions = { octaves: 5, lacunarity: 2.1, gain: 0.5, frequency: 1 / 70 };
+/** Vertical squash: cloud banks are wider than tall. */
+const CLOUD_SQUASH = 2.6;
+
+/** Seamless cloud panorama: R = density, G = light (top-lit, shaded undersides). */
+function paintClouds(): DataTexture {
+  const noise = createSimplex(Rng.create('sky-clouds'));
+  const density = new Float32Array(CLOUD_W * CLOUD_H);
+  for (let j = 0; j < CLOUD_H; j++) {
+    const v = j / (CLOUD_H - 1);
+    // Banks gather just above the mountains and thin out towards the zenith.
+    const coverage = smoothstep(0.02, 0.1, v) * (1 - smoothstep(0.3, 0.95, v));
+    for (let i = 0; i < CLOUD_W; i++) {
+      // Wrap blend across the azimuth seam.
+      const w = i / CLOUD_W;
+      const y = j * CLOUD_SQUASH;
+      const n = fbm(noise, i, y, CLOUD_FBM) * (1 - w) + fbm(noise, i - CLOUD_W, y, CLOUD_FBM) * w;
+      density[j * CLOUD_W + i] = smoothstep(0.12, 0.42, n * 0.5 + (coverage - 0.55) * 0.55);
+    }
+  }
+  const bytes = new Uint8Array(CLOUD_W * CLOUD_H * 4);
+  const at = (i: number, j: number) => density[Math.min(CLOUD_H - 1, Math.max(0, j)) * CLOUD_W + i] as number;
+  for (let j = 0; j < CLOUD_H; j++) {
+    for (let i = 0; i < CLOUD_W; i++) {
+      const d = at(i, j);
+      const light = Math.min(1, Math.max(0, 0.62 + 2.2 * (d - at(i, j + 4)) - 1.4 * (d - at(i, j - 4))));
+      const k = (j * CLOUD_W + i) * 4;
+      bytes[k] = Math.round(d * 255);
+      bytes[k + 1] = Math.round(light * 255);
+      bytes[k + 3] = 255;
+    }
+  }
+  const texture = new DataTexture(bytes, CLOUD_W, CLOUD_H, RGBAFormat, UnsignedByteType);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  // No mip-maps: the atan() seam would pick the smallest level along one column.
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
 
 const vertexShader = /* glsl */ `
 varying vec3 vDir;
@@ -24,6 +75,7 @@ void main() {
 const fragmentShader = /* glsl */ `
 ${PAINTED_GLOBALS_PARS}
 ${PAINTED_NOISE}
+uniform sampler2D uClouds;
 varying vec3 vDir;
 
 // Silhouette height (in "d.y" units) of a mountain layer around the horizon.
@@ -48,16 +100,15 @@ void main() {
   sky += uSunColor * (pow(max(cosSun, 0.0), 180.0) * 0.9 + pow(max(cosSun, 0.0), 8.0) * 0.22);
   sky = mix(sky, uSunColor * 1.6 + 0.4, smoothstep(0.99955, 0.99985, cosSun));
 
-  // Painted clouds on a virtual plane: soft-edged, lit on the sun side, drifting slowly.
+  // Painted cloud banks from the panorama, drifting slowly; lit on top and on the sun side.
   if (d.y > 0.0) {
-    vec2 cuv = d.xz / (d.y + 0.12) * 0.9 + uWindDir * uTime * 0.004;
-    float c = paintedFbm(cuv * 1.3);
-    c = smoothstep(0.52, 0.78, c + 0.12 * paintedValueNoise(cuv * 6.0));
-    float fade = smoothstep(0.02, 0.25, d.y);
+    float az = atan(d.z, d.x) / 6.2831853 + 0.5 + uTime * 0.0004;
+    vec4 cl = texture2D(uClouds, vec2(az, d.y / ${CLOUD_TOP.toFixed(2)}));
+    float c = cl.r * (1.0 - smoothstep(${(CLOUD_TOP * 0.85).toFixed(2)}, ${CLOUD_TOP.toFixed(2)}, d.y));
     vec3 cloudLit = mix(horizon * 1.05, vec3(1.0, 0.97, 0.92), 0.55) + uSunColor * 0.25 * pow(towardSun, 3.0);
-    vec3 cloudShade = mix(uSkyZenith, uHorizonAway, 0.5) * 0.92;
-    vec3 cloud = mix(cloudShade, cloudLit, smoothstep(0.3, 0.9, c + 0.25 * towardSun));
-    sky = mix(sky, cloud, c * fade * 0.8);
+    vec3 cloudShade = mix(uSkyZenith, uHorizonAway, 0.55) * 0.9;
+    vec3 cloud = mix(cloudShade, cloudLit, clamp(cl.g + 0.2 * towardSun, 0.0, 1.0));
+    sky = mix(sky, cloud, c * 0.85);
   }
 
   // Distant mountains: three layers, farthest palest (aerial perspective).
@@ -80,9 +131,10 @@ void main() {
 `;
 
 export function Sky() {
-  const mesh = useMemo(() => {
+  const built = useMemo(() => {
+    const clouds = paintClouds();
     const material = new ShaderMaterial({
-      uniforms: { ...paintedGlobals },
+      uniforms: { ...paintedGlobals, uClouds: { value: clouds } },
       vertexShader,
       fragmentShader,
       side: BackSide,
@@ -93,20 +145,21 @@ export function Sky() {
     m.frustumCulled = false;
     m.renderOrder = -1000;
     m.name = 'Sky';
-    return m;
+    return { m, clouds };
   }, []);
 
   useEffect(
     () => () => {
-      mesh.geometry.dispose();
-      (mesh.material as ShaderMaterial).dispose();
+      built.m.geometry.dispose();
+      (built.m.material as ShaderMaterial).dispose();
+      built.clouds.dispose();
     },
-    [mesh],
+    [built],
   );
 
   useFrame(({ camera }) => {
-    mesh.position.copy(camera.position);
+    built.m.position.copy(camera.position);
   });
 
-  return <primitive object={mesh} />;
+  return <primitive object={built.m} />;
 }

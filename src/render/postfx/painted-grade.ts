@@ -24,7 +24,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   vec3 c = inputColor.rgb;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(vec3(l), c, uSaturation);
-  c *= mix(uShadowTone, uHighlightTone, smoothstep(0.08, 0.75, l));
+  // Greens keep half of the warm highlight tone: dusk must not turn the meadows into desert.
+  float green = smoothstep(0.02, 0.12, c.g - max(c.r, c.b));
+  c *= mix(uShadowTone, mix(uHighlightTone, vec3(1.0), 0.5 * green), smoothstep(0.08, 0.75, l));
   vec3 s = clamp(c, 0.0, 1.0);
   c = mix(c, s * s * (3.0 - 2.0 * s), uContrast);
   vec2 d = (uv - 0.5) * vec2(1.15, 1.0);

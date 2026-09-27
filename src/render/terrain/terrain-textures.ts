@@ -7,6 +7,8 @@
 import { DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, RGBAFormat, ClampToEdgeWrapping, UnsignedByteType } from 'three';
 import { TerrainLayer, type TerrainLayerId } from '../../core/rules/types.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
+import type { HedgeLine, TreeInstance } from '../../core/worldgen/types.ts';
 
 const CHANNELS = 4;
 const BLUR_PASSES = 2;
@@ -57,6 +59,43 @@ const APRON_CELLS = 2;
 const APRON_WEIGHT = 0.8;
 const WALL_FOOT_CELLS = 2;
 const WALL_FOOT_WEIGHT = 0.7;
+/** Forest-floor patch under every crown (radius per unit of tree scale) and along hedges. */
+const CANOPY_FLOOR_RADIUS_M = 2.6;
+const CANOPY_FLOOR_WEIGHT = 0.75;
+const HEDGE_FLOOR_M = 1.3;
+const HEDGE_FLOOR_WEIGHT = 0.7;
+const FOREST_CHANNEL = 3;
+const CROWN_SPECIES = new Set(['oak', 'beech', 'birch', 'pine']);
+
+/** Moss and leaf litter under crowns and hedges: anchors every tree at any distance. */
+function stampUnderstory(t: TerrainData, weights: Float32Array, trees: readonly TreeInstance[], hedges: readonly HedgeLine[]): void {
+  const raise = (cx: number, cz: number, w: number) => {
+    if (cx < 0 || cz < 0 || cx >= t.width || cz >= t.depth) return;
+    const i = (cz * t.width + cx) * CHANNELS + FOREST_CHANNEL;
+    weights[i] = Math.max(weights[i] as number, w);
+  };
+  for (const tree of trees) {
+    if (!CROWN_SPECIES.has(tree.species)) continue;
+    const r = CANOPY_FLOOR_RADIUS_M * tree.scale;
+    for (let cz = Math.floor(tree.position.z - r); cz <= Math.ceil(tree.position.z + r); cz++) {
+      for (let cx = Math.floor(tree.position.x - r); cx <= Math.ceil(tree.position.x + r); cx++) {
+        const d = Math.hypot(cx + 0.5 - tree.position.x, cz + 0.5 - tree.position.z);
+        if (d < r) raise(cx, cz, CANOPY_FLOOR_WEIGHT * (1 - (d / r) ** 2));
+      }
+    }
+  }
+  for (const hedge of hedges) {
+    if (hedge.kind !== 'hedge') continue;
+    const xs = hedge.points.map((p) => p.x);
+    const zs = hedge.points.map((p) => p.z);
+    for (let cz = Math.floor(Math.min(...zs) - HEDGE_FLOOR_M); cz <= Math.ceil(Math.max(...zs) + HEDGE_FLOOR_M); cz++) {
+      for (let cx = Math.floor(Math.min(...xs) - HEDGE_FLOOR_M); cx <= Math.ceil(Math.max(...xs) + HEDGE_FLOOR_M); cx++) {
+        const d = projectOnPolyline({ x: cx + 0.5, z: cz + 0.5 }, hedge.points).distance;
+        if (d < HEDGE_FLOOR_M) raise(cx, cz, HEDGE_FLOOR_WEIGHT * (1 - d / HEDGE_FLOOR_M));
+      }
+    }
+  }
+}
 
 /** Raises `channel` around cells of `layer` (square neighbourhood of `radius` cells). */
 function dilate(t: TerrainData, weights: Float32Array, layer: TerrainLayerId, channel: SplatChannel, radius: number, weight: number): void {
@@ -76,7 +115,7 @@ function dilate(t: TerrainData, weights: Float32Array, layer: TerrainLayerId, ch
   }
 }
 
-export function buildSplatTexture(t: TerrainData): DataTexture {
+export function buildSplatTexture(t: TerrainData, trees: readonly TreeInstance[] = [], hedges: readonly HedgeLine[] = []): DataTexture {
   let weights = new Float32Array(t.width * t.depth * CHANNELS);
   for (let i = 0; i < t.width * t.depth; i++) {
     const channel = LAYER_CHANNEL[t.layers[i] as TerrainLayerId];
@@ -85,6 +124,7 @@ export function buildSplatTexture(t: TerrainData): DataTexture {
   // Anchoring: nothing stands on untouched lawn (brief §5.2 "objets sans ancrage").
   dilate(t, weights, TerrainLayer.Building, 0, APRON_CELLS, APRON_WEIGHT);
   dilate(t, weights, TerrainLayer.Wall, 2, WALL_FOOT_CELLS, WALL_FOOT_WEIGHT);
+  stampUnderstory(t, weights, trees, hedges);
   for (let pass = 0; pass < BLUR_PASSES; pass++) weights = boxBlur(weights, t.width, t.depth);
   const bytes = new Uint8Array(weights.length);
   for (let i = 0; i < weights.length; i++) bytes[i] = Math.round(Math.min(1, weights[i] as number) * BYTE_MAX);

@@ -28,7 +28,7 @@ const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
  */
 export const UNIT_SCALE = 0.74;
 const UNIT_HEIGHT_M = 2.15;
-const RIM = { color: '#fff1d6', strength: 0.35 };
+const RIM = { color: '#fff1d6', strength: 0.55 };
 /** Quaternius atlases are painted dark for Blender's studio light; the warrior's steel most. */
 const ALBEDO_VALUE: Readonly<Record<Body, number>> = { warrior: 1.7, ranger: 1.3, rogue: 1.35 };
 
@@ -38,13 +38,13 @@ interface Loadout {
 }
 
 const LOADOUTS: Readonly<Record<string, Loadout>> = {
-  knight: { body: 'warrior', idle: 'Idle_Weapon' },
+  knight: { body: 'warrior', idle: 'Idle' },
   soldier: { body: 'rogue', idle: 'Idle' },
   archer: { body: 'ranger', idle: 'Idle' },
   sapper: { body: 'rogue', idle: 'Idle' },
-  wallGuard: { body: 'warrior', idle: 'Idle_Weapon' },
+  wallGuard: { body: 'warrior', idle: 'Idle' },
   crossbowman: { body: 'ranger', idle: 'Idle' },
-  sallyKnight: { body: 'warrior', idle: 'Idle_Weapon' },
+  sallyKnight: { body: 'warrior', idle: 'Idle' },
   militia: { body: 'rogue', idle: 'Idle' },
   officer: { body: 'warrior', idle: 'Idle' },
   towerArcher: { body: 'ranger', idle: 'Idle' },
@@ -119,7 +119,7 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       const ring = createFactionRing(unit.faction);
       rings.push(ring);
       root.add(body, ring);
-      root.position.set(unit.position.x, sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
+      root.position.set(unit.position.x, unit.elevationM ?? sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
       root.rotation.y = unit.facingTurns * 2 * Math.PI;
       const mixer = new AnimationMixer(body);
       const idle = clips.get(loadout.idle) ?? clips.get('Idle');

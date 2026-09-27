@@ -11,6 +11,8 @@ uniform float uTime;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform vec3 uShadowTint;
+uniform vec3 uShadowColor;
+uniform float uShadowHue;
 uniform vec3 uFogSun;
 uniform vec3 uFogAway;
 uniform float uFogStart;
@@ -84,7 +86,7 @@ vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   float fogF = uFogMax * (1.0 - (1.0 - t) * (1.0 - t));
   float valley = uValleyFog * (1.0 - smoothstep(uValleyLow, uValleyHigh, worldPos.y)) * smoothstep(0.0, uFogStart, dist);
   vec2 outside = max(max(uMapMin - worldPos.xz, worldPos.xz - uMapMax), 0.0);
-  float edge = 0.55 * smoothstep(0.0, 90.0, length(outside));
+  float edge = 0.7 * smoothstep(0.0, 45.0, length(outside));
   return mix(color, fogColor, max(max(fogF, valley), edge));
 }
 `;
@@ -120,7 +122,13 @@ void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geom
 
 void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
   vec3 tint = mix(uShadowTint, vec3(1.0), paintedSunLit);
-  reflectedLight.indirectDiffuse += irradiance * tint * BRDF_Lambert(material.diffuseColor);
+  vec3 c = irradiance * tint * BRDF_Lambert(material.diffuseColor);
+  // Shade turns blue-violet at constant luminance, whatever the albedo: green grass, grey
+  // stone and orange tiles all get the same painted shadow (a multiplicative tint cannot tint
+  // a colour that lacks blue, and over-tints the ones that have it).
+  float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(c, lum * uShadowColor, uShadowHue * (1.0 - paintedSunLit));
+  reflectedLight.indirectDiffuse += c;
 }
 
 #define RE_Direct RE_Direct_Painted

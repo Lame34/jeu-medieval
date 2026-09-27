@@ -34,11 +34,14 @@ void main() {
   float wobble = 0.03 * sin(angle * 7.0) + 0.02 * sin(angle * 13.0 + 1.3);
   float ring = smoothstep(0.62 + wobble, 0.7 + wobble, r) * (1.0 - smoothstep(0.86 + wobble, 0.95 + wobble, r));
   float ink = smoothstep(0.56 + wobble, 0.62 + wobble, r) * (1.0 - smoothstep(0.62 + wobble, 0.67 + wobble, r));
-  float dash = mix(1.0, step(0.5, fract(angle / 6.2831853 * 10.0)), uDashed);
+  // Defender: 6 square dashes (the colour-blind pattern), attacker: full ring.
+  float dash = mix(1.0, step(0.42, fract(angle / 6.2831853 * 6.0)), uDashed);
+  // Outer ink rim: the ring holds by value, not only by hue, on light or orange ground.
+  float rim = smoothstep(0.86 + wobble, 0.9 + wobble, r) * (1.0 - smoothstep(0.93 + wobble, 1.0, r));
   float brush = 0.8 + 0.2 * hash(floor(vec2(angle * 20.0, r * 8.0)));
-  float alpha = max(ring * dash * brush * 0.85, ink * dash * 0.45);
+  float alpha = max(max(ring * dash * brush * 0.95, ink * dash * 0.45), rim * dash * 0.5);
   if (alpha < 0.01) discard;
-  vec3 color = mix(uColor, uInk, ink * (1.0 - ring));
+  vec3 color = mix(uColor, uInk, max(ink * (1.0 - ring), rim));
   gl_FragColor = vec4(color, alpha);
 }
 `;

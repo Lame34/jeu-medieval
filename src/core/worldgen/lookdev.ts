@@ -9,7 +9,7 @@ import { createSimplex, fbm, warpedFbm, type FbmOptions } from '../noise/noise.t
 import { Rng, type Seed } from '../rng.ts';
 import { TerrainLayer } from '../rules/types.ts';
 import { cellCenterHeight, createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
-import { catmullRom, orientedRect, pointInPolygon, projectOnPolyline } from './geometry.ts';
+import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
 import { poissonScatter } from './scatter.ts';
 import { carveChannel, fillHeights, flattenPolygon, paintAlongPolyline, paintCells, paintDisc, paintPolygon, smoothAlong, STRUCTURAL_LAYERS } from './stamps.ts';
 import type { FieldPatch, HedgeLine, HouseSite, TowerSite, TreeInstance, TreeSpecies, WallRun, WorldLayout } from './types.ts';
@@ -136,10 +136,26 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
   const treeSpots = poissonScatter(vegRng.fork('trees'), bounds, 4.2, (p) => (blocked(p) ? 0 : smoothstep(0.35, 0.8, forestMask(p))));
   for (const p of treeSpots) {
     const core = forestMask(p);
-    trees.push({ species: speciesFor(vegRng, core), position: p, scale: vegRng.float(0.8, 1.25) * (0.75 + 0.3 * core), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+    // Wide size range (0.6–1.5): a wood of mixed ages, not a block of identical lollipops.
+    trees.push({ species: speciesFor(vegRng, core), position: p, scale: vegRng.float(0.6, 1.5) * (0.8 + 0.25 * core), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
-  // Understory and bushes: in clusters of 3–7 along edges — forest edge, river bank, path sides,
-  // the field border and the foot of the wall — never sprinkled evenly over the meadow.
+  // Ecotone: young trees scattered in a band just outside the wood, softening the edge.
+  const ecotone = poissonScatter(vegRng.fork('ecotone'), bounds, 6, (p) => {
+    if (blocked(p)) return 0;
+    const m = forestMask(p);
+    return 0.55 * smoothstep(0.22, 0.32, m) * (1 - smoothstep(0.42, 0.5, m));
+  });
+  for (const p of ecotone) {
+    trees.push({ species: vegRng.chance(0.5) ? 'birch' : 'oak', position: p, scale: vegRng.float(0.5, 0.8), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+  }
+  // Hedgerow trees: one standard every ~18 m along the hedge.
+  const hedgeLength = polylineLength(hedge.points);
+  for (let s = 9; s < hedgeLength; s += 18) {
+    trees.push({ species: 'oak', position: pointAlong(hedge.points, s), scale: vegRng.float(0.85, 1.1), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+  }
+  // Understory and bushes: in clusters along edges — a band in front of the wood, the river
+  // bank, the field border, the foot of the wall and of the hedge — sparse in the open meadow
+  // and never on the verge of the path (review v13, #6).
   const clusterNoise = createSimplex(root.fork('bush-clusters'));
   const underSpots = poissonScatter(vegRng.fork('under'), bounds, 1.9, (p) => {
     if (blocked(p)) return 0;
@@ -147,13 +163,16 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     const edge = 1 - Math.abs(m - 0.5) * 2;
     const bank = 1 - smoothstep(RIVER.widthM / 2 + 1, RIVER.widthM / 2 + 7, projectOnPolyline(p, river).distance);
     const pathD = projectOnPolyline(p, path).distance;
-    const pathSide = smoothstep(PATH.widthM / 2 + 0.5, PATH.widthM / 2 + 2, pathD) * (1 - smoothstep(PATH.widthM / 2 + 3, PATH.widthM / 2 + 7, pathD));
+    const clearOfPath = smoothstep(PATH.widthM / 2 + 3, PATH.widthM / 2 + 4, pathD);
     const fieldD = pointInPolygon(p, FIELD_POLY) ? 0 : projectOnPolyline(p, [...FIELD_POLY, FIELD_POLY[0] as Vec2]).distance;
-    const fieldBorder = fieldD > 0 ? 1 - smoothstep(1.5, 5, fieldD) : 0;
-    const wallFoot = 1 - smoothstep(2, 7, projectOnPolyline(p, WALL.points).distance);
-    const zone = Math.max(edge * 0.9, bank * 0.8, pathSide * 0.6, fieldBorder * 0.7, wallFoot * 0.8);
+    const fieldBorder = fieldD > 0 ? 1 - smoothstep(1.5, 4, fieldD) : 0;
+    const wallFoot = 1 - smoothstep(2, 6, projectOnPolyline(p, WALL.points).distance);
+    const hedgeFoot = 1 - smoothstep(1, 4, projectOnPolyline(p, hedge.points).distance);
+    // Band in front of the wood (forest mask just below its edge), not the edge line itself.
+    const woodFront = smoothstep(0.18, 0.3, m) * (1 - smoothstep(0.45, 0.55, m));
+    const zone = Math.max(woodFront, edge * 0.5, bank * 0.6, fieldBorder * 0.45, wallFoot * 0.9, hedgeFoot * 0.9, 0.04);
     const cluster = smoothstep(0.1, 0.35, fbm(clusterNoise, p.x, p.z, { octaves: 2, lacunarity: 2, gain: 0.5, frequency: 1 / 9 }));
-    return clamp(zone * cluster + m * 0.25, 0, 0.9);
+    return clamp((zone * cluster + m * 0.25) * clearOfPath, 0, 0.9);
   });
   for (const p of underSpots) {
     // Ferns only in the shade of the wood; bushes along edges and banks.
@@ -166,6 +185,10 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
   }
 
   const fields: FieldPatch[] = [{ id: 'field-wheat', crop: 'wheat', polygon: FIELD_POLY, furrowTurns: 0.02 }];
+  // Wall-walk spot of the guard: on the centreline, a step inside (the merlons face -z).
+  const walkA = WALL.points[0] as Vec2;
+  const walkB = WALL.points[1] as Vec2;
+  const wallWalk = { x: walkA.x + (walkB.x - walkA.x) * 0.55, z: walkA.z + (walkB.z - walkA.z) * 0.55 + 0.4 };
 
   return {
     name: 'lookdev',
@@ -183,11 +206,12 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     keeps: [],
     bridges: [],
     units: [
-      // Three-quarter facing towards the close-up camera (yaw 0.16).
-      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.2 },
-      { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 66.5, z: 70.5 }, facingTurns: 0.13 },
-      { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: { x: 90.5, z: 44.5 }, facingTurns: 0.12 },
-      { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 96.5, z: 46.5 }, facingTurns: 0.1 },
+      // A skirmish in the close-up (one unit of each side), an archer behind, and a guard on
+      // the wall-walk who gives the wall its scale.
+      { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.33 },
+      { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 63.5, z: 73.5 }, facingTurns: 0.1 },
+      { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: wallWalk, facingTurns: 0.5, elevationM: wallBase + WALL.heightM },
+      { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 73.5, z: 63 }, facingTurns: 0.93 },
     ],
     focus: { x: 74, z: 66 },
   };

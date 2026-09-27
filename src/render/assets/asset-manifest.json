@@ -30,21 +30,21 @@
       "id": "character.warrior",
       "kind": "character",
       "url": "/assets/characters/warrior.glb",
-      "bytes": 118748,
+      "bytes": 123484,
       "clips": []
     },
     {
       "id": "character.ranger",
       "kind": "character",
       "url": "/assets/characters/ranger.glb",
-      "bytes": 105056,
+      "bytes": 110172,
       "clips": []
     },
     {
       "id": "character.rogue",
       "kind": "character",
       "url": "/assets/characters/rogue.glb",
-      "bytes": 63216,
+      "bytes": 67672,
       "clips": []
     },
     {

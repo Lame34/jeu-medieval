@@ -12,7 +12,9 @@ export const PALETTE = {
   path: { lit: '#bc9e70', base: '#8a7050' },
   mud: { lit: '#6e5842', base: '#4a3b2c' },
   stone: { lit: '#a0978a', base: '#6a6258' },
-  wheat: { lit: '#d0b276', base: '#977d4c' },
+  wheat: { lit: '#d2ae62', base: '#977d4c' },
+  /** Soil between the tufts: reads as the crop's own shade (review v13, #4). */
+  fieldBed: '#806a40',
   rye: { lit: '#c6aa6a', base: '#8f7a48' },
   fallow: { lit: '#8f8a56', base: '#5f5c38' },
   woodWarm: { lit: '#7a5234', base: '#4e3322' },

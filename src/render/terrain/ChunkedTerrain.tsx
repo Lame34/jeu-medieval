@@ -13,8 +13,8 @@ import { createTerrainMaterial } from './terrain-material.ts';
 const CHUNK_CELLS = 128;
 /** LOD step (corner stride) and the camera distance up to which it is used. */
 const LODS: readonly { readonly step: number; readonly maxDistM: number }[] = [
-  { step: 1, maxDistM: 170 },
-  { step: 2, maxDistM: 340 },
+  { step: 1, maxDistM: 140 },
+  { step: 2, maxDistM: 300 },
   { step: 4, maxDistM: Number.POSITIVE_INFINITY },
 ];
 const SKIRT_M = 2.5;

@@ -11,23 +11,21 @@ import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { TREE_SPECIES, type TreeInstance, type TreeSpecies } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
-import { createLodBatch, type LodBatch, type LodBatchInstance } from './lod-batch.ts';
+import { CameraTrigger, createLodBatch, type LodBatch, type LodBatchInstance } from './lod-batch.ts';
 import { buildTreeGeometry, SPECIES_STYLE, TREE_VARIANTS } from './tree-geometry.ts';
 
 const SINK_M = 0.12;
 const TINT_WARM = new Color('#e8d27a');
 const TINT_COOL = new Color('#7fa39a');
-const TINT_AMOUNT = 0.14;
+const TINT_AMOUNT = 0.08;
 const UP = new Vector3(0, 1, 0);
 
 /** Camera distance (m) under which a tree uses its detailed geometry. */
-const DETAIL_DISTANCE_M = 85;
+const DETAIL_DISTANCE_M = 70;
 /** Ferns are ground clutter: hidden beyond this camera distance. */
 const FERN_DISTANCE_M = 70;
 /** Distant trees only need a couple of silhouettes per species. */
 const FAR_VARIANTS = 2;
-/** The camera must move this far before levels of detail are re-evaluated. */
-const REEVALUATE_STEP_M = 4;
 
 function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terrain: TerrainData, variantOf: (t: TreeInstance) => number): LodBatch {
   const style = SPECIES_STYLE[species];
@@ -79,13 +77,11 @@ function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData): 
 }
 
 export function Vegetation({ trees, terrain }: { readonly trees: readonly TreeInstance[]; readonly terrain: TerrainData }) {
-  // `last`: camera position at the last level-of-detail pass (reset with the batches).
-  const { batches, last } = useMemo(() => ({ batches: buildVegetation(trees, terrain), last: new Vector3(Number.POSITIVE_INFINITY, 0, 0) }), [trees, terrain]);
+  const { batches, trigger } = useMemo(() => ({ batches: buildVegetation(trees, terrain), trigger: new CameraTrigger() }), [trees, terrain]);
 
   useFrame(({ camera }) => {
-    if (camera.position.distanceToSquared(last) < REEVALUATE_STEP_M ** 2) return;
-    last.copy(camera.position);
-    for (const batch of batches) batch.update(camera.position);
+    if (!trigger.moved(camera)) return;
+    for (const batch of batches) batch.update(camera);
   });
 
   useEffect(() => () => batches.forEach((b) => b.dispose()), [batches]);

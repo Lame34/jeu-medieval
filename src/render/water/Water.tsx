@@ -87,7 +87,8 @@ varying vec3 vFlow;
 void main() {
   vec2 huv = (vWorldPos.xz + 0.5) / uHeightsSize;
   float ground = texture2D(uHeights, huv).r;
-  float depth = uLevel - ground;
+  vec2 inMap = step(vec2(0.0), vWorldPos.xz) * step(vWorldPos.xz, uHeightsSize - 1.0);
+  float depth = inMap.x * inMap.y > 0.5 ? uLevel - ground : 1.0;
   if (depth < -0.02) discard;
 
   vec2 tangent = normalize(vFlow.xy + vec2(1e-5));
@@ -110,16 +111,16 @@ void main() {
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun * towardSun), uSkyZenith, 0.35);
   // Still water (moats) mirrors the sky much more than running water: it must read as water.
   float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill);
-  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.35, 0.5, uStill)));
+  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.25, 0.5, uStill)));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));
   col += uSunColor * streak * 0.035 * (1.0 - uStill);
 
   // Sun glints.
-  vec3 n = normalize(vec3((ripple - 0.5) * 0.35, 1.0, (r2 - 0.5) * 0.35));
-  float spec = pow(max(dot(reflect(-uSunDir, n), view), 0.0), 160.0);
-  col += uSunColor * spec * 0.3;
+  vec3 n = normalize(vec3((ripple - 0.5) * 0.2, 1.0, (r2 - 0.5) * 0.2));
+  float spec = pow(max(dot(reflect(-uSunDir, n), view), 0.0), 300.0);
+  col += uSunColor * spec * 0.1;
 
   // Bank foam: thin, broken, drifting.
   float foamBand = 1.0 - smoothstep(0.03, 0.32, depth);

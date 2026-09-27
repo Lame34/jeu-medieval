@@ -140,4 +140,6 @@ export interface UnitMarker {
   readonly typeKey: string;
   readonly position: Vec2;
   readonly facingTurns: number;
+  /** Absolute height of the surface the unit stands on (wall-walk…); terrain when absent. */
+  readonly elevationM?: number;
 }

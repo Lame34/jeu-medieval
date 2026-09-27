@@ -35,13 +35,13 @@ const CHUNK_M = 16;
 const STREAM_RADIUS_M = 72;
 const STREAM_FADE_M = 14;
 /** Chunks whose centre is closer than this to the camera use full tufts. */
-const NEAR_DISTANCE_M = 40;
-/** Far level: two tufts in three, widened to keep the mass. */
-const FAR_KEEP = 0.65;
-const FAR_WIDTH = 1.55;
+const NEAR_DISTANCE_M = 30;
+/** Far level: three tufts in five, twice as wide: the mass without the triangles. */
+const FAR_KEEP = 0.6;
+const FAR_WIDTH = 2.0;
 /** Instance caps per crop (the triangle budget): nearest chunks are served first. */
-const NEAR_CAPACITY = 8000;
-const FAR_CAPACITY = 14000;
+const NEAR_CAPACITY = 5000;
+const FAR_CAPACITY = 9000;
 /** The focus or the camera must move this far before the streamed set is rebuilt. */
 const REBUILD_STEP_M = 3;
 const FLOATS_PER_MATRIX = 16;
@@ -263,7 +263,7 @@ function build(fields: readonly FieldPatch[], terrain: TerrainData): Built {
     vertexColors: true,
     heightM: TUFT_HEIGHT_M,
     windSwayM: WHEAT_SWAY_M,
-    gradientBase: 0.62,
+    gradientBase: 0.6,
     gradientTop: 1.12,
     groundAO: 0.15,
     side: DoubleSide,
