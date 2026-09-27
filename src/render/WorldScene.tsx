@@ -79,7 +79,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
       <Vegetation trees={layout.trees} terrain={t} />
       <Fields fields={layout.fields} terrain={t} />
       <Hedges hedges={layout.hedges} terrain={t} />
-      <Castle walls={layout.walls} towers={layout.towers} />
+      <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} />
         <Units units={layout.units} terrain={t} />

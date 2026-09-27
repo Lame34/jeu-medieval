@@ -28,6 +28,24 @@ uniform vec3 uStoneLit;
 uniform vec3 uStoneBase;
 uniform vec3 uWheatBase;
 uniform vec3 uWheatLit;
+// Triplanar blend weights: steep banks (moats, butte) sample their detail noise on the vertical
+// planes instead of stretching the ground projection.
+vec3 terrainTriWeights(vec3 n) {
+  vec3 w = pow(abs(n), vec3(4.0));
+  return w / (w.x + w.y + w.z);
+}
+float terrainTriFbm(vec3 p, vec3 w, float scale, float offset) {
+  float v = paintedFbm(p.xz / scale + offset) * w.y;
+  if (w.y < 0.98) v += paintedFbm(p.zy / scale + offset) * w.x + paintedFbm(p.xy / scale + offset) * w.z;
+  else v /= w.y;
+  return v;
+}
+float terrainTriValue(vec3 p, vec3 w, float freq) {
+  float v = paintedValueNoise(p.xz * freq) * w.y;
+  if (w.y < 0.98) v += paintedValueNoise(p.zy * freq) * w.x + paintedValueNoise(p.xy * freq) * w.z;
+  else v /= w.y;
+  return v;
+}
 `;
 
 const TERRAIN_ALBEDO = /* glsl */ `
@@ -37,8 +55,9 @@ const TERRAIN_ALBEDO = /* glsl */ `
   vec4 w = texture2D(uSplat, (p.xz - uSplatOrigin) / uSplatSize);
   float slope = 1.0 - n.y;
   float nLarge = paintedFbm(p.xz / 26.0);
-  float nMid = paintedFbm(p.xz / 7.0 + 7.3);
-  float nFine = paintedValueNoise(p.xz * 1.9);
+  vec3 tri = terrainTriWeights(n);
+  float nMid = terrainTriFbm(p, tri, 7.0, 7.3);
+  float nFine = terrainTriValue(p, tri, 1.9);
   float edgeNoise = (nMid - 0.5) * 0.55 + (nFine - 0.5) * 0.22;
 
   // Slopes facing the sun dry out and blond; ridges too.
@@ -68,7 +87,8 @@ const TERRAIN_ALBEDO = /* glsl */ `
   col = mix(col, road, wRoad);
 
   float wRock = smoothstep(0.38, 0.6, slope + (nMid - 0.5) * 0.3);
-  float strata = paintedFbm(vec2(p.x + p.z, p.y * 3.5) / 2.5);
+  // Horizontal strata, projected like the detail noise (no vertical smearing on steep faces).
+  float strata = terrainTriFbm(vec3(p.x, p.y * 3.5, p.z), tri, 2.5, 0.0);
   vec3 rock = mix(uStoneBase, uStoneLit, 0.25 + 0.6 * strata);
   col = mix(col, rock, wRock);
 
@@ -90,7 +110,7 @@ export function createTerrainMaterial(
     worldNormal: true,
     wrap: 0.35,
     customAlbedo: {
-      key: 'terrain-v1',
+      key: 'terrain-v2',
       pars: TERRAIN_PARS,
       body: TERRAIN_ALBEDO,
       uniforms: {

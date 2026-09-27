@@ -9,7 +9,7 @@ import type { Vec2 } from '../../core/math/vec2.ts';
 import type { TowerSite, WallRun } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
-const BURY_M = 2;
+export const BURY_M = 2;
 const MERLON_WIDTH_M = 0.85;
 const MERLON_GAP_M = 0.6;
 const MERLON_HEIGHT_M = 1.05;
@@ -19,20 +19,20 @@ const TOWER_SIDES = 18;
 const TOWER_MERLONS = 12;
 const TOWER_ROOF_RATIO = 0.95;
 const ROOF_OVERHANG_M = 0.8;
-const ROOF_COLOR = PALETTE.towerRoof;
-const ROOF_SHINGLE_ROWS = 14;
+export const ROOF_COLOR = PALETTE.towerRoof;
+export const ROOF_SHINGLE_ROWS = 14;
 const GLACIS_HEIGHT_M = 1.4;
 const GLACIS_FLARE_M = 0.8;
 const FINIAL_HEIGHT_M = 1.3;
 const FINIAL_COLOR = '#4a4f57';
 
-interface Box {
+export interface Box {
   readonly center: Vector3;
   readonly size: Vector3;
   readonly yaw: number;
 }
 
-function boxGeometry(box: Box): BufferGeometry {
+export function boxGeometry(box: Box): BufferGeometry {
   // Hand-built box (no shared normals between faces: crisp masonry edges).
   const { x: sx, y: sy, z: sz } = box.size;
   const hx = sx / 2;
@@ -55,9 +55,9 @@ function boxGeometry(box: Box): BufferGeometry {
 }
 
 /** Horizontal masonry coordinate of a vertex (arc length along the wall / around the tower). */
-type AlongFn = (x: number, z: number) => number;
+export type AlongFn = (x: number, z: number) => number;
 
-function finish(g: BufferGeometry, baseY: number, color: Color, along?: AlongFn): BufferGeometry {
+export function finish(g: BufferGeometry, baseY: number, color: Color, along?: AlongFn): BufferGeometry {
   const out = g.index ? g.toNonIndexed() : g;
   const pos = out.getAttribute('position');
   const data = new Float32Array(pos.count * 4);
@@ -78,7 +78,11 @@ function segmentYaw(a: Vec2, b: Vec2): number {
   return Math.atan2(-(b.z - a.z), b.x - a.x);
 }
 
-export function buildWallGeometry(wall: WallRun): BufferGeometry {
+/**
+ * `paintBaseM`: height the masonry treatment counts from (moss, streaks); defaults to the wall
+ * base. A gate lintel starts above the opening but belongs to the wall below it.
+ */
+export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM): BufferGeometry {
   const stone = new Color('#ffffff');
   const parts: BufferGeometry[] = [];
   const alongs: AlongFn[] = [];
@@ -115,7 +119,7 @@ export function buildWallGeometry(wall: WallRun): BufferGeometry {
     for (let k = before; k < parts.length; k++) alongs.push(along);
     travelled += len;
   }
-  const merged = mergeGeometries(parts.map((p, k) => finish(p, base, stone, alongs[k])), false);
+  const merged = mergeGeometries(parts.map((p, k) => finish(p, paintBaseM, stone, alongs[k])), false);
   parts.forEach((p) => p.dispose());
   if (!merged) throw new Error('wall merge failed');
   return merged;

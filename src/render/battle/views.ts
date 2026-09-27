@@ -30,11 +30,16 @@ export function battleViews(layout: WorldLayout): readonly BattleView[] {
     center,
   );
   const attacker = layout.units.find((u) => u.faction === 'attacker')?.position ?? layout.focus;
+  const bridge = layout.bridges[0];
+  const bridgeMid = bridge ? { x: (bridge.from.x + bridge.to.x) / 2, z: (bridge.from.z + bridge.to.z) / 2 } : center;
+  // The overview frames the whole stake: from the attackers' deployment to the castle.
+  const stake = { x: (layout.focus.x + keep.x) / 2, z: (layout.focus.z + keep.z) / 2 };
   return [
-    { id: 'overview', label: 'Vue d’ensemble', focus: center, distance: 240, yawTurns: yawLooking(layout.focus, keep), pitchDeg: 55 },
+    { id: 'overview', label: 'Vue d’ensemble', focus: stake, distance: 230, yawTurns: yawLooking(layout.focus, keep), pitchDeg: 55 },
     { id: 'deployment', label: 'Déploiement', focus: layout.focus, distance: 65, yawTurns: yawLooking(layout.focus, keep), pitchDeg: 48 },
     { id: 'gate', label: 'Porte du château', focus: gate, distance: 55, yawTurns: yawLooking(gate, keep), pitchDeg: 26 },
     { id: 'village', label: 'Village', focus: village, distance: 45, yawTurns: yawLooking(village, keep), pitchDeg: 40 },
+    { id: 'bridge', label: 'Pont', focus: bridgeMid, distance: 40, yawTurns: yawLooking(bridgeMid, keep) + 0.2, pitchDeg: 30 },
     { id: 'close', label: 'Plan rapproché', focus: attacker, distance: 12, yawTurns: yawLooking(attacker, keep), pitchDeg: 26 },
   ];
 }

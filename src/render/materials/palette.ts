@@ -22,7 +22,7 @@ export const PALETTE = {
   towerRoof: '#7e5646',
   plaster: { lit: '#e2d4b6', base: '#a89a7e' },
   mortar: '#6d665a',
-  water: { shallow: '#6e9c8e', deep: '#2f5963', moatTop: '#3a4a3c', moatDeep: '#26332b', foam: '#ede6d2' },
+  water: { shallow: '#6e9c8e', deep: '#2f5963', moatTop: '#4a5c48', moatDeep: '#2e3d33', foam: '#ede6d2' },
   attacker: { primary: '#1f4fc4', secondary: '#e6b325' },
   defender: { primary: '#b3141e', secondary: '#4a4f57' },
 } as const;

@@ -1,47 +1,74 @@
+/**
+ * The castle on screen: curtain walls, towers, keep, gatehouse and the bridges (castle-parts.ts),
+ * merged into three meshes — masonry (procedural stone), roofs and timber — so the whole castle
+ * costs three draw calls (plus the shadow pass).
+ */
 import { useEffect, useMemo } from 'react';
-import { Mesh, type BufferGeometry } from 'three';
+import { Mesh, type BufferGeometry, type Material } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import type { TowerSite, WallRun } from '../../core/worldgen/types.ts';
+import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import type { BridgeSite, GateSite, KeepSite, TowerSite, WallRun, WaterBody } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
+import { buildGate, buildKeep, buildStoneBridge } from './castle-parts.ts';
 import { createStoneMaterial } from './stone-material.ts';
 
 const TOWER_ROOF_HEIGHT_M = 16;
+const TIMBER_HEIGHT_M = 6;
 
-export function Castle({ walls, towers }: { readonly walls: readonly WallRun[]; readonly towers: readonly TowerSite[] }) {
+export interface CastleProps {
+  readonly walls: readonly WallRun[];
+  readonly towers: readonly TowerSite[];
+  readonly gates: readonly GateSite[];
+  readonly keeps: readonly KeepSite[];
+  readonly bridges: readonly BridgeSite[];
+  readonly water: readonly WaterBody[];
+  readonly terrain: TerrainData;
+}
+
+function mergedMesh(parts: BufferGeometry[], material: Material, name: string): Mesh | null {
+  if (parts.length === 0) return null;
+  const geometry = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  if (!geometry) throw new Error(`${name}: merge failed`);
+  const mesh = new Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.name = name;
+  return mesh;
+}
+
+export function Castle({ walls, towers, gates, keeps, bridges, water, terrain }: CastleProps) {
   const built = useMemo(() => {
-    const stoneParts: BufferGeometry[] = walls.map(buildWallGeometry);
+    const stoneParts: BufferGeometry[] = walls.map((w) => buildWallGeometry(w));
     const roofParts: BufferGeometry[] = [];
+    const woodParts: BufferGeometry[] = [];
     for (const tower of towers) {
       const { stone, roof } = buildTowerGeometry(tower);
       stoneParts.push(stone);
       roofParts.push(roof);
     }
-    const maxHeight = Math.max(...walls.map((w) => w.heightM), ...towers.map((t) => t.heightM), 1);
-    const stoneGeo = mergeGeometries(stoneParts, false);
-    stoneParts.forEach((g) => g.dispose());
-    const stone = new Mesh(stoneGeo ?? undefined, createStoneMaterial(maxHeight));
-    stone.castShadow = true;
-    stone.receiveShadow = true;
-    stone.name = 'Castle:stone';
-    const meshes = [stone];
-    if (roofParts.length > 0) {
-      const roofGeo = mergeGeometries(roofParts, false);
-      roofParts.forEach((g) => g.dispose());
-      const roof = new Mesh(roofGeo ?? undefined, createPaintedMaterial({ name: 'Castle:roof', vertexColors: true, vertexData: true, heightM: TOWER_ROOF_HEIGHT_M, gradientBase: 0.6 }));
-      roof.castShadow = true;
-      roof.receiveShadow = true;
-      roof.name = 'Castle:roof';
-      meshes.push(roof);
+    const riverLevel = water.find((b) => b.kind === 'river')?.levelM ?? 0;
+    const parts = [...keeps.map(buildKeep), ...gates.map((g) => buildGate(g, terrain)), ...bridges.map((b) => buildStoneBridge(b, terrain, riverLevel))];
+    for (const p of parts) {
+      stoneParts.push(...p.stone);
+      roofParts.push(...p.roof);
+      woodParts.push(...p.wood);
     }
-    return meshes;
-  }, [walls, towers]);
+    const maxHeight = Math.max(...walls.map((w) => w.heightM), ...towers.map((t) => t.heightM), 1);
+    const meshes = [
+      mergedMesh(stoneParts, createStoneMaterial(maxHeight), 'Castle:stone'),
+      mergedMesh(roofParts, createPaintedMaterial({ name: 'Castle:roof', vertexColors: true, vertexData: true, heightM: TOWER_ROOF_HEIGHT_M, gradientBase: 0.6 }), 'Castle:roof'),
+      mergedMesh(woodParts, createPaintedMaterial({ name: 'Castle:wood', vertexColors: true, vertexData: true, heightM: TIMBER_HEIGHT_M, gradientBase: 0.85, groundAO: 0.1 }), 'Castle:wood'),
+    ];
+    return meshes.filter((m): m is Mesh => m !== null);
+  }, [walls, towers, gates, keeps, bridges, water, terrain]);
 
   useEffect(
     () => () => {
       for (const m of built) {
         m.geometry.dispose();
-        (m.material as { dispose(): void }).dispose();
+        (m.material as Material).dispose();
       }
     },
     [built],

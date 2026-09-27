@@ -108,7 +108,9 @@ void main() {
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float towardSun = dot(normalize(-view.xz + vec2(1e-5)), sunXZ) * 0.5 + 0.5;
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun * towardSun), uSkyZenith, 0.35);
-  col = mix(col, skyRefl * 0.9, clamp(fresnel * 0.45 + (ripple - 0.5) * 0.18, 0.0, 0.35));
+  // Still water (moats) mirrors the sky much more than running water: it must read as water.
+  float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill);
+  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.35, 0.5, uStill)));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));
