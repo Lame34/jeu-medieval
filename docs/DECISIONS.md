@@ -105,6 +105,15 @@ La carte de 512 m (environ 1,8 s) est générée dans `src/ui/workers/worldgen.w
 ## ADR-019 — Méthode de mesure en deux passes
 Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) mesure le débit et la marge. Une passe **plafonnée par la vsync** à 60 Hz mesure le 1 % low : sans plafond, les intervalles de `requestAnimationFrame` arrivent par rafales et le 1 % low perd son sens (un 4,5 FPS isolé au premier journal). `renderer.info` est cumulé sur la frame entière (`autoReset = false`), passes d'ombre et de post-process comprises.
 
+## ADR-020 — Résolution dynamique : implémentée, désactivée par défaut
+**Contexte** : sur ce portable, l'iGPU Arc s'étrangle après quelques minutes de charge soutenue. Le 1 % low tombe alors de ~52 à 20–30, en rafales de frames à ~25 ms, alors que le CPU reste inactif à 92 %. Le brief prévoit une résolution dynamique de 67 à 100 %.
+**Décision** : `src/render/quality/DynamicResolution.tsx` (compte des frames lentes > 20 ms, chauffe, pas de 0,1) est en place mais **activable seulement par `?dynres`**. `postprocessing` réalloue ses tampons à chaque `setSize`, et chaque palier coûte un à-coup. En plus, les changements de vue font descendre l'échelle en cascade.
+**Mesure (bataille ×1)** :
+- pleine résolution : 1 % low 49 à 55 ;
+- résolution dynamique : 1 % low 23 à 41, échelle tombée à 0,67.
+
+**À faire (J8)** : rendre dans des cibles allouées une fois à la taille maximale, avec viewport et scissor réduits, sans réallocation. Réactiver ensuite par défaut.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

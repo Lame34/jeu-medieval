@@ -97,7 +97,7 @@ vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   float valley = uValleyFog * (1.0 - smoothstep(uValleyLow, uValleyHigh, worldPos.y)) * smoothstep(0.0, uFogStart, dist);
   vec2 outside = max(max(uMapMin - worldPos.xz, worldPos.xz - uMapMax), 0.0);
   // Stepped planes of haze beyond the map, not a milky wall (review v15).
-  float edge = 0.35 * smoothstep(30.0, 260.0, length(outside));
+  float edge = 0.25 * smoothstep(20.0, 240.0, length(outside));
   return mix(color, fogColor, max(max(fogF, valley), edge));
 }
 `;
@@ -133,7 +133,15 @@ void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geom
 
 void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
   vec3 tint = mix(uShadowTint, vec3(1.0), paintedSunLit);
-  vec3 c = irradiance * tint * BRDF_Lambert(material.diffuseColor);
+  // Warm albedos (earth, straw, tiles) in the shade: neutral-ish bounce light, gentler tint —
+  // otherwise the blue sky light greys them or turns them mauve (review v17).
+  vec3 albedoYiq = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312) * material.diffuseColor;
+  float warmAlbedo = smoothstep(0.0, 0.03, albedoYiq.y) * (1.0 - paintedSunLit);
+  vec3 light = mix(irradiance, vec3(dot(irradiance, vec3(1.0 / 3.0))), 0.4 * warmAlbedo);
+  tint = mix(tint, vec3(1.0), 0.5 * warmAlbedo);
+  vec3 c = light * tint * BRDF_Lambert(material.diffuseColor);
+  // Cast shadows as washes: a little more light than the plain ambient.
+  c *= mix(1.1, 1.0, paintedSunLit);
   // Shade turns the hue towards blue-violet at constant luminance (YIQ rotation, at most
   // ~25°): wheat goes ochre, grass blue-green, plaster sienna, stone blue-violet. A straight
   // mix towards violet would pass through grey (review v15). Greys take the shadow chroma.
@@ -151,7 +159,7 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
     float warm = smoothstep(0.0, 0.02, yiq.y);
     float warmTurn = yiq.z < 0.0 ? -0.17 : 0.0;
     a += mix(clamp(d, -0.25, 0.25), warmTurn, warm) * shade;
-    yiq.yz = vec2(cos(a), sin(a)) * chroma * (1.0 + 0.12 * shade);
+    yiq.yz = vec2(cos(a), sin(a)) * chroma * mix(1.0 - 0.1 * shade, 1.0, warm);
     yiq.yz += uShadowIQ * yiq.x * 0.25 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
     c = max(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * yiq, 0.0);
   }

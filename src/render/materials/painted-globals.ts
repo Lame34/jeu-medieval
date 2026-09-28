@@ -29,7 +29,7 @@ export interface FogSettings {
 export const DEFAULT_FOG: FogSettings = {
   startBeyondFocusM: 70,
   endBeyondFocusM: 900,
-  maxAmount: 0.72,
+  maxAmount: 0.66,
   valleyAmount: 0.12,
   valleyLowM: -2,
   valleyHighM: 3,

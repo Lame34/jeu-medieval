@@ -4,7 +4,7 @@
  * average FPS, 1 % low, median frame time, draw calls and triangles, optionally with Chrome's
  * CPU throttling. Refuses to report a "portable" result on any GPU other than the Intel iGPU.
  *
- * Usage: node scripts/perf-bench.ts [--preset portable] [--scene lookdev] [--cpu-throttle 4]
+ * Usage: node scripts/perf-bench.ts [--preset portable] [--scene lookdev] [--cpu-throttle 4] [--fixedres]
  *                                   [--seconds 5] [--no-build] [--log]
  */
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
@@ -37,6 +37,8 @@ interface ViewResult {
   readonly frames: number;
   readonly calls: number;
   readonly triangles: number;
+  /** Dynamic resolution scale at the end of the paced pass. */
+  readonly scale: number;
 }
 
 function percentile(sorted: number[], p: number): number {
@@ -59,7 +61,7 @@ async function waitForServer(url: string, timeoutMs: number): Promise<void> {
 
 interface Pass {
   readonly gpu: string;
-  readonly views: { times: number[]; calls: number; triangles: number }[];
+  readonly views: { times: number[]; calls: number; triangles: number; scale: number }[];
   readonly heapBytes: number;
   readonly textures: number;
   readonly errors: string[];
@@ -72,7 +74,7 @@ interface Pass {
 async function measurePass(uncapped: boolean): Promise<Pass> {
   const browser = await launch({ uncapped });
   try {
-    const { page, errors } = await openScene(browser, `/${SCENE}?bench&preset=${PRESET}`);
+    const { page, errors } = await openScene(browser, `/${SCENE}?bench&preset=${PRESET}${flag('fixedres') ? '&fixedres' : ''}`);
     const gpu = await gpuString(page);
     if (PRESET === 'portable' && !isIntelArc(gpu)) throw new Error(`Refusing a "portable" measurement on a non-Intel GPU: ${gpu}`);
     if (CPU_THROTTLE > 1) {
@@ -87,7 +89,7 @@ async function measurePass(uncapped: boolean): Promise<Pass> {
       await page.evaluate(() => window.__perf?.reset());
       await page.waitForTimeout(SECONDS * 1000);
       const sample = await page.evaluate(() => ({ times: window.__perf?.frameTimes() ?? [], info: window.__perf?.renderer() }));
-      views.push({ times: sample.times, calls: sample.info?.calls ?? 0, triangles: sample.info?.triangles ?? 0 });
+      views.push({ times: sample.times, calls: sample.info?.calls ?? 0, triangles: sample.info?.triangles ?? 0, scale: sample.info?.renderScale ?? 1 });
     }
     const heapBytes = await page.evaluate(() => (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0);
     const textures = await page.evaluate(() => window.__perf?.renderer().textures ?? 0);
@@ -118,6 +120,7 @@ async function main(): Promise<void> {
         frames: v.times.length,
         calls: v.calls,
         triangles: v.triangles,
+        scale: pacing.views[view]?.scale ?? 1,
       };
     });
     report(throughput.gpu, results, throughput.heapBytes, throughput.textures, [...throughput.errors, ...pacing.errors]);
@@ -142,7 +145,7 @@ function report(gpu: string, results: ViewResult[], heapBytes: number, textures:
   const verdict = avg >= fpsBudget && (CPU_THROTTLE > 1 || low >= BUDGET.lowFps) && calls < BUDGET.drawCalls && tris < BUDGET.triangles;
   console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE}`);
   for (const r of results) {
-    console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · median ${r.medianMs.toFixed(2)} ms · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames`);
+    console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · median ${r.medianMs.toFixed(2)} ms · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames · scale ${r.scale.toFixed(2)}`);
   }
   console.log(`TOTAL avg ${avg.toFixed(1)} fps · worst 1% low ${low.toFixed(1)} · max ${calls} calls · max ${(tris / 1e6).toFixed(2)} M tris · heap ${(heapBytes / 1048576).toFixed(0)} MB · ${textures} textures → ${verdict ? 'WITHIN BUDGET' : 'OVER BUDGET'}`);
   if (errors.length > 0) console.log(`console errors: ${errors.length}`);

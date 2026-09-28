@@ -18,8 +18,9 @@ export const FLOOR_HEIGHT_M = 3.12;
 /** Wall pieces: exterior face at local z = +0.09. */
 const WALL_OUTSET_M = 0.09;
 const PLINTH_DEPTH_M = 1.2;
-/** Barely proud of the ground: a taller plinth read as a black outline in the shade. */
-const PLINTH_HEIGHT_M = 0.02;
+/** A chamfered band: a 2 cm lip aliased into dotted lines at tactical zoom (review v17). */
+const PLINTH_HEIGHT_M = 0.12;
+const PLINTH_CHAMFER_M = 0.12;
 const PLINTH_MARGIN_M = 0.25;
 const THATCH_OVERHANG_M = 0.7;
 const THATCH_THICKNESS_M = 0.38;
@@ -195,6 +196,8 @@ function plinth(W: number, D: number): BufferGeometry {
   const d = D / 2 + PLINTH_MARGIN_M;
   const top = PLINTH_HEIGHT_M;
   const bottom = -PLINTH_DEPTH_M;
+  const tw = w - PLINTH_CHAMFER_M;
+  const td = d - PLINTH_CHAMFER_M;
   const c = new Color(PALETTE.dirt.base);
   const corners = [
     [-w, -d],
@@ -206,7 +209,10 @@ function plinth(W: number, D: number): BufferGeometry {
   for (let i = 0; i < 4; i++) {
     const [ax, az] = corners[i] as readonly [number, number];
     const [bx, bz] = corners[(i + 1) % 4] as readonly [number, number];
-    positions.push(ax, bottom, az, ax, top, az, bx, top, bz, ax, bottom, az, bx, top, bz, bx, bottom, bz);
+    // Top edge inset: a sloped band that sits softly on the ground.
+    const [tax, taz] = [Math.sign(ax) * tw, Math.sign(az) * td];
+    const [tbx, tbz] = [Math.sign(bx) * tw, Math.sign(bz) * td];
+    positions.push(ax, bottom, az, tax, top, taz, tbx, top, tbz, ax, bottom, az, tbx, top, tbz, bx, bottom, bz);
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));

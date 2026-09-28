@@ -67,7 +67,7 @@ const STONE_ALBEDO = /* glsl */ `
 `;
 
 /** Default course height of castle masonry (m). */
-const CASTLE_COURSE_M = 0.8;
+const CASTLE_COURSE_M = 0.7;
 
 export function createStoneMaterial(wallHeightM: number, courseM = CASTLE_COURSE_M): PaintedMaterial {
   return createPaintedMaterial({

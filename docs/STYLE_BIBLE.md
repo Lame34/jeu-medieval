@@ -60,7 +60,7 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | Paramètre | Matin (8 h) | **Fin d'après-midi (16 h 30, défaut)** | Crépuscule (19 h 30) |
 |---|---|---|---|
 | Élévation / azimut | 18° / 110° | **24° / 245°** | 6° / 285° |
-| Couleur du soleil | `#FFE7C8` | **`#FFD8A6`** | `#FFAC6E` |
+| Couleur du soleil | `#FFE7C8` | **`#FFD8A6`** | `#FFB47A` |
 | Intensité du soleil | 2.3 | **2.5** | 2.2 |
 | Ciel au zénith | `#7FA6CF` | **`#6F96C4`** | `#4C5A8C` |
 | Horizon, côté soleil | `#F4E2C4` | **`#F3D09C`** | `#F29A62` |
@@ -68,19 +68,19 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | Ambiante, ciel | `#AEC0DC` | **`#A4B8D8`** | `#7D84B4` |
 | Ambiante, sol (rebond) | `#6E6450` | **`#7A6242`** | `#74523A` |
 | Intensité ambiante | 1.9 | **1.9** | 2.3 |
-| Couleur de l'ombre | `#5F6C98` | **`#5B5A8E`** | `#4A4278` |
+| Couleur de l'ombre | `#5F6C98` | **`#55618F`** | `#444E80` |
 | Teinte multiplicative de l'ombre (`shadowStrength`) | 0.25 | **0.28** | 0.30 |
-| Décalage de teinte à luminance constante (`shadowHue`) | 0.22 | **0.28** | 0.24 |
+| Rotation de teinte YIQ à l'ombre (`shadowHue`) | 0.22 | **0.28** | 0.24 |
 | Chaleur de l'étalonnage / exposition | 0.03 / 1.0 | **0.045 / 1.0** | 0.06 / 1.15 |
-| Brume, côté soleil | `#E8DCC6` | **`#EBC896`** | `#E39A6C` |
-| Brume, côté opposé | `#B4C3D2` | **`#A8B8CA`** | `#7E7896` |
+| Brume, côté soleil | `#E8D4B4` | **`#EBC896`** | `#E39A6C` |
+| Brume, côté opposé | `#A9B9CC` | **`#9AACC4`** | `#7E7896` |
 
 ### Ombres
-- Aucune ombre grise ou noire. À l'ombre, la lumière ambiante reçoit une teinte multiplicative normalisée par la moyenne des canaux, bornée entre 0,75 et 1,25. Elle glisse ensuite vers la couleur d'ombre **à luminance constante** (`shadowHue`, teinte gardée à 60 %). Herbe, pierre et tuiles prennent ainsi la même ombre bleu-violet (revue v13).
+- Aucune ombre grise ou noire. À l'ombre, la lumière ambiante reçoit une teinte multiplicative normalisée par la moyenne des canaux, bornée entre 0,75 et 1,25. La teinte tourne ensuite en YIQ à luminance constante : les teintes froides tournent d'au plus 14° vers la couleur d'ombre, les ocres d'au plus 10° vers l'olive, les rouges ne tournent pas, les gris reçoivent la chroma de l'ombre. Les albédos chauds reçoivent une lumière de rebond neutralisée à 40 %. Les ombres portées sont relevées de 10 %, pour se lire comme des lavis. Les unités sont exemptées de la rotation et du plafond de saturation (0,52).
 - Une seule lumière projette des ombres (le soleil), avec une carte de 2048 px au maximum et un frustum resserré qui suit la caméra. Les ombres du terrain et l'AO sont précalculées dans une texture au chargement.
 
 ### Perspective aérienne
-- La brume commence à **70 m** au-delà du point visé et atteint **72 %** à 900 m, en ease-out. Hors de la carte jouable, un voile supplémentaire (jusqu'à 70 % à 45 m du bord) cache le bord.
+- La brume commence à **70 m** au-delà du point visé et atteint **66 %** à 900 m, en ease-out. Hors de la carte jouable, un voile par plans étagés (jusqu'à 25 % à 240 m du bord) cache le bord.
 - La brume se teinte selon l'angle avec le soleil (doré côté soleil, bleu gris à l'opposé), avec un léger brouillard de vallon (0,12 sous 3 m).
 - Le ciel porte des bancs de nuages peints, précalculés au chargement (panorama 1024 × 256), concentrés juste au-dessus des montagnes.
 - Les montagnes du fond sont trois couches de silhouettes, de plus en plus claires et bleues.
@@ -130,5 +130,7 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | **v15** | 27/09 | `2026-09-27-v15` | 6 | 6 | 6 | 7 | 5 | 5 | **Troisième revue, moyenne 5,8.** Restent : ombre à faire tourner en teinte (YIQ) plutôt qu'à mélanger vers le violet ; plafond de saturation dans le shader ; bords de carte (anneau à meubler, voile en plans étagés, rivière prolongée qui méandre) ; vue castle à recadrer (75 m / 14°) et joints plus fins ; unités ×1,2 avec métal de l'attaquant plus clair ; feuillage à normales lisses ; herbe à la couleur du sol, fleurs en taches ; bords du chemin analytiques ; prairie plus sèche et abords des maisons ; vue close plus basse ; blé à l'ombre ; crépuscule ; socle des maisons. |
 
 | **v16** | 27/09 | `2026-09-27-v16b` | 6 | 7 | 6 | 7 | 6 | 5 | **Quatrième revue, moyenne 6,2.** Ombre en rotation de teinte YIQ (unités exemptées), plafond de saturation 0,52, bords de carte meublés, vue castle recadrée, unités ×1,12, herbe à la couleur du sol, abords des maisons. Restent : pli en « V » au bord de la carte (camera castle hors carte), teintes chaudes lilas à l'ombre, chemin trop large et pixellisé, herbe en dents, brume laiteuse du lointain, maçonnerie régulière, bosquets proches facettés, rivière hors carte, rayon du blé. |
+
+| **v17** | 28/09 | `2026-09-28-v17b` | 7 | 7 | 6 | 7 | 6 | 6 | **Cinquième revue, moyenne 6,5.** Pli du bord supprimé, chemin à sa vraie largeur (bug de smoothstep), ombres des teintes chaudes sans lilas, caméra castle dans la carte. Restent : herbe proche en dents, ombres des teintes chaudes grises le matin, abords des maisons redevenus nets, couture de couleur de l'anneau, bosquets lointains identiques, lointain laiteux, chemin sans issue, blé en confettis, capuche de l'archer, rivière « marbre », ombres trop opaques, maçonnerie, cadrages, prairie vide, liseré des socles. |
 
 Carte de bataille (J2 §12) : `docs/captures/2026-09-27-battle-v1…v3`, vues dérivées de la carte (`src/render/battle/views.ts`). Château complet (donjon, porterie, pont-levis) et pont de pierre à partir de battle-v2.

@@ -50,7 +50,7 @@ const GRASS_BODY = /* glsl */ `
   float verge = mix(1.0, 0.6, smoothstep(0.1, 0.4, splat.r));
   // The meadow runs on 25 m past the map edge, fading, so the seam never reads.
   vec2 beyond = max(max(vec2(0.5) - world, world - (uGrassMapSize - 0.5)), 0.0);
-  allowed *= 1.0 - smoothstep(10.0, 25.0, length(beyond));
+  allowed *= 1.0 - smoothstep(20.0, 45.0, length(beyond));
   float clump = smoothstep(0.25, 0.75, paintedValueNoise(world * 0.35));
   float scale = fade * allowed * mix(0.55, 1.0, clump);
   float ground = texture2D(uGrassHeights, (world + 0.5) / uGrassHeightsSize).r;
@@ -59,7 +59,10 @@ const GRASS_BODY = /* glsl */ `
   float height = mix(0.2, 0.45, h3) * mix(0.6, 1.4, clump) * scale * mix(1.0, 0.6, flower) * verge;
   // Never thinner than ~1 px at the camera distance (no shimmering specks).
   float camD = distance(vec3(world.x, ground, world.y), cameraPosition);
-  float width = max(0.0975, 0.0011 * camD) * scale * mix(1.0, 1.5, flower);
+  // Close up the blades thin and shorten (brush strokes, not paper teeth); far away they
+  // never get thinner than ~1 px.
+  float width = (camD < 16.0 ? mix(0.06, 0.0975, smoothstep(8.0, 16.0, camD)) : max(0.0975, 0.0011 * camD)) * scale * mix(1.0, 1.5, flower);
+  height *= mix(0.7, 1.0, smoothstep(6.0, 16.0, camD));
   float angle = h1 * 6.2831853;
   vec2 side = vec2(cos(angle), sin(angle)) * width;
   vec3 p;

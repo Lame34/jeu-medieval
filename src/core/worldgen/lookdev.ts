@@ -37,7 +37,8 @@ const RIVER = {
     { x: 40, z: 320 },
   ],
 };
-const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }] };
+// The path ends at the tower foot (a path that stops short of the wall leads nowhere).
+const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }, { x: 99, z: 33 }] };
 const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 76, z: 20 }, { x: 102, z: 27 }, { x: 128, z: 44 }] };
 const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
 // The butte levels off before the map corner (a rise up to the edge reads as a plinth).

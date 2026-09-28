@@ -55,8 +55,8 @@ function boxBlur(src: Float32Array, width: number, depth: number): Float32Array<
 }
 
 /** Beaten-earth apron around houses (R) and mud/rubble strip at the foot of walls (B), in cells. */
-const APRON_CELLS = 2;
-const APRON_WEIGHT = 0.8;
+const APRON_CELLS = 3;
+const APRON_WEIGHT = 0.7;
 const WALL_FOOT_CELLS = 2;
 const WALL_FOOT_WEIGHT = 0.7;
 /** Forest-floor patch under every crown (radius per unit of tree scale) and along hedges. */
@@ -164,16 +164,17 @@ export function buildSplatTexture(t: TerrainData, trees: readonly TreeInstance[]
     if (channel !== undefined) weights[i * CHANNELS + channel] = 1;
   }
   stampRoads(t, weights, roads);
+  // Analytic roads already carry their soft verge: keep them out of the blur (copied before the
+  // building aprons, which must blur).
+  const roadChannel = analyticRoads ? weights.filter((_, i) => i % CHANNELS === ROAD_CHANNEL) : null;
   // Anchoring: nothing stands on untouched lawn (brief §5.2 "objets sans ancrage").
   dilate(t, weights, TerrainLayer.Building, 0, APRON_CELLS, APRON_WEIGHT);
   dilate(t, weights, TerrainLayer.Wall, 2, WALL_FOOT_CELLS, WALL_FOOT_WEIGHT);
   stampUnderstory(t, weights, trees, hedges);
-  // Analytic roads already carry their soft verge: keep their channel out of the blur.
-  const roadChannel = analyticRoads ? weights.filter((_, i) => i % CHANNELS === ROAD_CHANNEL) : null;
   for (let pass = 0; pass < BLUR_PASSES; pass++) weights = boxBlur(weights, t.width, t.depth);
   if (roadChannel) {
     const blurred = weights.filter((_, i) => i % CHANNELS === ROAD_CHANNEL);
-    // Buildings and walls still spread their aprons on the road channel: keep the larger.
+    // Blurred aprons and verges: keep the larger of the sharp road and the blurred channel.
     roadChannel.forEach((w, i) => (weights[i * CHANNELS + ROAD_CHANNEL] = Math.max(w, blurred[i] as number)));
   }
   const bytes = new Uint8Array(weights.length);

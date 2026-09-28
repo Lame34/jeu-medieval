@@ -86,10 +86,11 @@ const TERRAIN_ALBEDO = /* glsl */ `
   col = mix(col, fieldBed, wField * 0.9);
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
-  float wRoad = smoothstep(0.4, 0.6, w.r + edgeNoise * 0.35);
+  // Width wanders ±0.4 m with the large-scale noise; ragged edges.
+  float wRoad = smoothstep(0.4, 0.6, w.r + edgeNoise * 0.5 + (nLarge - 0.5) * 0.25);
   // Ruts and wear along a rotated frame: no axis-aligned pixel pattern.
   float ruts = paintedFbm(mat2(0.8, -0.6, 0.6, 0.8) * p.xz / 1.8);
-  vec3 road = mix(uPathBase, uPathLit, 0.4 + 0.4 * nMid) * (0.92 + 0.1 * ruts);
+  vec3 road = mix(uPathBase, uPathLit, 0.4 + 0.4 * nMid) * (0.86 + 0.2 * ruts);
   col = mix(col, road, wRoad);
 
   float wRock = smoothstep(0.38, 0.6, slope + (nMid - 0.5) * 0.3);

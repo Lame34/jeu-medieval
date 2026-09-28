@@ -5,7 +5,7 @@ interface ScriptPerfApi {
   ready: boolean;
   frameTimes(): number[];
   reset(): void;
-  renderer(): { calls: number; triangles: number; geometries: number; textures: number; programs: number };
+  renderer(): { calls: number; triangles: number; geometries: number; textures: number; programs: number; renderScale?: number };
   control: Record<string, (...args: never[]) => unknown>;
 }
 

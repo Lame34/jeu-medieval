@@ -111,12 +111,12 @@ void main() {
   float ripple = mix(r1, r2, 0.35);
 
   // The water body is lit like the scene (it would glow at dusk otherwise); reflections are not.
-  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 1.8, depth)) * uSceneLight;
+  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 1.0, depth)) * uSceneLight;
   vec3 view = normalize(cameraPosition - vWorldPos);
   float fresnel = pow(1.0 - clamp(view.y, 0.0, 1.0), 3.0);
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float towardSun = dot(normalize(-view.xz + vec2(1e-5)), sunXZ) * 0.5 + 0.5;
-  vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun * towardSun), uSkyZenith, 0.35);
+  vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun), uSkyZenith, 0.35);
   // Running water reflects a teal sky, not a glacier blue (review v15).
   skyRefl = mix(skyRefl, uShallow, 0.4 * (1.0 - uStill));
   // Still water (moats) mirrors the sky much more than running water: it must read as water.
@@ -133,9 +133,9 @@ void main() {
   col += uSunColor * spec * 0.1;
 
   // Bank foam: thin, broken, drifting.
-  float foamBand = 1.0 - smoothstep(0.03, 0.32, depth);
-  float foamNoise = smoothstep(0.35, 0.75, paintedValueNoise(flowUv * vec2(0.8, 4.0) + 11.0));
-  col = mix(col, uFoam * uSceneLight, foamBand * foamNoise * 0.85 * (1.0 - uStill * 0.6));
+  float foamBand = 1.0 - smoothstep(0.02, 0.14, depth);
+  float foamNoise = smoothstep(0.35, 0.75, paintedValueNoise(flowUv * vec2(0.6, 2.2) + 11.0));
+  col = mix(col, uFoam * uSceneLight, foamBand * foamNoise * 0.6 * (1.0 - uStill * 0.6));
 
   float alpha = smoothstep(-0.02, 0.22, depth);
   col = paintedSaturationCeiling(col, 0.52);

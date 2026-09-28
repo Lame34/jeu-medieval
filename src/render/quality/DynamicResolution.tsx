@@ -4,20 +4,24 @@
  * drops its clocks — the render scale steps down; it climbs back once frames are steady again.
  *
  * The trigger counts slow frames (> 20 ms) rather than averaging frame times, so it behaves
- * the same with vsync on (on-time frames last 16.7 ms, missed ones 33 ms) and off.
+ * the same with vsync on (on-time frames last 16.7 ms, missed ones 33 ms) and off. Loading
+ * hitches are ignored (warm-up).
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import type { EffectComposer } from 'postprocessing';
 import { Vector2 } from 'three';
 
+// Conservative on purpose: every change re-allocates the post-processing buffers (a visible
+// hitch), so only sustained slowness counts, and the scale climbs back rarely, in big steps.
 const SLOW_FRAME_S = 0.02;
-const WINDOW_FRAMES = 90;
-const SLOW_FRAMES_TO_DROP = 3;
-const STEADY_FRAMES_TO_CLIMB = 240;
-const DROP_STEP = 0.08;
-const CLIMB_STEP = 0.04;
-const COOLDOWN_FRAMES = 45;
+const WARMUP_FRAMES = 300;
+const WINDOW_FRAMES = 120;
+const SLOW_FRAMES_TO_DROP = 8;
+const STEADY_FRAMES_TO_CLIMB = 900;
+const DROP_STEP = 0.1;
+const CLIMB_STEP = 0.1;
+const COOLDOWN_FRAMES = 120;
 
 export interface RenderScaleRange {
   readonly min: number;
@@ -25,8 +29,13 @@ export interface RenderScaleRange {
 }
 
 const scratchSize = new Vector2();
-/** `?fixedres`: captures stay at full resolution (look-dev comparisons must be like for like). */
-const FIXED = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fixedres');
+/**
+ * Opt-in (`?dynres`) until resizing stops re-allocating the post-processing buffers: measured on
+ * the Arc, each step costs a visible hitch and view changes cascade the scale down, so the net
+ * effect on the 1 % low is negative (ADR-020). `?fixedres` always forces full resolution.
+ */
+const QUERY = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const FIXED = !QUERY?.has('dynres') || QUERY.has('fixedres');
 
 /** Current render scale, for probes and the HUD (1 = full resolution of the capped DPR). */
 export const renderScale = { value: 1 };
@@ -34,11 +43,12 @@ export const renderScale = { value: 1 };
 export function DynamicResolution({ composer, range }: { readonly composer: { readonly current: EffectComposer | null }; readonly range: RenderScaleRange }) {
   const gl = useThree((s) => s.gl);
   const baseDpr = useThree((s) => s.viewport.dpr);
-  const state = useRef({ slow: new Uint8Array(WINDOW_FRAMES), cursor: 0, slowCount: 0, steady: 0, cooldown: 0, scale: range.max });
+  const state = useRef({ slow: new Uint8Array(WINDOW_FRAMES), cursor: 0, slowCount: 0, steady: 0, cooldown: WARMUP_FRAMES, scale: range.max });
 
   useEffect(() => {
     // Start at the top of the range whenever the base DPR or the preset changes.
     state.current.scale = range.max;
+    state.current.cooldown = WARMUP_FRAMES;
     renderScale.value = range.max;
     gl.setPixelRatio(baseDpr * range.max);
   }, [gl, baseDpr, range.max]);

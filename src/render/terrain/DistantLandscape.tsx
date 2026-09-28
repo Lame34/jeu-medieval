@@ -155,7 +155,10 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     splat.wrapS = ClampToEdgeWrapping;
     splat.wrapT = ClampToEdgeWrapping;
     splat.needsUpdate = true;
-    const ringMaterial = createTerrainMaterial(splat, size, 4, origin);
+    // Same reference height as the map's terrain material (its dryness term depends on it).
+    let heightSum = 0;
+    for (const h of terrain.heights) heightSum += h;
+    const ringMaterial = createTerrainMaterial(splat, size, heightSum / terrain.heights.length, origin);
     const ring = new Mesh(geometry, ringMaterial);
     ring.name = 'DistantLandscape';
     ring.receiveShadow = true;

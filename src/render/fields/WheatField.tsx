@@ -38,7 +38,7 @@ const STREAM_FADE_M = 17;
 const NEAR_DISTANCE_M = 30;
 /** Far level: three tufts in five, twice as wide: the mass without the triangles. */
 const FAR_KEEP = 0.6;
-const FAR_WIDTH = 2.0;
+const FAR_WIDTH = 2.4;
 /** Instance caps per crop (the triangle budget): nearest chunks are served first. */
 const NEAR_CAPACITY = 5000;
 const FAR_CAPACITY = 9000;
@@ -229,6 +229,11 @@ const FIELD_VERTEX_BODY = /* glsl */ `
   origin = modelMatrix * origin;
   float fade = 1.0 - smoothstep(uStreamRadius - uStreamFade, uStreamRadius, distance(origin.xz, uFocus.xz));
   transformed *= fade;
+  // Wind waves: a value swell (12 m wavelength, 1.5 m/s) rolls across the field.
+  #ifdef USE_COLOR
+  float swell = sin(dot(origin.xz, uWindDir) * 0.5236 - uTime * 0.785);
+  vColor.rgb *= 1.0 + 0.1 * swell;
+  #endif
 }
 `;
 
