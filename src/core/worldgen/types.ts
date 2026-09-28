@@ -20,6 +20,8 @@ export interface WorldLayout {
   readonly keeps: readonly KeepSite[];
   readonly bridges: readonly BridgeSite[];
   readonly units: readonly UnitMarker[];
+  /** Decorative props (mossy rocks, haystacks, fallen logs); none when absent. */
+  readonly props?: readonly PropSite[];
   /** Attacker deployment zone (battle maps). */
   readonly deployment?: { readonly minX: number; readonly minZ: number; readonly maxX: number; readonly maxZ: number };
   /** Suggested camera focus for the opening shot. */
@@ -132,6 +134,16 @@ export interface TowerSite {
   readonly baseHeightM: number;
   /** Round towers get a conical roof; square gate towers stay crenellated. */
   readonly shape?: 'round' | 'square';
+}
+
+export type PropKind = 'rock' | 'haystack' | 'log';
+
+export interface PropSite {
+  readonly kind: PropKind;
+  readonly position: Vec2;
+  readonly rotationTurns: number;
+  /** Size factor (rock: radius in m; haystack and log: 1 = nominal size). */
+  readonly scale: number;
 }
 
 export interface UnitMarker {

@@ -82,7 +82,7 @@ export function buildKeep(keep: KeepSite): CastleParts {
   const mid = { x: (a.x + b.x) / 2 - keep.center.x, z: (a.z + b.z) / 2 - keep.center.z };
   if (d.z * mid.x - d.x * mid.z < 0) corners.reverse();
   const loop = [...corners, corners[0] as Vec2];
-  const stone = [buildWallGeometry({ id: `${keep.id}-walls`, points: loop, heightM: keep.heightM, thicknessM: KEEP_WALL_THICKNESS_M, baseHeightM: keep.baseHeightM })];
+  const stone = [buildWallGeometry({ id: `${keep.id}-walls`, points: loop, heightM: keep.heightM, thicknessM: KEEP_WALL_THICKNESS_M, baseHeightM: keep.baseHeightM }, keep.baseHeightM, false)];
   // Roof platform inside the parapet.
   const top = keep.baseHeightM + keep.heightM;
   stone.push(finish(boxGeometry({ center: new Vector3(keep.center.x, top - 0.4, keep.center.z), size: new Vector3(hw * 2, 0.8, hd * 2), yaw: yawOf(right) }), keep.baseHeightM, WHITE));
@@ -110,6 +110,7 @@ export function buildGate(gate: GateSite, terrain: TerrainData): CastleParts {
       baseHeightM: base + GATE_OPENING_HEIGHT_M + BURY_M,
     },
     base,
+    false,
   );
 
   const wood: BufferGeometry[] = [];

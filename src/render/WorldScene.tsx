@@ -12,6 +12,7 @@ import { Castle } from './castle/Castle.tsx';
 import { Hedges } from './fields/Hedges.tsx';
 import { Fields } from './fields/WheatField.tsx';
 import { PostFX } from './postfx/PostFX.tsx';
+import { Props } from './props/Props.tsx';
 import { Sky } from './sky/Sky.tsx';
 import { ChunkedTerrain } from './terrain/ChunkedTerrain.tsx';
 import { DistantLandscape } from './terrain/DistantLandscape.tsx';
@@ -79,6 +80,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
       <Vegetation trees={layout.trees} terrain={t} />
       <Fields fields={layout.fields} terrain={t} />
       <Hedges hedges={layout.hedges} terrain={t} />
+      {layout.props && layout.props.length > 0 && <Props props={layout.props} terrain={t} />}
       <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} terrain={t} />

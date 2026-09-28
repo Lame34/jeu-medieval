@@ -58,12 +58,12 @@ describe('generateLookdev: UnitMarker.elevationM and the fixed unit roster', () 
     }
   });
 
-  it("def-1 stands between the wall's first two points (its wall-walk segment)", () => {
+  it("def-1 stands on the wall's western segment (its wall-walk, the tower at points[1])", () => {
     for (const seed of SEEDS) {
       const layout = generateLookdev(seed);
       const guard = layout.units.find((u) => u.id === 'def-1');
       const wall = layout.walls[0];
-      const [p0, p1] = wall?.points ?? [];
+      const [, p0, p1] = wall?.points ?? [];
       expect(p0).toBeDefined();
       expect(p1).toBeDefined();
       const a = p0 as Vec2;

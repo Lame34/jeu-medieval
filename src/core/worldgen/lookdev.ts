@@ -12,7 +12,7 @@ import { cellCenterHeight, createTerrainData, sampleHeight } from '../terrain-da
 import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
 import { poissonScatter } from './scatter.ts';
 import { carveChannel, fillHeights, flattenPolygon, paintAlongPolyline, paintCells, paintDisc, paintPolygon, smoothAlong, STRUCTURAL_LAYERS } from './stamps.ts';
-import type { FieldPatch, HedgeLine, HouseSite, TowerSite, TreeInstance, TreeSpecies, WallRun, WorldLayout } from './types.ts';
+import type { FieldPatch, HedgeLine, HouseSite, PropSite, TowerSite, TreeInstance, TreeSpecies, WallRun, WorldLayout } from './types.ts';
 
 export const LOOKDEV_SIZE_M = 128;
 const CURVE_SAMPLES = 10;
@@ -39,7 +39,8 @@ const RIVER = {
 };
 // The path ends at the tower foot (a path that stops short of the wall leads nowhere).
 const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }, { x: 99, z: 33 }] };
-const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 76, z: 20 }, { x: 102, z: 27 }, { x: 128, z: 44 }] };
+// Listed east to west so the outer face (merlons, talus) looks onto the meadow and the attackers.
+const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 128, z: 44 }, { x: 102, z: 27 }, { x: 76, z: 20 }] };
 const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
 // The butte levels off before the map corner (a rise up to the edge reads as a plinth).
 const BUTTE = { rise: 6.5, from: 0.5, to: 0.8 };
@@ -53,6 +54,23 @@ const FIELD_POLY: Vec2[] = [
   { x: 88, z: 104 },
   { x: 84.5, z: 89 },
 ];
+/** Hand-placed props (review v18, #11): the meadow needs objects at human scale. */
+const PROPS: readonly PropSite[] = [
+  // Mossy rocks: a pair behind the skirmish, a pair in the meadow, a group at the wall foot.
+  { kind: 'rock', position: { x: 66.6, z: 59.6 }, rotationTurns: 0.1, scale: 1 },
+  { kind: 'rock', position: { x: 64.7, z: 61.2 }, rotationTurns: 0.6, scale: 0.55 },
+  { kind: 'rock', position: { x: 58, z: 76 }, rotationTurns: 0.35, scale: 1.4 },
+  { kind: 'rock', position: { x: 60.1, z: 77.6 }, rotationTurns: 0.8, scale: 0.7 },
+  { kind: 'rock', position: { x: 84, z: 30.5 }, rotationTurns: 0.2, scale: 1.5 },
+  { kind: 'rock', position: { x: 86.7, z: 31.8 }, rotationTurns: 0.45, scale: 0.8 },
+  // Haystacks on the stubble just outside the wheat.
+  { kind: 'haystack', position: { x: 103, z: 67 }, rotationTurns: 0, scale: 1 },
+  { kind: 'haystack', position: { x: 108.5, z: 65.8 }, rotationTurns: 0.3, scale: 0.85 },
+];
+/** Fallen log: first free spot beyond the wood edge along this line (m). */
+const LOG_SEARCH = { z: 50, fromX: 12, toX: 70, forestBelow: 0.28, offsetM: 2.5, scale: 1 };
+/** Vegetation kept clear of a prop (m beyond its size). */
+const PROP_CLEARANCE_M = 0.6;
 const HOUSES: readonly Omit<HouseSite, 'baseHeightM'>[] = [
   { id: 'house-a', center: { x: 52, z: 70 }, rotationTurns: 0.03, widthM: 6, depthM: 4, floors: 1, roof: 'thatch', seed: 11 },
   { id: 'house-b', center: { x: 50, z: 91 }, rotationTurns: -0.06, widthM: 4, depthM: 6, floors: 2, roof: 'tile', seed: 23 },
@@ -187,16 +205,34 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
   }
 
   const fields: FieldPatch[] = [{ id: 'field-wheat', crop: 'wheat', polygon: FIELD_POLY, furrowTurns: 0.02 }];
-  // Wall-walk spot of the guard: on the centreline, a step inside (the merlons face -z).
-  const walkA = WALL.points[0] as Vec2;
-  const walkB = WALL.points[1] as Vec2;
-  const wallWalk = { x: walkA.x + (walkB.x - walkA.x) * 0.55, z: walkA.z + (walkB.z - walkA.z) * 0.55 + 0.4 };
+  // Wall-walk spot of the guard: on the centreline of the western segment, a step inside (the
+  // merlons are on the outer face, towards the meadow).
+  const walkA = WALL.points[1] as Vec2;
+  const walkB = WALL.points[2] as Vec2;
+  const walkLen = Math.hypot(walkB.x - walkA.x, walkB.z - walkA.z);
+  const inward = { x: -(walkB.z - walkA.z) / walkLen, z: (walkB.x - walkA.x) / walkLen };
+  const wallWalk = { x: walkA.x + (walkB.x - walkA.x) * 0.45 + inward.x * 0.4, z: walkA.z + (walkB.z - walkA.z) * 0.45 + inward.z * 0.4 };
+
+  // --- Props ---------------------------------------------------------------------------------
+  const propClear = (p: Vec2): boolean =>
+    !blocked(p) && projectOnPolyline(p, path).distance > PATH.widthM / 2 + 1.5 && projectOnPolyline(p, river).distance > RIVER.widthM / 2 + 2;
+  const props: PropSite[] = PROPS.filter((pr) => propClear(pr.position));
+  for (let x = LOG_SEARCH.fromX; x < LOG_SEARCH.toX; x += 0.5) {
+    const edge = { x, z: LOG_SEARCH.z };
+    if (forestMask(edge) > LOG_SEARCH.forestBelow) continue;
+    const spot = { x: x + LOG_SEARCH.offsetM, z: LOG_SEARCH.z };
+    if (propClear(spot)) props.push({ kind: 'log', position: spot, rotationTurns: 0.07 + vegRng.next() * 0.1, scale: LOG_SEARCH.scale });
+    break;
+  }
+  const clearOfProps = (p: Vec2): boolean =>
+    props.every((pr) => Math.hypot(p.x - pr.position.x, p.z - pr.position.z) > (pr.kind === 'log' ? 1.8 : pr.kind === 'haystack' ? 1.3 : pr.scale) + PROP_CLEARANCE_M);
 
   return {
     name: 'lookdev',
     terrain: t,
     playable: { minX: 0, minZ: 0, maxX: LOOKDEV_SIZE_M, maxZ: LOOKDEV_SIZE_M },
-    trees: trees.filter((tr) => !blocked(tr.position) && !pointInPolygon(tr.position, FIELD_POLY)),
+    trees: trees.filter((tr) => !blocked(tr.position) && !pointInPolygon(tr.position, FIELD_POLY) && clearOfProps(tr.position)),
+    props,
     fields,
     houses: houseSites,
     water: [{ id: 'river', kind: 'river', centerline: river, widthM: RIVER.widthM, levelM: RIVER.levelM }],
@@ -212,7 +248,7 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
       // the wall-walk who gives the wall its scale.
       { id: 'att-1', faction: 'attacker', typeKey: 'knight', position: { x: 70.5, z: 66.5 }, facingTurns: 0.387 },
       { id: 'att-2', faction: 'attacker', typeKey: 'archer', position: { x: 63.5, z: 73.5 }, facingTurns: 0.1 },
-      { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: wallWalk, facingTurns: 0.5, elevationM: wallBase + WALL.heightM },
+      { id: 'def-1', faction: 'defender', typeKey: 'wallGuard', position: wallWalk, facingTurns: 0.94, elevationM: wallBase + WALL.heightM },
       { id: 'def-2', faction: 'defender', typeKey: 'crossbowman', position: { x: 73.5, z: 63 }, facingTurns: 0.887 },
     ],
     focus: { x: 74, z: 66 },

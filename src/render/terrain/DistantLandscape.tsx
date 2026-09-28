@@ -40,6 +40,8 @@ const NEAR_CLUMPS_DIST_M = 60;
 const NEAR_CLUMPS_MAX = 320;
 /** Placement attempts per clump (massifs are sparse: most samples fall in clearings). */
 const CLUMP_ATTEMPTS = 18;
+/** Clumps per massif (min, max). */
+const MASSIF_CHILDREN: readonly [number, number] = [6, 14];
 
 interface Lobe {
   readonly scale: readonly [number, number, number];
@@ -169,6 +171,8 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       return river.carve > 0 ? h + (river.level - RIVER_BED_BELOW_LEVEL_M - h) * river.carve : h;
     };
     // Massifs separated by clearings (a narrower band than a uniform sprinkle).
+    /** Visible surface: the map itself inside, the ring outside (no hidden drop). */
+    const surfaceAt = (x: number, z: number): number => (outside(x, z) <= 0 ? sampleHeight(terrain, clamp(x, 0, W), clamp(z, 0, D)) : heightAt(x, z));
     const forestAt = (x: number, z: number) => smoothstep(0.12, 0.3, fbm(forestNoise, x, z, FOREST));
 
     // --- Ring mesh -----------------------------------------------------------------------
@@ -206,8 +210,8 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       const x = positions[i * 3] as number;
       const z = positions[i * 3 + 2] as number;
       if (outside(x, z) > SEAM_NORMALS_M) continue;
-      const dx = heightAt(x + 1, z) - heightAt(x - 1, z);
-      const dz = heightAt(x, z + 1) - heightAt(x, z - 1);
+      const dx = surfaceAt(x + 1, z) - surfaceAt(x - 1, z);
+      const dz = surfaceAt(x, z + 1) - surfaceAt(x, z - 1);
       const len = Math.hypot(dx, 2, dz);
       nor.setXYZ(i, -dx / len, 2 / len, -dz / len);
     }
@@ -257,29 +261,54 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     const up = new Vector3(0, 1, 0);
     let placed = 0;
     let nearPlaced = 0;
-    for (let attempt = 0; attempt < FAR_CLUMPS * CLUMP_ATTEMPTS && placed < FAR_CLUMPS; attempt++) {
-      const x = rng.float(-CLUMP_MAX_DIST_M, W + CLUMP_MAX_DIST_M);
-      const z = rng.float(-CLUMP_MAX_DIST_M, D + CLUMP_MAX_DIST_M);
-      const d = outside(x, z);
-      if (d < CLUMP_MIN_DIST_M || d > CLUMP_MAX_DIST_M) continue;
-      if (rng.next() > forestAt(x, z)) continue;
-      if (riverAt(x, z).distance < CLUMP_WATER_CLEARANCE_M) continue;
-      let pick = rng.next() * totalWeight;
-      const index = CLUMP_VARIANTS.findIndex((v) => (pick -= v.weight) < 0);
-      const near = d < NEAR_CLUMPS_DIST_M && nearPlaced < NEAR_CLUMPS_MAX;
-      const target = meshes[Math.max(0, index) * 2 + (near ? 1 : 0)]?.mesh;
-      if (!target) continue;
-      const scale = rng.float(1.4, 4.2) * (1 + d / 900);
-      p.set(x, heightAt(x, z) - 0.2 * scale, z);
-      q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
-      sc.set(scale, scale * rng.float(0.7, 1.3), scale);
-      target.setMatrixAt(target.count++, m.compose(p, q, sc));
-      placed++;
-      if (near) nearPlaced++;
+    const massifTint = new Color();
+    const clumpTint = new Color();
+    const conifers = CLUMP_VARIANTS.findIndex((v) => v.lobes === 'conifer');
+    for (let parent = 0; parent < FAR_CLUMPS * CLUMP_ATTEMPTS && placed < FAR_CLUMPS; parent++) {
+      const px = rng.float(-CLUMP_MAX_DIST_M, W + CLUMP_MAX_DIST_M);
+      const pz = rng.float(-CLUMP_MAX_DIST_M, D + CLUMP_MAX_DIST_M);
+      const pd = outside(px, pz);
+      if (pd < CLUMP_MIN_DIST_M || pd > CLUMP_MAX_DIST_M || rng.next() > forestAt(px, pz)) continue;
+      // One massif: its own tint and its own share of conifers.
+      massifTint.setRGB(1, 1, 1).offsetHSL(rng.float(-0.03, 0.03), rng.float(-0.05, 0.05), rng.float(-0.06, 0.06));
+      const coniferShare = rng.chance(0.4) ? 0.5 : 0;
+      const children = rng.int(MASSIF_CHILDREN[0], MASSIF_CHILDREN[1]);
+      const spread = 5 + 0.02 * pd;
+      for (let k = 0; k < children && placed < FAR_CLUMPS; k++) {
+        // Gaussian-ish offset (sum of two uniforms).
+        const x = px + (rng.next() + rng.next() - 1) * spread * 2;
+        const z = pz + (rng.next() + rng.next() - 1) * spread * 2;
+        const d = outside(x, z);
+        if (d < CLUMP_MIN_DIST_M || d > CLUMP_MAX_DIST_M) continue;
+        if (riverAt(x, z).distance < CLUMP_WATER_CLEARANCE_M) continue;
+        let index: number;
+        if (rng.next() < coniferShare) index = conifers;
+        else {
+          let pick = rng.next() * totalWeight;
+          index = Math.max(0, CLUMP_VARIANTS.findIndex((v) => (pick -= v.weight) < 0));
+          if (index === conifers) index = 1;
+        }
+        const near = d < NEAR_CLUMPS_DIST_M && nearPlaced < NEAR_CLUMPS_MAX;
+        const target = meshes[index * 2 + (near ? 1 : 0)]?.mesh;
+        if (!target) continue;
+        const r = rng.next();
+        const scale = (1.2 + 3.4 * r * r) * (1 + d / 900);
+        const emergent = rng.chance(0.1) ? 1.5 : 1;
+        p.set(x, heightAt(x, z) - 0.2 * scale, z);
+        q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
+        sc.set(scale, scale * rng.float(0.7, 1.3) * emergent, scale);
+        target.setMatrixAt(target.count, m.compose(p, q, sc));
+        clumpTint.copy(massifTint).multiplyScalar(rng.float(0.94, 1.06));
+        target.setColorAt(target.count, clumpTint);
+        target.count++;
+        placed++;
+        if (near) nearPlaced++;
+      }
     }
     const clumps = meshes.map(({ mesh }) => mesh).filter((mesh) => mesh.count > 0);
     for (const mesh of clumps) {
       mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.computeBoundingSphere();
     }
     return { ring, splat, clumps, material, spare: meshes.map(({ mesh }) => mesh) };

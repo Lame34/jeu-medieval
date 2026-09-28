@@ -10,6 +10,15 @@ import type { TowerSite, WallRun } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
 export const BURY_M = 2;
+/** Battered foot of curtain walls (m): height on the face, spread outwards. */
+const TALUS_HEIGHT_M = 0.9;
+const TALUS_SPREAD_M = 0.35;
+/** The slope continues under the wall base so uneven ground never shows its underside. */
+const TALUS_FOOT_DEPTH_M = 1.2;
+/** Pier capping a free wall end (m). */
+const END_PIER_LENGTH_M = 1.4;
+const END_PIER_EXTRA_M = 1.2;
+const END_PIER_WIDEN_M = 0.5;
 const MERLON_WIDTH_M = 0.85;
 const MERLON_GAP_M = 0.6;
 const MERLON_HEIGHT_M = 1.05;
@@ -81,8 +90,10 @@ function segmentYaw(a: Vec2, b: Vec2): number {
 /**
  * `paintBaseM`: height the masonry treatment counts from (moss, streaks); defaults to the wall
  * base. A gate lintel starts above the opening but belongs to the wall below it.
+ * `footing`: battered talus along the outer foot and end piers on an open run (curtain walls;
+ * not lintels or keep walls).
  */
-export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM): BufferGeometry {
+export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, footing = true): BufferGeometry {
   const stone = new Color('#ffffff');
   const parts: BufferGeometry[] = [];
   const alongs: AlongFn[] = [];
@@ -96,8 +107,10 @@ export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM):
     const mid = new Vector3((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
     const bodyH = wall.heightM + BURY_M;
     const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const outwardDir = new Vector3(dir.z, 0, -dir.x);
     const segmentStart = travelled;
-    const along: AlongFn = (x, z) => segmentStart + (x - a.x) * dir.x + (z - a.z) * dir.z;
+    // Along the wall plus across it: courses continue round the end faces (no vertical smear).
+    const along: AlongFn = (x, z) => segmentStart + (x - a.x) * dir.x + (z - a.z) * dir.z + (x - a.x) * outwardDir.x + (z - a.z) * outwardDir.z;
     const before = parts.length;
     // Body, extended by half the thickness so consecutive segments overlap at the joints.
     parts.push(boxGeometry({ center: mid.clone().setY(base - BURY_M + bodyH / 2), size: new Vector3(len + wall.thicknessM, bodyH, wall.thicknessM), yaw }));
@@ -116,13 +129,53 @@ export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM):
     }
     const parapet = mid.clone().addScaledVector(outward, -wall.thicknessM / 2 + 0.15).setY(base + wall.heightM + PARAPET_HEIGHT_M / 2);
     parts.push(boxGeometry({ center: parapet, size: new Vector3(len, PARAPET_HEIGHT_M, 0.3), yaw }));
+    if (footing) parts.push(talusGeometry(a, b, outward, wall.thicknessM, base));
     for (let k = before; k < parts.length; k++) alongs.push(along);
     travelled += len;
+  }
+  // End piers on an open run: a free wall end is capped, never cut.
+  const first = wall.points[0] as Vec2;
+  const last = wall.points[wall.points.length - 1] as Vec2;
+  if (footing && (first.x !== last.x || first.z !== last.z)) {
+    for (const [end, next] of [
+      [first, wall.points[1] as Vec2],
+      [last, wall.points[wall.points.length - 2] as Vec2],
+    ] as const) {
+      const yaw = segmentYaw(end, next);
+      const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+      const h = wall.heightM + END_PIER_EXTRA_M + BURY_M;
+      const c = new Vector3(end.x, base - BURY_M + h / 2, end.z).addScaledVector(dir, END_PIER_LENGTH_M / 2 - wall.thicknessM / 2);
+      parts.push(boxGeometry({ center: c, size: new Vector3(END_PIER_LENGTH_M, h, wall.thicknessM + END_PIER_WIDEN_M), yaw }));
+      const pierAlong: AlongFn = (x, z) => (x - end.x) * dir.z - (z - end.z) * dir.x + (x - end.x) * dir.x + (z - end.z) * dir.z;
+      alongs.push(pierAlong);
+    }
   }
   const merged = mergeGeometries(parts.map((p, k) => finish(p, paintBaseM, stone, alongs[k])), false);
   parts.forEach((p) => p.dispose());
   if (!merged) throw new Error('wall merge failed');
   return merged;
+}
+
+/** Battered talus along the outer foot of a wall segment: a sloped band that anchors it. */
+function talusGeometry(a: Vec2, b: Vec2, outward: Vector3, thickness: number, base: number): BufferGeometry {
+  const face = thickness / 2;
+  const at = (p: Vec2, off: number, y: number) => [p.x + outward.x * off, y, p.z + outward.z * off];
+  const topA = at(a, face, base + TALUS_HEIGHT_M);
+  const topB = at(b, face, base + TALUS_HEIGHT_M);
+  const spread = (TALUS_SPREAD_M * (TALUS_HEIGHT_M + TALUS_FOOT_DEPTH_M)) / TALUS_HEIGHT_M;
+  const footA = at(a, face + spread, base - TALUS_FOOT_DEPTH_M);
+  const footB = at(b, face + spread, base - TALUS_FOOT_DEPTH_M);
+  const positions = [...topA, ...footA, ...footB, ...topA, ...footB, ...topB];
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  g.computeVertexNormals();
+  // Outward and upward: flip the winding if the normal points into the wall.
+  const n = g.getAttribute('normal');
+  if (n.getX(0) * outward.x + n.getZ(0) * outward.z < 0) {
+    g.setAttribute('position', new BufferAttribute(new Float32Array([...topA, ...footB, ...footA, ...topA, ...topB, ...footB]), 3));
+    g.computeVertexNormals();
+  }
+  return g;
 }
 
 export function buildTowerGeometry(tower: TowerSite): { stone: BufferGeometry; roof: BufferGeometry } {
