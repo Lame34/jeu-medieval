@@ -15,6 +15,7 @@ import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
+import { createPennants } from './Pennants.ts';
 import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
 
 const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
@@ -133,7 +134,12 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       });
       roots.push(root);
     });
-    return { roots, rings, mixers, starts, materials, textures };
+    // Allegiance pennants above the heads, one instanced batch per side.
+    const pennants = (['attacker', 'defender'] as const).map((faction) => ({
+      pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
+      anchors: roots.filter((_, i) => units[i]?.faction === faction).map((root) => root.position),
+    }));
+    return { roots, rings, mixers, starts, materials, textures, pennants };
   }, [anims, bodies, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -144,14 +150,17 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
 
   useFrame(({ camera }, delta) => {
     for (const mixer of built.mixers) mixer.update(delta);
-    const scale = Math.min(RING_MAX_SCALE, Math.max(1, camera.position.distanceTo(paintedGlobals.uFocus.value) / RING_SCALE_DISTANCE_M));
+    const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
+    const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale);
+    for (const { pennants, anchors } of built.pennants) pennants.update(anchors, camera.position, distance, scale);
   });
 
   useEffect(
     () => () => {
       built.materials.forEach((m) => m.dispose());
       built.textures.forEach((t) => t.dispose());
+      built.pennants.forEach(({ pennants }) => pennants.dispose());
     },
     [built],
   );
@@ -160,6 +169,9 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     <>
       {built.roots.map((root) => (
         <primitive key={root.name} object={root} />
+      ))}
+      {built.pennants.map(({ pennants }) => (
+        <primitive key={pennants.mesh.name} object={pennants.mesh} />
       ))}
     </>
   );
