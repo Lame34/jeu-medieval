@@ -265,6 +265,7 @@ function makeLevel(geometry: BufferGeometry, material: PaintedMaterial, capacity
 function build(fields: readonly FieldPatch[], terrain: TerrainData): Built {
   const material = createPaintedMaterial({
     name: 'Fields',
+    ground: true,
     vertexColors: true,
     heightM: TUFT_HEIGHT_M,
     windSwayM: WHEAT_SWAY_M,

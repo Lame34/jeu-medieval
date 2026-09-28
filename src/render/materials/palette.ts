@@ -14,7 +14,7 @@ export const PALETTE = {
   stone: { lit: '#a0978a', base: '#6a6258' },
   wheat: { lit: '#d2ae62', base: '#977d4c' },
   /** Soil between the tufts: reads as the crop's own shade (review v13, #4). */
-  fieldBed: '#8e7646',
+  fieldBed: '#9a8050',
   rye: { lit: '#c6aa6a', base: '#8f7a48' },
   fallow: { lit: '#8f8a56', base: '#5f5c38' },
   woodWarm: { lit: '#7a5234', base: '#4e3322' },

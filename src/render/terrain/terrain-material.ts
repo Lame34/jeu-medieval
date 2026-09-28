@@ -82,8 +82,13 @@ const TERRAIN_ALBEDO = /* glsl */ `
   // Beyond the streamed tufts (WheatField, 72 m around the focus) the bed carries the crop
   // itself: the ripe mass, not the shade between the stalks.
   vec3 cropMass = mix(uWheatBase, uWheatLit, 0.5 + 0.25 * nMid) * (0.92 + 0.16 * nFine);
-  fieldBed = mix(fieldBed, cropMass, smoothstep(38.0, 55.0, distance(p.xz, uFocus.xz)));
+  fieldBed = mix(fieldBed, cropMass, max(0.35, smoothstep(38.0, 55.0, distance(p.xz, uFocus.xz))));
   col = mix(col, fieldBed, wField * 0.9);
+  // Where the GPU grass ends (uGrassRadius around the focus), the ground takes the blades'
+  // average tone so the end of the carpet does not read.
+  vec3 grassMass = mix(mix(uGrassLushBase, uGrassLushLit, 0.45) * 1.05, dryC, dry * 0.85);
+  float prairie = (1.0 - wForest) * (1.0 - wField);
+  col = mix(col, grassMass, 0.5 * prairie * smoothstep(0.6 * uGrassRadius, uGrassRadius, distance(p.xz, uFocus.xz)));
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
   // Width wanders ±0.4 m with the large-scale noise; ragged edges.
@@ -114,6 +119,7 @@ export function createTerrainMaterial(
   const c = (hex: string) => ({ value: new Color(hex) });
   return createPaintedMaterial({
     name: 'Terrain',
+    ground: true,
     worldNormal: true,
     wrap: 0.35,
     customAlbedo: {

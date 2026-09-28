@@ -22,12 +22,12 @@ uniform vec2 uGrassHeightsSize;
 uniform sampler2D uGrassSplat;
 uniform vec2 uGrassMapSize;
 uniform vec2 uGrassOrigin;
-uniform float uGrassRadius;
 uniform float uGrassSpacing;
 uniform vec3 uGrassLushBase;
 uniform vec3 uGrassLushTip;
 uniform vec3 uGrassDryBase;
 uniform vec3 uGrassDryTip;
+uniform float uGrassHeightRef;
 float grassHash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
   p3 += dot(p3, p3.yzx + 33.33);
@@ -55,7 +55,7 @@ const GRASS_BODY = /* glsl */ `
   float scale = fade * allowed * mix(0.55, 1.0, clump);
   float ground = texture2D(uGrassHeights, (world + 0.5) / uGrassHeightsSize).r;
   // Flowering blades grow in patches: shorter, wider, butter or mauve heads read as dots.
-  float flower = step(0.96, grassHash(cell + 73.7)) * step(0.5, smoothstep(0.5, 0.7, paintedFbm(world / 9.0 + 3.0)));
+  float flower = step(0.93, grassHash(cell + 73.7)) * step(0.5, smoothstep(0.5, 0.7, paintedFbm(world / 9.0 + 3.0)));
   float height = mix(0.2, 0.45, h3) * mix(0.6, 1.4, clump) * scale * mix(1.0, 0.6, flower) * verge;
   // Never thinner than ~1 px at the camera distance (no shimmering specks).
   float camD = distance(vec3(world.x, ground, world.y), cameraPosition);
@@ -79,7 +79,8 @@ const GRASS_BODY = /* glsl */ `
   }
   transformed = p;
   // Same large-scale tones as the painted ground (dry patches, darker clover).
-  float dry = smoothstep(0.42, 0.8, paintedFbm(world / 26.0)) * 0.85;
+  // Same dryness as the painted ground (incl. its height term): no seam at the carpet's end.
+  float dry = smoothstep(0.42, 0.8, paintedFbm(world / 26.0) + (ground - uGrassHeightRef) * 0.02) * 0.85;
   float clover = smoothstep(0.55, 0.75, paintedFbm(world / 11.0 + 31.0)) * (1.0 - dry);
   vec3 base = mix(uGrassLushBase, uGrassDryBase, dry);
   vec3 tip = mix(uGrassLushTip, uGrassDryTip, dry);
@@ -133,8 +134,12 @@ export function Grass({
   const built = useMemo(() => {
     const origin = new Vector2();
     const lushBase = new Color(PALETTE.grassLush.base);
+    let heightSum = 0;
+    for (const h of terrain.heights) heightSum += h;
+    paintedGlobals.uGrassRadius.value = preset.grassRadiusM;
     const material = createPaintedMaterial({
       name: 'Grass',
+      ground: true,
       vertexColors: true,
       side: DoubleSide,
       keepNormalOnBackFaces: true,
@@ -153,7 +158,7 @@ export function Grass({
           uGrassSplat: { value: splat },
           uGrassMapSize: { value: new Vector2(terrain.width * terrain.cellSize, terrain.depth * terrain.cellSize) },
           uGrassOrigin: { value: origin },
-          uGrassRadius: { value: preset.grassRadiusM },
+          uGrassHeightRef: { value: heightSum / terrain.heights.length },
           uGrassSpacing: { value: spacing },
           // Blade roots match the painted ground so the carpet has no dark seams.
           uGrassLushBase: { value: lushBase.clone().lerp(new Color(PALETTE.grassLush.lit), 0.45) },

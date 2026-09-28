@@ -47,6 +47,9 @@ interface CanopySpec {
   readonly lit: string;
   readonly base: string;
   readonly detail: number;
+  /** Crown-normal blend and bump amplitude (bushes: softer masses). */
+  readonly normalBlend?: number;
+  readonly bump?: number;
 }
 
 function paint(geometry: BufferGeometry, colorAt: (p: Vector3, n: Vector3) => Color): BufferGeometry {
@@ -142,12 +145,12 @@ function canopy(rng: Rng, spec: CanopySpec): BufferGeometry {
       // Two octaves of bumps: scalloped, leafy silhouettes instead of smooth spheres.
       const nx = v.x + blob.center.x;
       const nz = v.y + blob.center.z + v.z * 0.5;
-      const bump = 1 + CANOPY_BUMP * noise(nx * 0.9, nz * 0.9) + CANOPY_BUMP_FINE * noise(nx * 2.6 + 11, nz * 2.6);
+      const bump = 1 + (spec.bump ?? CANOPY_BUMP) * noise(nx * 0.9, nz * 0.9) + CANOPY_BUMP_FINE * noise(nx * 2.6 + 11, nz * 2.6);
       v.multiplyScalar(bump).add(blob.center);
       pos.setXYZ(i, v.x, v.y, v.z);
       // Soft crown lighting: blob normal blended with the crown ellipsoid normal (clumps stay legible).
       e.copy(v).sub(spec.center).divide(spec.radii).divide(spec.radii).normalize();
-      n.lerp(e, CANOPY_NORMAL_BLEND).normalize();
+      n.lerp(e, spec.normalBlend ?? CANOPY_NORMAL_BLEND).normalize();
       nor.setXYZ(i, n.x, n.y, n.z);
     }
     return paint(g, (p, nn) => {
@@ -312,7 +315,7 @@ export function buildTreeGeometry(species: TreeSpecies, variant: number, lod: 0 
     case 'bush': {
       const style = BUSH_STYLES[variant % BUSH_STYLES.length] as (typeof BUSH_STYLES)[number];
       const g = mergeAll([
-        canopy(rng, { center: new Vector3(0, 0.55, 0), radii: new Vector3(1.0, 0.65, 1.0), blobCount: blobs(5), blobRadius: [0.45, 0.75], lit: style.lit, base: style.base, detail }),
+        canopy(rng, { center: new Vector3(0, 0.55, 0), radii: new Vector3(1.0, 0.65, 1.0), blobCount: blobs(5), blobRadius: [0.45, 0.75], lit: style.lit, base: style.base, detail, normalBlend: 0.85, bump: 0.2 }),
       ]);
       if (style.flowers) sprinkleFlowers(g, rng, style.flowers);
       return g;

@@ -5,7 +5,7 @@
  * treatment (vertical gradient, world-space hue noise, ground-contact AO), optional wind sway,
  * optional rim light (units) and the shared atmospheric fog.
  */
-import { Color, MeshLambertMaterial, Vector2, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
+import { Color, MeshLambertMaterial, ShaderChunk, Vector2, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
 import { PAINTED_FOG_FN, PAINTED_GLOBALS_PARS, PAINTED_LIGHTS_PARS, PAINTED_NOISE, buildPaintedLightsBegin } from './painted-chunks.ts';
 import { paintedGlobals } from './painted-globals.ts';
 
@@ -72,6 +72,8 @@ export interface PaintedOptions {
    * vegetation never walls off the view (shadows are unaffected).
    */
   readonly nearFade?: boolean;
+  /** Ground covers (terrain, grass, crops): shadows lifted more than on objects. */
+  readonly ground?: boolean;
   /** Units (allegiance colours) opt out of the scene saturation ceiling and of the shade hue drift. */
   readonly saturationCeiling?: boolean;
 }
@@ -121,6 +123,16 @@ vPaintedWorldNormal = normalize(mat3(modelMatrix) * objectNormal);
 vPaintedData = aPaintedData;
 vPaintedHeight = aPaintedData.x;
 #endif
+`;
+
+const FOLIAGE_SHADOW_NORMAL_BIAS_M = 0.3;
+const FOLIAGE_SHADOWMAP_VERTEX = `
+#ifdef PAINTED_FOLIAGE
+#define PAINTED_SHADOW_NORMAL_BIAS ${FOLIAGE_SHADOW_NORMAL_BIAS_M.toFixed(2)}
+#else
+#define PAINTED_SHADOW_NORMAL_BIAS 0.0
+#endif
+${ShaderChunk.shadowmap_vertex.replace(/directionalLightShadows\[ i \]\.shadowNormalBias/g, '( directionalLightShadows[ i ].shadowNormalBias + PAINTED_SHADOW_NORMAL_BIAS )')}
 `;
 
 const VERTEX_WIND = /* glsl */ `
@@ -320,6 +332,7 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
   if (options.keepNormalOnBackFaces) defines.push('PAINTED_KEEP_BACK_NORMAL');
   if (options.foliage) defines.push('PAINTED_FOLIAGE');
   if (options.nearFade) defines.push('PAINTED_NEAR_FADE');
+  if (options.ground) defines.push('PAINTED_GROUND');
   if (options.saturationCeiling !== false) defines.push('PAINTED_SAT_CEILING');
   else defines.push('PAINTED_ALLEGIANCE');
   material.defines = Object.fromEntries(defines.map((d) => [d, '']));
@@ -330,6 +343,8 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
     vs = inject(vs, 'common', VERTEX_PARS + (customVertex?.pars ?? ''), 'after');
     vs = inject(vs, 'begin_vertex', (customVertex?.body ?? '') + VERTEX_WIND, 'after');
     vs = inject(vs, 'project_vertex', VERTEX_WORLD + VERTEX_EXTRA, 'after');
+    // Foliage: extra normal offset for the shadow lookup (blobs would shadow their own facets).
+    vs = inject(vs, 'shadowmap_vertex', FOLIAGE_SHADOWMAP_VERTEX, 'replace');
     shader.vertexShader = vs;
 
     let fs = shader.fragmentShader;

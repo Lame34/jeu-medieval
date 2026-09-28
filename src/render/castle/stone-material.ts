@@ -38,13 +38,14 @@ const STONE_ALBEDO = /* glsl */ `
   float edgeX = min(f.x, 1.0 - f.x) * stoneW;
   float edgeY = min(f.y, 1.0 - f.y) * uCourseM;
   // Irregular joints: width wanders along each joint so stones read hand-laid, not brick.
-  float jointW = 0.012 + 0.012 * paintedValueNoise(vec2(u * 2.3, p.y * 2.9));
+  // Joints scale with the course (a dry-stone wall's 0.26 m courses would be a quarter joint).
+  float jointW = (0.012 + 0.012 * paintedValueNoise(vec2(u * 2.3, p.y * 2.9))) * min(1.0, uCourseM / 0.7);
   float stoneMask = smoothstep(jointW, jointW + 0.03, min(edgeX, edgeY));
   float horizontal = step(0.75, abs(n.y));
   stoneMask = mix(stoneMask, 1.0, horizontal);
 
   float tone = paintedHash12(vec2(stoneId, course));
-  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.3 + 0.6 * tone);
+  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.42 + 0.32 * tone);
   stoneC = max(paintedHueShift(stoneC, (paintedHash12(vec2(course, stoneId + 9.1)) - 0.5) * 0.04), 0.0);
   // Rounded stone faces: darker towards the joints.
   stoneC *= 0.88 + 0.12 * smoothstep(0.0, 0.25, min(edgeX, edgeY));
@@ -52,16 +53,16 @@ const STONE_ALBEDO = /* glsl */ `
   stoneC *= 1.0 + 0.1 * smoothstep(0.75, 0.95, f.y) * (1.0 - horizontal);
   vec3 col = mix(uMortar, stoneC, stoneMask);
 
-  float nLarge = paintedFbm(vec2(u, p.y) / 6.0);
+  float nLarge = paintedFbm(vec2(u, p.y) / 9.0);
   float mossLine = 1.2 + 1.6 * nLarge;
   float moss = (1.0 - smoothstep(mossLine * 0.4, mossLine, h)) * smoothstep(0.35, 0.65, paintedFbm(vec2(u, p.y) * 0.9));
-  col = mix(col, uMoss, moss * 0.8);
+  col = mix(col, uMoss, moss * 0.8 * mix(0.4, 1.0, step(0.4, uCourseM)));
 
   float streakNoise = paintedValueNoise(vec2(u * 1.3, 0.0)) * paintedValueNoise(vec2(u * 0.37, 5.0));
   float fromTop = smoothstep(uWallHeightM * 0.35, uWallHeightM, h);
   col *= 1.0 - 0.28 * smoothstep(0.25, 0.55, streakNoise) * fromTop * (1.0 - horizontal);
   col *= mix(0.78, 1.04, smoothstep(0.0, uWallHeightM, h));
-  col *= 0.88 + 0.24 * nLarge;
+  col *= 0.84 + 0.3 * nLarge;
   diffuseColor.rgb = col * vColor.rgb;
 }
 `;

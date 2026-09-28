@@ -28,6 +28,7 @@ uniform vec3 uHorizonAway;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
 uniform vec3 uFocus;
+uniform float uGrassRadius;
 uniform vec3 uSceneLight;
 uniform float uExposure;
 uniform vec2 uMapMin;
@@ -107,6 +108,8 @@ export const PAINTED_LIGHTS_PARS = /* glsl */ `
 varying vec3 vViewPosition;
 uniform float uWrap;
 float paintedShadow = 1.0;
+// Shadow-map lookup jitter (a ragged, painted shadow edge), in shadow UV units.
+vec4 paintedShadowJitter = vec4(0.0);
 float paintedSunLit = 0.0;
 
 struct LambertMaterial {
@@ -140,8 +143,13 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
   vec3 light = mix(irradiance, vec3(dot(irradiance, vec3(1.0 / 3.0))), 0.4 * warmAlbedo);
   tint = mix(tint, vec3(1.0), 0.5 * warmAlbedo);
   vec3 c = light * tint * BRDF_Lambert(material.diffuseColor);
-  // Cast shadows as washes: a little more light than the plain ambient.
+  // Cast shadows as washes: a little more light than the plain ambient (the ground more: a
+  // meadow in shade reads at ~2/3 of its sunlit value).
+  #ifdef PAINTED_GROUND
+  c *= mix(1.22, 1.0, paintedSunLit);
+  #else
   c *= mix(1.1, 1.0, paintedSunLit);
+  #endif
   // Shade turns the hue towards blue-violet at constant luminance (YIQ rotation, at most
   // ~25°): wheat goes ochre, grass blue-green, plaster sienna, stone blue-violet. A straight
   // mix towards violet would pass through grey (review v15). Greys take the shadow chroma.
@@ -170,6 +178,8 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
 #define RE_IndirectDiffuse RE_IndirectDiffuse_Painted
 `;
 
+/** Shadow edge jitter amplitude in shadow-map UV (≈ 0.35 m over the 140 m shadow box). */
+const SHADOW_JITTER_UV = '0.0025';
 const SUN_SHADOW_PATTERN = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow(';
 const SUN_CALL_PATTERN = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
 const DIR_BLOCK_MARKER = '#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )';
@@ -191,7 +201,17 @@ export function buildPaintedLightsBegin(): string {
   if (start < 0) throw new Error('PaintedMaterial: directional light block not found in lights_fragment_begin.');
   let dirPart = chunk.slice(start);
   const hasShadowLine = dirPart.includes(SUN_SHADOW_PATTERN);
-  if (hasShadowLine) dirPart = replaceOnce(dirPart, SUN_SHADOW_PATTERN, 'paintedShadow = ( directLight.visible && receiveShadow ) ? getShadow(', 'sun shadow line');
+  if (hasShadowLine) {
+    dirPart = replaceOnce(dirPart, SUN_SHADOW_PATTERN, 'paintedShadow = ( directLight.visible && receiveShadow ) ? getShadow(', 'sun shadow line');
+    dirPart = replaceOnce(dirPart, 'vDirectionalShadowCoord[ i ] ) : 1.0;', 'vDirectionalShadowCoord[ i ] + paintedShadowJitter ) : 1.0;', 'sun shadow coordinate');
+  }
+  // Ragged shadow edges (±0.18 m on a 140 m shadow box), never on units (they would crawl).
+  const jitter = `
+#ifndef PAINTED_ALLEGIANCE
+paintedShadowJitter = vec4((vec2(paintedValueNoise(vPaintedWorldPos.xz * 0.7), paintedValueNoise(vPaintedWorldPos.xz * 0.7 + 13.0)) - 0.5) * ${SHADOW_JITTER_UV}, 0.0, 0.0);
+#endif
+`;
+  dirPart = jitter + dirPart;
   dirPart = replaceOnce(dirPart, SUN_CALL_PATTERN, 'RE_Direct_PaintedSun( directLight, geometryNormal, material, reflectedLight );', 'sun RE_Direct call');
   return chunk.slice(0, start) + dirPart;
 }

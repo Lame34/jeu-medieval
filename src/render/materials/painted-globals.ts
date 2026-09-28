@@ -58,6 +58,8 @@ export const paintedGlobals = {
   uHorizonAway: { value: new Color() },
   uWindDir: { value: new Vector2(1, 0.3).normalize() },
   uWindStrength: { value: 0.6 },
+  /** Radius of the GPU grass carpet around the focus (set by Grass). */
+  uGrassRadius: { value: 40 },
   /** Camera focus point on the ground (grass radius, fog reference). */
   uFocus: { value: new Vector3() },
   /** Scene light level (≈ 1 at the reference afternoon): multiplies unlit shaders such as water. */
