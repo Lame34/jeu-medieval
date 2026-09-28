@@ -264,6 +264,9 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     const massifTint = new Color();
     const clumpTint = new Color();
     const conifers = CLUMP_VARIANTS.findIndex((v) => v.lobes === 'conifer');
+    // Collected, then written nearest the map first: massifs overlap, and drawing them roughly
+    // front to back (the camera is over the map) lets the depth test reject hidden clumps.
+    const pending = meshes.map(() => [] as { d: number; matrix: Matrix4; color: Color }[]);
     for (let parent = 0; parent < FAR_CLUMPS * CLUMP_ATTEMPTS && placed < FAR_CLUMPS; parent++) {
       const px = rng.float(-CLUMP_MAX_DIST_M, W + CLUMP_MAX_DIST_M);
       const pz = rng.float(-CLUMP_MAX_DIST_M, D + CLUMP_MAX_DIST_M);
@@ -289,7 +292,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
           if (index === conifers) index = 1;
         }
         const near = d < NEAR_CLUMPS_DIST_M && nearPlaced < NEAR_CLUMPS_MAX;
-        const target = meshes[index * 2 + (near ? 1 : 0)]?.mesh;
+        const target = pending[index * 2 + (near ? 1 : 0)];
         if (!target) continue;
         const r = rng.next();
         const scale = (1.2 + 3.4 * r * r) * (1 + d / 900);
@@ -297,14 +300,21 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
         p.set(x, heightAt(x, z) - 0.2 * scale, z);
         q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
         sc.set(scale, scale * rng.float(0.7, 1.3) * emergent, scale);
-        target.setMatrixAt(target.count, m.compose(p, q, sc));
-        clumpTint.copy(massifTint).multiplyScalar(rng.float(0.94, 1.06));
-        target.setColorAt(target.count, clumpTint);
-        target.count++;
+        target.push({ d, matrix: m.compose(p, q, sc).clone(), color: clumpTint.copy(massifTint).multiplyScalar(rng.float(0.94, 1.06)).clone() });
         placed++;
         if (near) nearPlaced++;
       }
     }
+    pending.forEach((list, k) => {
+      const mesh = meshes[k]?.mesh;
+      if (!mesh) return;
+      list.sort((a, b) => a.d - b.d);
+      for (const item of list) {
+        mesh.setMatrixAt(mesh.count, item.matrix);
+        mesh.setColorAt(mesh.count, item.color);
+        mesh.count++;
+      }
+    });
     const clumps = meshes.map(({ mesh }) => mesh).filter((mesh) => mesh.count > 0);
     for (const mesh of clumps) {
       mesh.instanceMatrix.needsUpdate = true;
