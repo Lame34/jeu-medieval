@@ -23,12 +23,21 @@ const BORDER_STEP_M = 2;
 const FIRST_STEP_M = 2;
 const STEP_GROWTH = 1.22;
 const HIDDEN_DROP_M = 3.5;
-const EDGE_BLEND_M = 140;
+const EDGE_BLEND_M = 200;
+/** The edge slope carries on into the ring (bounded), fading over this distance (m). */
+const EDGE_SLOPE_FADE_M = 40;
+const EDGE_SLOPE_MAX = 0.25;
+const EDGE_SLOPE_PROBE_M = 4;
+/** Ring vertices closer than this to the map take analytic normals (no crease at the seam). */
+const SEAM_NORMALS_M = 12;
 const SPLAT_SIZE = 256;
 const FAR_CLUMPS = 1800;
 /** Clumps start right at the map edge: a bare first strip is what signs "outside". */
 const CLUMP_MIN_DIST_M = 6;
 const CLUMP_MAX_DIST_M = 900;
+/** Clumps within this distance of the map use the detailed blob, up to this count. */
+const NEAR_CLUMPS_DIST_M = 60;
+const NEAR_CLUMPS_MAX = 320;
 const HILLS: FbmOptions = { octaves: 4, lacunarity: 2.1, gain: 0.5, frequency: 1 / 420 };
 const FOREST: FbmOptions = { octaves: 3, lacunarity: 2, gain: 0.5, frequency: 1 / 260 };
 
@@ -75,7 +84,14 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       if (d <= 0) return edgeH - (x > 0 && x < W && z > 0 && z < D ? HIDDEN_DROP_M : 0);
       const amplitude = 4 + 60 * smoothstep(150, 1800, d);
       const far = fbm(hills, x, z, HILLS) * amplitude + amplitude * 0.45;
-      const h = edgeH + (far - edgeH) * smoothstep(0, EDGE_BLEND_M, d);
+      // Continue the slope of the map edge (a flat ring after a rising edge reads as a plinth).
+      const ex = clamp(x, 0, W);
+      const ez = clamp(z, 0, D);
+      const ix = clamp(ex + ((ex - x) / d) * EDGE_SLOPE_PROBE_M, 0, W);
+      const iz = clamp(ez + ((ez - z) / d) * EDGE_SLOPE_PROBE_M, 0, D);
+      const slope = clamp((edgeH - sampleHeight(terrain, ix, iz)) / EDGE_SLOPE_PROBE_M, -EDGE_SLOPE_MAX, EDGE_SLOPE_MAX);
+      const continued = edgeH + slope * d * (1 - smoothstep(0, EDGE_SLOPE_FADE_M, d));
+      const h = continued + (far - continued) * smoothstep(0, EDGE_BLEND_M, d);
       const river = riverAt(x, z);
       return river.carve > 0 ? h + (river.level - RIVER_BED_BELOW_LEVEL_M - h) * river.carve : h;
     };
@@ -110,6 +126,17 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     geometry.setAttribute('position', new BufferAttribute(positions, 3));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
+    // Near the seam, normals from the height function itself (the mesh-only normals crease).
+    const nor = geometry.getAttribute('normal');
+    for (let i = 0; i < positions.length / 3; i++) {
+      const x = positions[i * 3] as number;
+      const z = positions[i * 3 + 2] as number;
+      if (outside(x, z) > SEAM_NORMALS_M) continue;
+      const dx = heightAt(x + 1, z) - heightAt(x - 1, z);
+      const dz = heightAt(x, z + 1) - heightAt(x, z - 1);
+      const len = Math.hypot(dx, 2, dz);
+      nor.setXYZ(i, -dx / len, 2 / len, -dz / len);
+    }
 
     // --- Far splat: forest floor where the clumps grow --------------------------------------
     const origin = { x: -RING_RADIUS_M, z: -RING_RADIUS_M };
@@ -136,6 +163,36 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // --- Forest clumps --------------------------------------------------------------------
     // Two soft blobs per clump, sitting on the ground: 20-face icosahedra with sphere normals
     // (smooth shading, and the polygonal silhouette is lost in the distance and the haze).
+    const clumpGeometry = (detail: number, bump: number): BufferGeometry => {
+      const parts = [0, 1].map((k) => {
+        const g = new IcosahedronGeometry(1, detail);
+        const gp = g.getAttribute('position');
+        const gn = g.getAttribute('normal');
+        for (let i = 0; i < gp.count; i++) {
+          const len = Math.hypot(gp.getX(i), gp.getY(i), gp.getZ(i));
+          gn.setXYZ(i, gp.getX(i) / len, gp.getY(i) / len, gp.getZ(i) / len);
+          // Leafy radial bumps (deterministic in the vertex direction).
+          const r = 1 + bump * Math.sin(gp.getX(i) * 7.1 + gp.getZ(i) * 5.3 + k) * Math.cos(gp.getY(i) * 6.7);
+          gp.setXYZ(i, gp.getX(i) * r, gp.getY(i) * r, gp.getZ(i) * r);
+        }
+        g.scale(1.1 - k * 0.2, 0.9, 1.1 - k * 0.2);
+        g.translate(k === 0 ? 0 : 0.9, 0.75 + k * 0.2, k === 0 ? 0 : 0.5);
+        return g.index ? g.toNonIndexed() : g;
+      });
+      const merged = mergeGeometries(parts, false);
+      parts.forEach((g) => g.dispose());
+      if (!merged) throw new Error('clump merge failed');
+      const cp = merged.getAttribute('position');
+      const cc = new Float32Array(cp.count * 3);
+      for (let i = 0; i < cp.count; i++) {
+        const c = baseC.clone().lerp(litC, clamp((cp.getY(i) - 0.4) / 2, 0, 1));
+        cc.set([c.r, c.g, c.b], i * 3);
+      }
+      merged.setAttribute('color', new BufferAttribute(cc, 3));
+      return merged;
+    };
+    const litC = new Color(PALETTE.foliage.lit);
+    const baseC = new Color(PALETTE.foliage.base);
     const clumpParts = [0, 1].map((k) => {
       const g = new IcosahedronGeometry(1, 0);
       const pos = g.getAttribute('position');
@@ -162,13 +219,16 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     clump.setAttribute('color', new BufferAttribute(colors, 3));
     const clumpMaterial = createPaintedMaterial({ name: 'FarClumps', vertexColors: true, heightM: 2.6, gradientBase: 0.7, hueNoiseAmp: 0.05 });
     const clumps = new InstancedMesh(clump, clumpMaterial, FAR_CLUMPS);
+    // The clumps right past the edge are seen up close: rounder, bumpier blobs (one more draw).
+    const nearClumps = new InstancedMesh(clumpGeometry(1, 0.12), clumpMaterial, NEAR_CLUMPS_MAX);
+    let nearPlaced = 0;
     const m = new Matrix4();
     const q = new Quaternion();
     const s = new Vector3();
     const p = new Vector3();
     const up = new Vector3(0, 1, 0);
     let placed = 0;
-    for (let attempt = 0; attempt < FAR_CLUMPS * 12 && placed < FAR_CLUMPS; attempt++) {
+    for (let attempt = 0; attempt < FAR_CLUMPS * 12 && placed + nearPlaced < FAR_CLUMPS; attempt++) {
       const x = rng.float(-CLUMP_MAX_DIST_M, W + CLUMP_MAX_DIST_M);
       const z = rng.float(-CLUMP_MAX_DIST_M, D + CLUMP_MAX_DIST_M);
       const d = outside(x, z);
@@ -179,13 +239,19 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       p.set(x, heightAt(x, z) - 0.2 * scale, z);
       q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
       s.set(scale, scale * rng.float(0.85, 1.2), scale);
-      clumps.setMatrixAt(placed++, m.compose(p, q, s));
+      m.compose(p, q, s);
+      if (d < NEAR_CLUMPS_DIST_M && nearPlaced < NEAR_CLUMPS_MAX) nearClumps.setMatrixAt(nearPlaced++, m);
+      else clumps.setMatrixAt(placed++, m);
     }
     clumps.count = placed;
     clumps.instanceMatrix.needsUpdate = true;
     clumps.computeBoundingSphere();
     clumps.name = 'FarClumps';
-    return { ring, splat, clumps };
+    nearClumps.count = nearPlaced;
+    nearClumps.instanceMatrix.needsUpdate = true;
+    nearClumps.computeBoundingSphere();
+    nearClumps.name = 'FarClumps:near';
+    return { ring, splat, clumps, nearClumps };
   }, [terrain, seed, water]);
 
   useEffect(
@@ -196,6 +262,8 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       built.clumps.geometry.dispose();
       (built.clumps.material as { dispose(): void }).dispose();
       built.clumps.dispose();
+      built.nearClumps.geometry.dispose();
+      built.nearClumps.dispose();
     },
     [built],
   );
@@ -204,6 +272,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     <>
       <primitive object={built.ring} />
       <primitive object={built.clumps} />
+      <primitive object={built.nearClumps} />
     </>
   );
 }

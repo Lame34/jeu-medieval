@@ -20,6 +20,7 @@ function buildRibbon(centerline: readonly Vec2[], halfWidth: number, level: numb
   const n = centerline.length;
   const positions = new Float32Array(n * 2 * 3);
   const flow = new Float32Array(n * 2 * 3);
+  const sides = new Float32Array(n * 2);
   let along = 0;
   for (let i = 0; i < n; i++) {
     const p = centerline[i] as Vec2;
@@ -40,6 +41,7 @@ function buildRibbon(centerline: readonly Vec2[], halfWidth: number, level: numb
       flow[v * 3] = tx;
       flow[v * 3 + 1] = tz;
       flow[v * 3 + 2] = along;
+      sides[v] = s;
     }
   }
   const indices: number[] = [];
@@ -51,6 +53,7 @@ function buildRibbon(centerline: readonly Vec2[], halfWidth: number, level: numb
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(positions, 3));
   g.setAttribute('aFlow', new BufferAttribute(flow, 3));
+  g.setAttribute('aSide', new BufferAttribute(sides, 1));
   g.setIndex(indices);
   g.computeBoundingSphere();
   g.computeBoundingBox();
@@ -59,9 +62,12 @@ function buildRibbon(centerline: readonly Vec2[], halfWidth: number, level: numb
 
 const vertexShader = /* glsl */ `
 attribute vec3 aFlow;
+attribute float aSide;
 varying vec3 vWorldPos;
 varying vec3 vFlow;
+varying float vSide;
 void main() {
+  vSide = aSide;
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vWorldPos = wp.xyz;
   vFlow = aFlow;
@@ -83,12 +89,14 @@ uniform float uFlowSpeed;
 uniform float uStill;
 varying vec3 vWorldPos;
 varying vec3 vFlow;
+varying float vSide;
 
 void main() {
   vec2 huv = (vWorldPos.xz + 0.5) / uHeightsSize;
   float ground = texture2D(uHeights, huv).r;
   vec2 inMap = step(vec2(0.0), vWorldPos.xz) * step(vWorldPos.xz, uHeightsSize - 1.0);
-  float depth = inMap.x * inMap.y > 0.5 ? uLevel - ground : 1.0;
+  // Beyond the map (no height texture there) the bed is a parabola: deep centre, shallow banks.
+  float depth = inMap.x * inMap.y > 0.5 ? uLevel - ground : 1.6 * (1.0 - vSide * vSide);
   if (depth < -0.02) discard;
 
   vec2 tangent = normalize(vFlow.xy + vec2(1e-5));
@@ -113,7 +121,7 @@ void main() {
   skyRefl = mix(skyRefl, uShallow, 0.4 * (1.0 - uStill));
   // Still water (moats) mirrors the sky much more than running water: it must read as water.
   float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill);
-  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.15, 0.5, uStill)));
+  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.1, 0.5, uStill)));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));

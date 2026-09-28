@@ -263,7 +263,7 @@ const FRAGMENT_RIM = /* glsl */ `
   // full strength in the shade turned pale cloth milky white).
   float rim = pow(1.0 - clamp(dot(normal, geometryViewDir), 0.0, 1.0), 3.0);
   vec3 rimColor = mix(uHorizonAway * 1.1, uRimColor, paintedSunLit);
-  reflectedLight.directDiffuse += rimColor * rim * uRimStrength * (0.35 + 0.65 * paintedSunLit);
+  reflectedLight.directDiffuse += rimColor * rim * uRimStrength * (0.45 + 0.55 * paintedSunLit);
 }
 #endif
 `;

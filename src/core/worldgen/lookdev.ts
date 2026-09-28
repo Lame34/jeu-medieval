@@ -40,7 +40,8 @@ const RIVER = {
 const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }] };
 const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 76, z: 20 }, { x: 102, z: 27 }, { x: 128, z: 44 }] };
 const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
-const BUTTE = { rise: 6.5, from: 0.5, to: 0.95 };
+// The butte levels off before the map corner (a rise up to the edge reads as a plinth).
+const BUTTE = { rise: 6.5, from: 0.5, to: 0.8 };
 const FIELD_POLY: Vec2[] = [
   { x: 82, z: 74 },
   { x: 97, z: 71.5 },
@@ -170,14 +171,14 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     const hedgeFoot = 1 - smoothstep(1, 4, projectOnPolyline(p, hedge.points).distance);
     // Band in front of the wood (forest mask just below its edge), not the edge line itself.
     const woodFront = smoothstep(0.18, 0.3, m) * (1 - smoothstep(0.45, 0.55, m));
-    const zone = Math.max(woodFront, edge * 0.5, bank * 0.6, fieldBorder * 0.45, wallFoot * 0.35, hedgeFoot * 0.9, 0.04);
+    const zone = Math.max(woodFront, edge * 0.5, bank * 0.6, fieldBorder * 0.45, wallFoot * 0.35, hedgeFoot * 0.9, 0.015);
     const cluster = smoothstep(0.1, 0.35, fbm(clusterNoise, p.x, p.z, { octaves: 2, lacunarity: 2, gain: 0.5, frequency: 1 / 9 }));
     return clamp((zone * cluster + m * 0.25) * clearOfPath, 0, 0.9);
   });
   for (const p of underSpots) {
     // Ferns only in the shade of the wood; bushes along edges and banks.
     const fern = forestMask(p) > 0.45 && vegRng.chance(0.6);
-    trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.6, 1.5), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
+    trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.6, 1.7), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
   // A few lone trees in the meadow near the houses break the edge and frame the view.
   for (const p of [{ x: 60, z: 58 }, { x: 40, z: 100 }, { x: 118, z: 112 }]) {

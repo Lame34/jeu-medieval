@@ -56,7 +56,7 @@ float paintedFbm(vec2 p) {
   float amp = 0.5;
   for (int i = 0; i < 3; i++) {
     v += amp * paintedValueNoise(p);
-    p = p * 2.03 + vec2(17.1, 9.7);
+    p = mat2(1.6, 1.2, -1.2, 1.6) * p + vec2(17.1, 9.7);
     amp *= 0.5;
   }
   return v / 0.875;
@@ -97,7 +97,7 @@ vec3 paintedApplyFog(vec3 color, vec3 worldPos) {
   float valley = uValleyFog * (1.0 - smoothstep(uValleyLow, uValleyHigh, worldPos.y)) * smoothstep(0.0, uFogStart, dist);
   vec2 outside = max(max(uMapMin - worldPos.xz, worldPos.xz - uMapMax), 0.0);
   // Stepped planes of haze beyond the map, not a milky wall (review v15).
-  float edge = 0.5 * smoothstep(10.0, 140.0, length(outside));
+  float edge = 0.35 * smoothstep(30.0, 260.0, length(outside));
   return mix(color, fogColor, max(max(fogF, valley), edge));
 }
 `;
@@ -146,11 +146,13 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
     float chroma = length(yiq.yz);
     float a = atan(yiq.z, yiq.y);
     float d = mod(uShadowHueAngle - a + 3.14159265, 6.28318531) - 3.14159265;
-    // Warm hues (I > 0) would reach blue-violet through magenta: they only cool slightly
-    // (sienna, ochre) instead of turning pink.
-    a += clamp(d, -0.44, 0.44) * shade * mix(1.0, 0.35, smoothstep(0.0, 0.02, yiq.y));
+    // Cool hues turn towards the shadow hue (≤ 14°). Warm hues would reach it through magenta:
+    // ochres and yellows (Q < 0) cool towards olive instead (≤ 10°), reds do not turn.
+    float warm = smoothstep(0.0, 0.02, yiq.y);
+    float warmTurn = yiq.z < 0.0 ? -0.17 : 0.0;
+    a += mix(clamp(d, -0.25, 0.25), warmTurn, warm) * shade;
     yiq.yz = vec2(cos(a), sin(a)) * chroma * (1.0 + 0.12 * shade);
-    yiq.yz += uShadowIQ * yiq.x * 0.35 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
+    yiq.yz += uShadowIQ * yiq.x * 0.25 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
     c = max(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * yiq, 0.0);
   }
   reflectedLight.indirectDiffuse += c;

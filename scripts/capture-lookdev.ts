@@ -30,7 +30,7 @@ mkdirSync(outDir, { recursive: true });
 const browser = await launch({ headed: process.argv.includes('--headed') });
 try {
   const started = Date.now();
-  const { page, errors } = await openScene(browser, `/${scene}?bench${query ? `&${query}` : ''}`);
+  const { page, errors } = await openScene(browser, `/${scene}?bench&fixedres${query ? `&${query}` : ''}`);
   const worldgenMs = await page.evaluate(() => document.body.dataset['worldgenMs'] ?? '-');
   console.log(`GPU: ${await gpuString(page)}`);
   console.log(`load: ${((Date.now() - started) / 1000).toFixed(1)} s to scene ready (worldgen ${worldgenMs} ms)`);

@@ -5,6 +5,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { BatchedMesh, InstancedMesh, Mesh, type Object3D } from 'three';
+import { renderScale } from '../quality/DynamicResolution.tsx';
 
 const RING_SIZE = 8192;
 
@@ -14,6 +15,8 @@ export interface RendererSnapshot {
   readonly geometries: number;
   readonly textures: number;
   readonly programs: number;
+  /** Dynamic resolution scale at the time of the snapshot. */
+  readonly renderScale: number;
 }
 
 export interface PerfApi {
@@ -103,6 +106,7 @@ export function PerfProbe() {
         geometries: gl.info.memory.geometries,
         textures: gl.info.memory.textures,
         programs: gl.info.programs?.length ?? 0,
+        renderScale: renderScale.value,
       }),
       control: window.__perf?.control ?? {},
     };

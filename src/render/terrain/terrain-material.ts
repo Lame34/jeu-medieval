@@ -75,20 +75,21 @@ const TERRAIN_ALBEDO = /* glsl */ `
 
   float wForest = smoothstep(0.3, 0.7, w.a + edgeNoise);
   col = mix(col, mix(uMossBase, uMossLit, 0.35 + 0.5 * nMid), wForest * 0.9);
-  float wField = smoothstep(0.35, 0.65, w.g + edgeNoise * 0.6);
+  float wField = smoothstep(0.35, 0.65, w.g + edgeNoise);
   // Under the crop the ground reads as a golden straw bed, not as bare soil.
   // Stubble tone close to the crop: sparse distant tufts (and the unstreamed far fields) keep their mass.
   vec3 fieldBed = uFieldBed * (0.88 + 0.24 * nFine) * (0.94 + 0.12 * nMid);
   // Beyond the streamed tufts (WheatField, 72 m around the focus) the bed carries the crop
   // itself: the ripe mass, not the shade between the stalks.
   vec3 cropMass = mix(uWheatBase, uWheatLit, 0.5 + 0.25 * nMid) * (0.92 + 0.16 * nFine);
-  fieldBed = mix(fieldBed, cropMass, smoothstep(56.0, 72.0, distance(p.xz, uFocus.xz)));
+  fieldBed = mix(fieldBed, cropMass, smoothstep(38.0, 55.0, distance(p.xz, uFocus.xz)));
   col = mix(col, fieldBed, wField * 0.9);
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
-  float wRoad = smoothstep(0.32, 0.62, w.r + edgeNoise * 0.8);
-  float ruts = smoothstep(0.3, 0.7, paintedValueNoise(p.xz * 1.3 + 3.7));
-  vec3 road = mix(uPathBase, uPathLit, 0.4 + 0.4 * nMid) * (0.88 + 0.16 * ruts);
+  float wRoad = smoothstep(0.4, 0.6, w.r + edgeNoise * 0.35);
+  // Ruts and wear along a rotated frame: no axis-aligned pixel pattern.
+  float ruts = paintedFbm(mat2(0.8, -0.6, 0.6, 0.8) * p.xz / 1.8);
+  vec3 road = mix(uPathBase, uPathLit, 0.4 + 0.4 * nMid) * (0.92 + 0.1 * ruts);
   col = mix(col, road, wRoad);
 
   float wRock = smoothstep(0.38, 0.6, slope + (nMid - 0.5) * 0.3);

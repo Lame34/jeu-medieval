@@ -32,8 +32,8 @@ const UP = new Vector3(0, 1, 0);
 
 /** Streaming: chunk size, disk radius around the focus and its fading outer ring (m). */
 const CHUNK_M = 16;
-const STREAM_RADIUS_M = 72;
-const STREAM_FADE_M = 14;
+const STREAM_RADIUS_M = 55;
+const STREAM_FADE_M = 17;
 /** Chunks whose centre is closer than this to the camera use full tufts. */
 const NEAR_DISTANCE_M = 30;
 /** Far level: three tufts in five, twice as wide: the mass without the triangles. */

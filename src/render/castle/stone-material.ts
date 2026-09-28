@@ -29,8 +29,10 @@ const STONE_ALBEDO = /* glsl */ `
   yc += 0.25 * sin(yc * 1.7);
   float course = floor(yc);
   float rowJitter = paintedHash12(vec2(course, 3.7));
-  float stoneW = uCourseM * (1.2 + 1.6 * rowJitter);
-  float su = u / stoneW + rowJitter * 0.5 + mod(course, 2.0) * 0.5;
+  float stoneW = uCourseM * (1.2 + 1.0 * rowJitter);
+  // Monotonic warp of the course coordinate: stone lengths vary ~0.4–1.6 × within a course.
+  float su0 = u / stoneW + rowJitter * 0.5 + mod(course, 2.0) * 0.5;
+  float su = su0 + 0.3 * sin(su0 * 2.1 + course * 3.7);
   float stoneId = floor(su);
   vec2 f = vec2(fract(su), fract(yc));
   float edgeX = min(f.x, 1.0 - f.x) * stoneW;

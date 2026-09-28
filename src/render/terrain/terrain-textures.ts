@@ -94,8 +94,9 @@ function stampRoads(t: TerrainData, weights: Float32Array, roads: readonly RoadL
           const pz = cz + 0.5;
           const s = Math.min(1, Math.max(0, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
           const d = Math.hypot(px - (a.x + dx * s), pz - (a.z + dz * s));
-          const e = (d - (hw - ROAD_EDGE_INNER_M)) / (ROAD_EDGE_INNER_M + ROAD_EDGE_OUTER_M);
-          const w = 1 - Math.min(1, Math.max(0, e * e * (3 - 2 * e)));
+          // Smoothstep: clamp first (the cubic leaves [0, 1] outside it and would mark far cells).
+          const e = Math.min(1, Math.max(0, (d - (hw - ROAD_EDGE_INNER_M)) / (ROAD_EDGE_INNER_M + ROAD_EDGE_OUTER_M)));
+          const w = 1 - e * e * (3 - 2 * e);
           const i = (cz * t.width + cx) * CHANNELS + ROAD_CHANNEL;
           if (w > (weights[i] as number)) weights[i] = w;
         }
@@ -167,7 +168,14 @@ export function buildSplatTexture(t: TerrainData, trees: readonly TreeInstance[]
   dilate(t, weights, TerrainLayer.Building, 0, APRON_CELLS, APRON_WEIGHT);
   dilate(t, weights, TerrainLayer.Wall, 2, WALL_FOOT_CELLS, WALL_FOOT_WEIGHT);
   stampUnderstory(t, weights, trees, hedges);
+  // Analytic roads already carry their soft verge: keep their channel out of the blur.
+  const roadChannel = analyticRoads ? weights.filter((_, i) => i % CHANNELS === ROAD_CHANNEL) : null;
   for (let pass = 0; pass < BLUR_PASSES; pass++) weights = boxBlur(weights, t.width, t.depth);
+  if (roadChannel) {
+    const blurred = weights.filter((_, i) => i % CHANNELS === ROAD_CHANNEL);
+    // Buildings and walls still spread their aprons on the road channel: keep the larger.
+    roadChannel.forEach((w, i) => (weights[i * CHANNELS + ROAD_CHANNEL] = Math.max(w, blurred[i] as number)));
+  }
   const bytes = new Uint8Array(weights.length);
   for (let i = 0; i < weights.length; i++) bytes[i] = Math.round(Math.min(1, weights[i] as number) * BYTE_MAX);
   const tex = new DataTexture(bytes, t.width, t.depth, RGBAFormat, UnsignedByteType);
