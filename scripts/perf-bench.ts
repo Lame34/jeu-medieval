@@ -99,7 +99,18 @@ async function measurePass(uncapped: boolean): Promise<Pass> {
   }
 }
 
+/** A stale preview left on the port would be measured instead of this build (strictPort fails silently). */
+async function assertPortFree(url: string): Promise<void> {
+  try {
+    await fetch(url);
+  } catch {
+    return;
+  }
+  throw new Error(`${url} already answers: stop the stale preview server before benching`);
+}
+
 async function main(): Promise<void> {
+  await assertPortFree(PREVIEW_URL);
   if (!flag('no-build')) execSync('npx vite build --logLevel warn', { stdio: 'inherit' });
   const preview: ChildProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { shell: true, stdio: 'ignore' });
   try {
@@ -125,7 +136,7 @@ async function main(): Promise<void> {
     });
     report(throughput.gpu, results, throughput.heapBytes, throughput.textures, [...throughput.errors, ...pacing.errors]);
   } finally {
-    preview.kill();
+    // Tree first: killing the shell first orphans the vite preview it started (port left busy).
     if (process.platform === 'win32' && preview.pid) {
       try {
         execSync(`taskkill /pid ${preview.pid} /T /F`, { stdio: 'ignore' });
@@ -133,6 +144,7 @@ async function main(): Promise<void> {
         /* already gone */
       }
     }
+    preview.kill();
   }
 }
 
