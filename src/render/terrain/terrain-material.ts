@@ -7,6 +7,13 @@ import { Color, Vector2, type Texture } from 'three';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 
+/** Ring patchwork (m): parcels fade in past the map edge; rows, hedge width and far fade. */
+const RING_PARCELS_FROM_M = 25;
+const RING_PARCELS_FULL_M = 90;
+const RING_ROW_M = 90;
+const RING_HEDGE_WIDTH_M = 3;
+const RING_HEDGE_FADE_M: readonly [number, number] = [1200, 2200];
+
 const TERRAIN_PARS = /* glsl */ `
 uniform sampler2D uSplat;
 uniform vec2 uSplatSize;
@@ -104,9 +111,53 @@ const TERRAIN_ALBEDO = /* glsl */ `
   vec3 rock = mix(uStoneBase, uStoneLit, 0.25 + 0.6 * strata);
   col = mix(col, rock, wRock);
 
+  #ifdef TERRAIN_RING
+  col = terrainParcels(col, lush, dryC, p, nLarge, nFine, wForest);
+  #endif
+
   // Large painterly hue drift across the landscape.
   col = max(paintedHueShift(col, (nLarge - 0.5) * 0.05), 0.0);
   diffuseColor.rgb = col;
+}
+`;
+
+/**
+ * Decorative ring only: a patchwork of parcels (strips of 60–140 m in rows of 90 m, bent by a
+ * low-frequency warp) in five tones, and hedgerows on about half of their borders, antialiased
+ * with derivatives and faded out far away. Parcels start past the map edge so the seam keeps
+ * the map's own ground.
+ */
+const RING_PARCELS = /* glsl */ `
+uniform vec3 uParcelFallow;
+uniform vec3 uParcelRye;
+uniform vec3 uHedgeRow;
+vec3 terrainParcels(vec3 col, vec3 lush, vec3 dryC, vec3 p, float nLarge, float nFine, float wForest) {
+  vec2 outsideMap = max(max(uMapMin - p.xz, p.xz - uMapMax), 0.0);
+  float amount = smoothstep(${RING_PARCELS_FROM_M.toFixed(1)}, ${RING_PARCELS_FULL_M.toFixed(1)}, length(outsideMap)) * (1.0 - wForest);
+  if (amount <= 0.0) return col;
+  vec2 warp = vec2(nLarge - 0.5, paintedValueNoise(p.xz / 170.0 + 7.0) - 0.5) * 70.0;
+  vec2 q = mat2(0.94, -0.34, 0.34, 0.94) * (p.xz + warp);
+  float row = floor(q.y / ${RING_ROW_M.toFixed(1)});
+  float width = mix(60.0, 140.0, paintedHash12(vec2(row, 3.1)));
+  float x = q.x + paintedHash12(vec2(row, 9.7)) * 200.0;
+  float cell = floor(x / width);
+  float h = paintedHash12(vec2(cell, row) + 0.37);
+  vec3 wheat = mix(uWheatBase, uWheatLit, 0.6);
+  vec3 parcel = h < 0.35 ? col : h < 0.55 ? dryC : h < 0.7 ? uParcelFallow : h < 0.85 ? mix(col, wheat, 0.6) : uParcelRye;
+  parcel *= 0.94 + 0.12 * nFine;
+  // Hedgerows: distance to the nearest border of the strip, on about half of the borders.
+  vec2 local = vec2(fract(x / width) * width, fract(q.y / ${RING_ROW_M.toFixed(1)}) * ${RING_ROW_M.toFixed(1)});
+  float edgeX = min(local.x, width - local.x);
+  float edgeY = min(local.y, ${RING_ROW_M.toFixed(1)} - local.y);
+  float keepX = step(0.5, paintedHash12(vec2(cell + step(width * 0.5, local.x), row) + 5.3));
+  float keepY = step(0.5, paintedHash12(vec2(cell, row + step(${(RING_ROW_M / 2).toFixed(1)}, local.y)) + 8.1));
+  float halfW = ${(RING_HEDGE_WIDTH_M / 2).toFixed(2)};
+  float fx = fwidth(edgeX) + 1e-3;
+  float fy = fwidth(edgeY) + 1e-3;
+  float hedge = max(keepX * (1.0 - smoothstep(halfW - fx, halfW + fx, edgeX)), keepY * (1.0 - smoothstep(halfW - fy, halfW + fy, edgeY)));
+  hedge *= 1.0 - smoothstep(${RING_HEDGE_FADE_M[0].toFixed(1)}, ${RING_HEDGE_FADE_M[1].toFixed(1)}, distance(cameraPosition.xz, p.xz));
+  parcel = mix(parcel, uHedgeRow * (0.9 + 0.2 * nFine), hedge * 0.85);
+  return mix(col, parcel, amount);
 }
 `;
 
@@ -115,6 +166,7 @@ export function createTerrainMaterial(
   sizeM: { x: number; z: number },
   heightRefM: number,
   originM: { x: number; z: number } = { x: 0, z: 0 },
+  ring = false,
 ): PaintedMaterial {
   const c = (hex: string) => ({ value: new Color(hex) });
   return createPaintedMaterial({
@@ -123,8 +175,9 @@ export function createTerrainMaterial(
     worldNormal: true,
     wrap: 0.35,
     customAlbedo: {
-      key: 'terrain-v2',
-      pars: TERRAIN_PARS,
+      key: ring ? 'terrain-ring-v1' : 'terrain-v2',
+      pars: ring ? `#define TERRAIN_RING
+${TERRAIN_PARS}${RING_PARCELS}` : TERRAIN_PARS,
       body: TERRAIN_ALBEDO,
       uniforms: {
         uSplat: { value: splat },
@@ -148,6 +201,9 @@ export function createTerrainMaterial(
         uWheatBase: c(PALETTE.wheat.base),
         uWheatLit: c(PALETTE.wheat.lit),
         uFieldBed: c(PALETTE.fieldBed),
+        uParcelFallow: c(PALETTE.fallow.lit),
+        uParcelRye: c(PALETTE.rye.lit),
+        uHedgeRow: c(PALETTE.moss.base),
       },
     },
   });

@@ -45,7 +45,7 @@ const STONE_ALBEDO = /* glsl */ `
   stoneMask = mix(stoneMask, 1.0, horizontal);
 
   float tone = paintedHash12(vec2(stoneId, course));
-  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.42 + 0.32 * tone);
+  vec3 stoneC = mix(uStoneBase, uStoneLit, 0.5 + 0.3 * tone);
   stoneC = max(paintedHueShift(stoneC, (paintedHash12(vec2(course, stoneId + 9.1)) - 0.5) * 0.04), 0.0);
   // Rounded stone faces: darker towards the joints.
   stoneC *= 0.88 + 0.12 * smoothstep(0.0, 0.25, min(edgeX, edgeY));

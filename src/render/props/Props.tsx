@@ -1,44 +1,51 @@
 /**
- * Decorative props at human scale (review v18, #11): mossy half-buried rocks, haystacks and
- * fallen logs. Procedural, vertex-coloured, merged into one PaintedMaterial mesh (one draw
- * call); `aPaintedData` carries the height above the ground (gradient, contact AO), a per-prop
+ * Decorative props at human scale (review v18, #11): mossy half-buried rocks, haystacks, fallen
+ * logs and a postern door. Procedural, faceted like the trees (flat normals), vertex-coloured,
+ * merged into one PaintedMaterial mesh (one draw call); `aPaintedData` carries the height above the ground (gradient, contact AO), a per-prop
  * hue/value jitter and the straw strands of the haystacks.
  */
 import { useEffect, useMemo } from 'react';
-import { BufferAttribute, Color, CylinderGeometry, IcosahedronGeometry, LatheGeometry, Matrix4, Mesh, Quaternion, Vector2, Vector3, type BufferGeometry } from 'three';
-import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { BoxGeometry, BufferAttribute, Color, CylinderGeometry, IcosahedronGeometry, LatheGeometry, Matrix4, Mesh, Quaternion, Vector2, Vector3, type BufferGeometry } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { PropSite } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { PALETTE } from '../materials/palette.ts';
 
-const ROCK_DETAIL = 2;
+const ROCK_DETAIL = 1;
 /** Rock proportions: radius multipliers (x, y, z) and the buried fraction of the height. */
-const ROCK_SQUASH = { x: [1, 1.4], y: [0.65, 0.95], z: [0.75, 1.05] } as const;
-const ROCK_BURY = 0.22;
+const ROCK_SQUASH = { x: [1, 1.4], y: [0.85, 1.25], z: [0.75, 1.05] } as const;
+const ROCK_BURY = 0.32;
 const ROCK_BUMPS = 4;
-const ROCK_BUMP_AMP = 0.16;
+const ROCK_BUMP_AMP = 0.24;
 /** Moss on the upward faces (normal.y beyond the threshold), broken by noise. */
-const MOSS_FACING = [0.55, 0.9] as const;
-const MOSS_AMOUNT = 0.6;
+const MOSS_FACING = [0.3, 0.7] as const;
+const MOSS_AMOUNT = 0.85;
 const LICHEN_COLOR = '#b8ad8a';
 const HAYSTACK_SEGMENTS = 14;
-/** Haystack profile (radius, height) in m, bottom to top. */
+/** Haystack profile (radius, height) in m, bottom to top: a drum, an eave, a cone. */
 const HAYSTACK_PROFILE: readonly [number, number][] = [
-  [1.0, -0.25],
-  [1.12, 0.35],
-  [1.12, 0.9],
-  [0.98, 1.5],
-  [0.7, 2.05],
-  [0.35, 2.45],
-  [0.12, 2.62],
+  [1.15, -0.25],
+  [1.25, 0.4],
+  [1.25, 1.1],
+  [1.38, 1.25],
+  [0.9, 1.9],
+  [0.4, 2.5],
+  [0.1, 2.75],
 ];
 /** Pole through the top of the stack (m). */
-const HAYSTACK_POLE = { radius: 0.045, from: 2.2, to: 3.0 } as const;
-/** Straw laid in courses: value banding per metre of height. */
-const HAYSTACK_COURSES_PER_M = 2.5;
-const STRAW_COLOR = '#b88f4c';
+const HAYSTACK_POLE = { radius: 0.045, from: 2.4, to: 2.9 } as const;
+/** Straw from the weathered foot to the sunlit top; vertical streaks (±) and a dark foot. */
+const STRAW_FOOT = '#9c7c48';
+const STRAW_TOP = '#c8a866';
+const STRAW_STREAKS = 23;
+const STRAW_STREAK_AMP = 0.12;
+const STRAW_DARK_FOOT = { heightM: 0.3, value: 0.72 } as const;
+/** Postern: a plank door on the face of a projecting stone porch, which clears the glacis (m). */
+const POSTERN = { width: 1.4, height: 2.4, depth: 0.14, frame: 0.3, frameDepth: 1.6 } as const;
+const POSTERN_WOOD = PALETTE.woodWarm.lit;
+const POSTERN_PLANKS = 5;
 const HAYSTACK_WOBBLE = 0.07;
 const LOG_LENGTH_M = 3.4;
 const LOG_RADII_M = [0.3, 0.36] as const;
@@ -64,11 +71,11 @@ function bumpField(rng: Rng): (d: Vector3) => number {
 }
 
 function rockGeometry(rng: Rng, radius: number): BufferGeometry {
-  const src = new IcosahedronGeometry(1, ROCK_DETAIL);
-  src.deleteAttribute('normal');
-  src.deleteAttribute('uv');
-  const g = mergeVertices(src);
-  src.dispose();
+  // Non-indexed: flat facets. The displacement is a function of the position, so shared
+  // corners move together and the facets stay closed.
+  const g = new IcosahedronGeometry(1, ROCK_DETAIL);
+  g.deleteAttribute('normal');
+  g.deleteAttribute('uv');
   const bump = bumpField(rng);
   const sx = rng.float(...ROCK_SQUASH.x);
   const sy = rng.float(...ROCK_SQUASH.y);
@@ -93,7 +100,7 @@ function haystackGeometry(rng: Rng): BufferGeometry {
   );
   src.deleteAttribute('uv');
   src.deleteAttribute('normal');
-  const straw = mergeVertices(src);
+  const straw = src.toNonIndexed();
   src.dispose();
   const bump = bumpField(rng);
   const pos = straw.getAttribute('position');
@@ -107,11 +114,24 @@ function haystackGeometry(rng: Rng): BufferGeometry {
   const pole = new CylinderGeometry(HAYSTACK_POLE.radius * 0.7, HAYSTACK_POLE.radius, HAYSTACK_POLE.to - HAYSTACK_POLE.from, 5, 1, true);
   pole.deleteAttribute('uv');
   pole.translate(0, (HAYSTACK_POLE.from + HAYSTACK_POLE.to) / 2, 0);
-  const g = mergeGeometries([straw, pole], false);
+  const g = mergeGeometries([straw, pole.toNonIndexed()], false);
   straw.dispose();
   pole.dispose();
   if (!g) throw new Error('haystack merge failed');
   return g;
+}
+
+function posternGeometry(): BufferGeometry {
+  const frame = new BoxGeometry(POSTERN.width + 2 * POSTERN.frame, POSTERN.height + POSTERN.frame, POSTERN.frameDepth);
+  frame.translate(0, (POSTERN.height + POSTERN.frame) / 2 - 0.2, 0);
+  const door = new BoxGeometry(POSTERN.width, POSTERN.height, POSTERN.depth, POSTERN_PLANKS, 1, 1);
+  door.translate(0, POSTERN.height / 2 - 0.2, POSTERN.frameDepth / 2);
+  for (const g of [frame, door]) g.deleteAttribute('uv');
+  const merged = mergeGeometries([frame.toNonIndexed(), door.toNonIndexed()], false);
+  frame.dispose();
+  door.dispose();
+  if (!merged) throw new Error('postern merge failed');
+  return merged;
 }
 
 function logGeometry(rng: Rng): BufferGeometry {
@@ -131,7 +151,9 @@ function paint(g: BufferGeometry, site: PropSite, rng: Rng): void {
   const stone = new Color(PALETTE.stone.lit);
   const moss = new Color(PALETTE.moss.lit);
   const lichen = new Color(LICHEN_COLOR);
-  const straw = new Color(STRAW_COLOR);
+  const strawFoot = new Color(STRAW_FOOT);
+  const strawTop = new Color(STRAW_TOP);
+  const wood = new Color(POSTERN_WOOD);
   const poleWood = new Color(PALETTE.woodWarm.base);
   const bark = new Color(BARK_COLOR);
   const heart = new Color(HEARTWOOD_COLOR);
@@ -152,11 +174,17 @@ function paint(g: BufferGeometry, site: PropSite, rng: Rng): void {
     } else if (site.kind === 'haystack') {
       if (Math.hypot(d.x, d.z) < HAYSTACK_POLE.radius * 1.5) c.copy(poleWood);
       else {
-        // Straw in courses, darker at the weathered foot.
-        const course = 0.9 + 0.1 * Math.sin(d.y * HAYSTACK_COURSES_PER_M * Math.PI * 2);
-        c.copy(straw).multiplyScalar(course * (0.78 + 0.22 * Math.min(1, Math.max(0, d.y / 1.2))));
+        const top = Math.min(1, Math.max(0, d.y / 2.2));
+        const streak = 1 + STRAW_STREAK_AMP * Math.sin(Math.atan2(d.z, d.x) * STRAW_STREAKS + n * 3);
+        const foot = d.y < STRAW_DARK_FOOT.heightM ? STRAW_DARK_FOOT.value : 1;
+        c.copy(strawFoot).lerp(strawTop, top * top * (3 - 2 * top)).multiplyScalar(streak * foot);
         strands = 1;
       }
+    } else if (site.kind === 'postern') {
+      // Stone surround behind, plank door in front (alternate planks a shade apart).
+      const inDoor = d.z > POSTERN.frameDepth / 2 - 0.01;
+      const plank = Math.floor((d.x / POSTERN.width + 0.5) * POSTERN_PLANKS);
+      c.copy(inDoor ? wood : stone).multiplyScalar(inDoor ? 0.85 + 0.1 * (plank % 2) : 0.8);
     } else {
       const end = Math.abs(nrm.getX(i)) > 0.9;
       c.copy(end ? heart : bark).lerp(moss, end ? 0 : mossy * 0.6);
@@ -176,14 +204,15 @@ function buildProps(props: readonly PropSite[], terrain: TerrainData): BufferGeo
   const s = new Vector3();
   props.forEach((site, index) => {
     const rng = Rng.create(`prop:${site.kind}:${index}`);
-    const g = site.kind === 'rock' ? rockGeometry(rng, site.scale) : site.kind === 'haystack' ? haystackGeometry(rng) : logGeometry(rng);
+    const g =
+      site.kind === 'rock' ? rockGeometry(rng, site.scale) : site.kind === 'haystack' ? haystackGeometry(rng) : site.kind === 'postern' ? posternGeometry() : logGeometry(rng);
     const local = g.index ? g.toNonIndexed() : g;
     if (local !== g) g.dispose();
     paint(local, site, rng);
     // Seat the prop on the lowest ground under its footprint (no lip showing on a slope).
     const reach = site.kind === 'log' ? LOG_LENGTH_M / 2 : site.kind === 'haystack' ? 1 : site.scale;
     const { x, z } = site.position;
-    const ground = Math.min(
+    const ground = site.kind === 'postern' ? sampleHeight(terrain, x, z) : Math.min(
       sampleHeight(terrain, x, z),
       ...[0, 1, 2, 3].map((k) => sampleHeight(terrain, x + Math.cos((k * Math.PI) / 2) * reach * 0.7, z + Math.sin((k * Math.PI) / 2) * reach * 0.7)),
     );

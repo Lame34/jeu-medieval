@@ -114,6 +114,12 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 
 **À faire (J8)** : rendre dans des cibles allouées une fois à la taille maximale, avec viewport et scissor réduits, sans réallocation. Réactiver ensuite par défaut.
 
+## ADR-021 — Ombres simplifiées et anneau en parcellaire
+**Contexte** : la revue v19 relève deux défauts de lecture. Les créneaux projetaient un peigne de fentes de 0,6 m que la carte d'ombre rendait en stries ondulées de 1 à 3 px, qui rampent dès que la caméra bouge. L'anneau décoratif était une plaine olive, bordée à la couture de la carte d'une bande de mousse vert sombre, parce que son canal forêt portait la *probabilité* de forêt et non les bosquets placés.
+**Décision** :
+- *Ombre des créneaux* : une bande pleine par segment de mur et par couronne de tour (`buildCrenelShadowProxy`), dessinée invisible (`colorWrite` et `depthWrite` désactivés), qui projette seule l'ombre du parapet. Coût : un appel de dessin et une trentaine de triangles. On ne passe pas par un calque réservé, car three r186 filtre les objets de la passe d'ombre sur les calques de la caméra de vue (`WebGLShadowMap`, `renderObject`).
+- *Anneau* : parcellaire calculé dans le shader du terrain (variante `TERRAIN_RING`) : bandes de 60 à 140 m par rangs de 90 m, courbées par un bruit basse fréquence ; cinq teintes (pré, herbe sèche, jachère, blé, seigle) ; haies sur environ la moitié des bords, anticrénelées par `fwidth` et effacées entre 1,2 et 2,2 km. Le sol de forêt n'est plus peint que sous les bosquets placés (splat 512², disques de 1,6 fois l'échelle du bosquet). Les chemins s'estompent sur les 14 derniers mètres avant le bord de la carte.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

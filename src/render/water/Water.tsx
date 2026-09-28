@@ -113,18 +113,20 @@ void main() {
   // The water body is lit like the scene (it would glow at dusk otherwise); reflections are not.
   // Running water: scene light mostly desaturated (the blue morning light turned the river royal
   // blue). Moats keep their green (desaturated, they read as a concrete band).
-  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 0.7, depth)) * mix(uSceneLight, vec3(dot(uSceneLight, vec3(1.0 / 3.0))), 0.6 * (1.0 - uStill));
+  // At dusk (low sun) the river keeps more of the warm light: peach-lilac, not asphalt.
+  float sunHigh = smoothstep(0.1, 0.45, uSunDir.y);
+  vec3 col = mix(uShallow, uDeep, smoothstep(0.05, 0.7, depth)) * mix(uSceneLight, vec3(dot(uSceneLight, vec3(1.0 / 3.0))), mix(0.25, 0.6, sunHigh) * (1.0 - uStill));
   vec3 view = normalize(cameraPosition - vWorldPos);
   float fresnel = pow(1.0 - clamp(view.y, 0.0, 1.0), 3.0);
   vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
   float towardSun = dot(normalize(-view.xz + vec2(1e-5)), sunXZ) * 0.5 + 0.5;
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun), uSkyZenith, 0.35);
   // Running water reflects a teal sky, not a glacier blue (review v15).
-  skyRefl = mix(skyRefl, uShallow, 0.4 * (1.0 - uStill));
+  skyRefl = mix(skyRefl, uShallow, mix(0.25, 0.4, sunHigh) * (1.0 - uStill));
   // Still water (moats) mirrors the sky much more than running water: it must read as water.
   float farCalm = mix(1.0 - 0.6 * smoothstep(30.0, 90.0, distance(cameraPosition, vWorldPos)), 1.0, uStill);
   float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill) * farCalm;
-  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(0.1, 0.5, uStill)));
+  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(mix(0.22, 0.1, sunHigh), 0.5, uStill)));
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));

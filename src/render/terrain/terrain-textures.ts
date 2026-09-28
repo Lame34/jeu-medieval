@@ -76,6 +76,10 @@ const ROAD_CHANNEL = 0;
  * Road weight from the exact distance to each centreline segment (the cell layer only says
  * "road or not", which blurs into a staircase at 1 texel per metre).
  */
+/** Roads fade out over the last metres before the map edge: the ring cannot carry a 3 m track, so
+ * it wears away into the grass instead of stopping on a straight line. */
+const ROAD_BORDER_FADE_M = 14;
+
 function stampRoads(t: TerrainData, weights: Float32Array, roads: readonly RoadLine[]): void {
   for (const road of roads) {
     const hw = road.widthM / 2;
@@ -96,7 +100,8 @@ function stampRoads(t: TerrainData, weights: Float32Array, roads: readonly RoadL
           const d = Math.hypot(px - (a.x + dx * s), pz - (a.z + dz * s));
           // Smoothstep: clamp first (the cubic leaves [0, 1] outside it and would mark far cells).
           const e = Math.min(1, Math.max(0, (d - (hw - ROAD_EDGE_INNER_M)) / (ROAD_EDGE_INNER_M + ROAD_EDGE_OUTER_M)));
-          const w = 1 - e * e * (3 - 2 * e);
+          const border = Math.min(1, Math.min(px, pz, t.width - px, t.depth - pz) / ROAD_BORDER_FADE_M);
+          const w = (1 - e * e * (3 - 2 * e)) * border * border * (3 - 2 * border);
           const i = (cz * t.width + cx) * CHANNELS + ROAD_CHANNEL;
           if (w > (weights[i] as number)) weights[i] = w;
         }

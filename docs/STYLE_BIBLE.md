@@ -25,8 +25,8 @@ Trois règles guident chaque décision :
 | Terre battue | `#9C7A52` | `#6B5238` | Cours, abords des maisons |
 | Chemin | `#BC9E70` | `#8A7050` | Routes, plus clair que la terre |
 | Boue / gué | `#6E5842` | `#4A3B2C` | Berges, gué, pluie |
-| Roche / pierre chaude | `#A0978A` | `#6A6258` | Pentes fortes, falaises, château |
-| Blé mûr | `#D2AE62` | `#977D4C` | Champs, ondule au vent ; lit du champ entre les touffes `#806A40` |
+| Roche / pierre chaude | `#A89A84` | `#706454` | Pentes fortes, falaises, château ; un gris chaud à l'ombre, jamais l'ardoise (v20) |
+| Blé mûr | `#D2AE62` | `#977D4C` | Champs, ondule au vent ; lit du champ entre les touffes `#9A8050` |
 | Seigle | `#C6AA6A` | `#8F7A48` | Plus gris que le blé |
 | Jachère | `#8F8A56` | `#5F5C38` | Parcelles au repos |
 | Bois chaud | `#7A5234` | `#4E3322` | Colombages, charpente, engins |
@@ -34,7 +34,7 @@ Trois règles guident chaque décision :
 | Chaume | `#B89C68` | `#7F6A48` | Toits de chaume (brins peints dans le shader) |
 | Tuile | `#9A6450` | `#6A4436` | Toits de tuiles ; **moins saturée** que le rouge d'allégeance (textures du kit : saturation ×0,6) |
 | Toit des tours | `#7E5646` | — | Bardeaux en rangs alternés |
-| Mortier | `#6D665A` | — | Joints de la maçonnerie procédurale |
+| Mortier | `#847B6C` | — | Joints de la maçonnerie procédurale |
 | Torchis / enduit | `#E2D4B6` | `#A89A7E` | Murs des maisons |
 
 ### Eau
@@ -64,16 +64,16 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | Intensité du soleil | 2.3 | **2.5** | 2.2 |
 | Ciel au zénith | `#7FA6CF` | **`#6F96C4`** | `#4C5A8C` |
 | Horizon, côté soleil | `#F4E2C4` | **`#F3D09C`** | `#F29A62` |
-| Horizon, côté opposé | `#C5D3DF` | **`#B8C6D4`** | `#8A7FA0` |
+| Horizon, côté opposé | `#C5D3DF` | **`#C0C4CA`** | `#8A7FA0` |
 | Ambiante, ciel | `#AEC0DC` | **`#A4B8D8`** | `#7D84B4` |
-| Ambiante, sol (rebond) | `#6E6450` | **`#7A6242`** | `#74523A` |
+| Ambiante, sol (rebond) | `#7A6A4C` | **`#7A6242`** | `#74523A` |
 | Intensité ambiante | 1.9 | **1.9** | 2.3 |
 | Couleur de l'ombre | `#5F6C98` | **`#55618F`** | `#444E80` |
-| Teinte multiplicative de l'ombre (`shadowStrength`) | 0.25 | **0.28** | 0.30 |
+| Teinte multiplicative de l'ombre (`shadowStrength`) | 0.25 | **0.28** | 0.24 |
 | Rotation de teinte YIQ à l'ombre (`shadowHue`) | 0.22 | **0.28** | 0.24 |
 | Chaleur de l'étalonnage / exposition | 0.03 / 1.0 | **0.045 / 1.0** | 0.06 / 1.15 |
 | Brume, côté soleil | `#E8D4B4` | **`#EBC896`** | `#E39A6C` |
-| Brume, côté opposé | `#A9B9CC` | **`#9AACC4`** | `#7E7896` |
+| Brume, côté opposé | `#A9B9CC` | **`#A2AEBE`** | `#7E7896` |
 
 ### Ombres
 - Aucune ombre grise ou noire. À l'ombre, la lumière ambiante reçoit une teinte multiplicative normalisée par la moyenne des canaux, bornée entre 0,75 et 1,25. La teinte tourne ensuite en YIQ à luminance constante : les teintes froides tournent d'au plus 14° vers la couleur d'ombre, les ocres d'au plus 10° vers l'olive, les rouges ne tournent pas, les gris reçoivent la chroma de l'ombre. Les albédos chauds reçoivent une lumière de rebond neutralisée à 40 %. Les ombres portées sont relevées de 10 %, pour se lire comme des lavis. Les unités sont exemptées de la rotation et du plafond de saturation (0,52).
@@ -130,6 +130,7 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | **v16** | 27/09 | `2026-09-27-v16b` | 6 | 7 | 6 | 7 | 6 | 5 | **Quatrième revue, moyenne 6,2.** Ombre en rotation de teinte YIQ (unités exemptées), plafond de saturation 0,52, bords de carte meublés, vue castle recadrée, unités ×1,12, herbe à la couleur du sol, abords des maisons. Restent : pli en « V » au bord de la carte (camera castle hors carte), teintes chaudes lilas à l'ombre, chemin trop large et pixellisé, herbe en dents, brume laiteuse du lointain, maçonnerie régulière, bosquets proches facettés, rivière hors carte, rayon du blé. |
 | **v17** | 28/09 | `2026-09-28-v17b` | 7 | 7 | 6 | 7 | 6 | 6 | **Cinquième revue, moyenne 6,5.** Pli du bord supprimé, chemin à sa vraie largeur (bug de smoothstep), ombres des teintes chaudes sans lilas, caméra castle dans la carte. Restent : herbe proche en dents, ombres des teintes chaudes grises le matin, abords des maisons redevenus nets, couture de couleur de l'anneau, bosquets lointains identiques, lointain laiteux, chemin sans issue, blé en confettis, capuche de l'archer, rivière « marbre », ombres trop opaques, maçonnerie, cadrages, prairie vide, liseré des socles. |
 | **v18** | 28/09 | `2026-09-28-v18b` | 7 | 7 | 6 | 7 | 6 | 6 | **Sixième revue, moyenne 6,5 : plateau.** Bosquets lointains en quatre variantes, fanions d'allégeance, résolution dynamique optionnelle (ADR-020). Restent : acné et bords durs des ombres, ombres du sol encore opaques, prairie uniforme au-delà du rayon d'herbe, lit du champ, maçonnerie peu contrastée, rivière trop saturée, nuages froids, ligne claire à la couture de l'anneau, bosquets en semis régulier, bouts de mur coupés net, prairie sans objets à l'échelle humaine. |
-| v19 | 28/09 | `2026-09-28-v19` | — | — | — | — | — | — | Corrections v18. Ombres : décalage de la coordonnée d'ombre (anti-acné), sol relevé à ×1,22, biais normal du feuillage. Prairie : masse d'herbe peinte au-delà du rayon, sécheresse selon l'altitude. Lit du champ #9a8050, maçonnerie plus contrastée, rivière désaturée (plafond 0,4), nuages chauds. Couture de l'anneau calculée sur la surface visible. Bosquets lointains en massifs parents-enfants, teinte par massif, émergents. Mur tourné vers la prairie (merlons et talus côté assaillants), pilastres aux bouts libres, assises continues sur les faces d'about. Accessoires : rochers moussus, meules, tronc couché (`src/render/props/Props.tsx`, un seul appel de dessin). |
+| **v19** | 28/09 | `2026-09-28-v19` | 7 | 7 | 6 | 7 | 6 | 6 | **Septième revue, moyenne 6,5 : deuxième plateau.** Corrections v18. Ombres : décalage de la coordonnée d'ombre (anti-acné), sol relevé à ×1,22, biais normal du feuillage. Prairie : masse d'herbe peinte au-delà du rayon, sécheresse selon l'altitude. Lit du champ #9a8050, maçonnerie plus contrastée, rivière désaturée (plafond 0,4), nuages chauds. Couture de l'anneau calculée sur la surface visible. Bosquets lointains en massifs parents-enfants, teinte par massif, émergents. Mur tourné vers la prairie (merlons et talus côté assaillants), pilastres aux bouts libres, assises continues sur les faces d'about. Accessoires : rochers moussus, meules, tronc couché (`src/render/props/Props.tsx`, un seul appel de dessin). |
+| v20 | 28/09 | `2026-09-28-v20` | — | — | — | — | — | — | Corrections v19 (ADR-021). Cadrages : overview 140 m / 26° avec une bande de lointain ; plan rapproché bas (12°), tourné vers le sud, unités vers 1/3 et 2/3 ; vue castle à 54 m avec un chêne repoussoir et des rochers au plan intermédiaire. Anneau en parcellaire avec haies, ceinture de massifs au-delà du bord, sol de forêt sous les seuls bosquets (la couture de la carte disparaît). Bande d'ombre pleine à la place des créneaux (plus de stries). Accessoires à facettes et en groupes, meule à fût, débord et cône, poterne en saillie au bout du chemin, chemin estompé au bord de la carte. Pierre plus chaude (#A89A84 / #706454), rebond du sol du matin plus chaud, perspective aérienne (désaturation avec la distance), ciel de l'après-midi moins laiteux et nuages chauds, crépuscule moins noir, rivière du crépuscule plus chaude, muret éclairci avec chaperon d'herbe, blé à l'ombre moins olive. |
 
 Carte de bataille (J2 §12) : `docs/captures/2026-09-27-battle-v1…v3`, vues dérivées de la carte (`src/render/battle/views.ts`). Château complet (donjon, porterie, pont-levis) et pont de pierre à partir de battle-v2.

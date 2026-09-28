@@ -28,6 +28,9 @@ const WALL_HEIGHT_M = 1.0;
 const WALL_THICKNESS_M = 0.7;
 const WALL_STEP_M = 1.5;
 const DRY_STONE_COURSE_M = 0.26;
+/** Dry-stone value lift (it read as a black line from afar) and the grassy cap's tint. */
+const DRY_STONE_VALUE = 1.35;
+const DRY_STONE_CAP: readonly [number, number, number] = [1.05, 1.3, 0.75];
 const UP = new Vector3(0, 1, 0);
 
 function wallSegment(a: Vec2, b: Vec2, terrain: TerrainData, along0: number): BufferGeometry {
@@ -61,7 +64,9 @@ function wallSegment(a: Vec2, b: Vec2, terrain: TerrainData, along0: number): Bu
   g.computeVertexNormals();
   const count = positions.length / 3;
   const data = new Float32Array(count * 4);
-  const colors = new Float32Array(count * 3).fill(1);
+  const colors = new Float32Array(count * 3).fill(DRY_STONE_VALUE);
+  // Last quad (6 vertices) is the cap.
+  for (let i = count - 6; i < count; i++) colors.set(DRY_STONE_CAP, i * 3);
   for (let i = 0; i < count; i++) {
     const x = positions[i * 3] as number;
     const y = positions[i * 3 + 1] as number;

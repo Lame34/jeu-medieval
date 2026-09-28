@@ -11,7 +11,7 @@ export const PALETTE = {
   dirt: { lit: '#9c7a52', base: '#6b5238' },
   path: { lit: '#bc9e70', base: '#8a7050' },
   mud: { lit: '#6e5842', base: '#4a3b2c' },
-  stone: { lit: '#a0978a', base: '#6a6258' },
+  stone: { lit: '#a89a84', base: '#706454' },
   wheat: { lit: '#d2ae62', base: '#977d4c' },
   /** Soil between the tufts: reads as the crop's own shade (review v13, #4). */
   fieldBed: '#9a8050',

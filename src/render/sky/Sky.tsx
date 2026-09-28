@@ -106,8 +106,8 @@ void main() {
     float az = atan(d.z, d.x) / 6.2831853 + 0.5 + uTime * 0.0004;
     vec4 cl = texture2D(uClouds, vec2(az, d.y / ${CLOUD_TOP.toFixed(2)}));
     float c = cl.r * (1.0 - smoothstep(${(CLOUD_TOP * 0.85).toFixed(2)}, ${CLOUD_TOP.toFixed(2)}, d.y));
-    vec3 cloudLit = mix(horizon * 1.05, vec3(1.0, 0.97, 0.92), 0.55) + uSunColor * (0.08 + 0.22 * pow(towardSun, 3.0));
-    vec3 cloudShade = mix(mix(uSkyZenith, uHorizonAway, 0.55) * 0.9, vec3(0.34, 0.33, 0.47), 0.3);
+    vec3 cloudLit = mix(horizon * 1.05, vec3(0.92, 0.77, 0.55), 0.55) + uSunColor * (0.08 + 0.22 * pow(towardSun, 3.0));
+    vec3 cloudShade = mix(mix(uSkyZenith, uHorizonAway, 0.55) * 0.9, vec3(0.4, 0.37, 0.48), 0.35);
     vec3 cloud = mix(cloudShade, cloudLit, clamp(cl.g + 0.2 * towardSun, 0.0, 1.0));
     sky = mix(sky, cloud, c * 0.85);
   }

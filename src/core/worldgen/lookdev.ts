@@ -37,8 +37,8 @@ const RIVER = {
     { x: 40, z: 320 },
   ],
 };
-// The path ends at the tower foot (a path that stops short of the wall leads nowhere).
-const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }, { x: 99, z: 33 }] };
+// The path ends at a postern in the tower (a path that stops at a blind wall leads nowhere).
+const PATH = { widthM: 2.6, control: [{ x: 74, z: 134 }, { x: 66, z: 108 }, { x: 70, z: 84 }, { x: 84, z: 62 }, { x: 96, z: 44 }, { x: 100.2, z: 31.4 }] };
 // Listed east to west so the outer face (merlons, talus) looks onto the meadow and the attackers.
 const WALL = { heightM: 8.5, thicknessM: 2.4, points: [{ x: 128, z: 44 }, { x: 102, z: 27 }, { x: 76, z: 20 }] };
 const TOWER = { center: { x: 102, z: 27 }, radiusM: 3.6, heightM: 13 };
@@ -56,19 +56,29 @@ const FIELD_POLY: Vec2[] = [
 ];
 /** Hand-placed props (review v18, #11): the meadow needs objects at human scale. */
 const PROPS: readonly PropSite[] = [
-  // Mossy rocks: a pair behind the skirmish, a pair in the meadow, a group at the wall foot.
-  { kind: 'rock', position: { x: 66.6, z: 59.6 }, rotationTurns: 0.1, scale: 1 },
-  { kind: 'rock', position: { x: 64.7, z: 61.2 }, rotationTurns: 0.6, scale: 0.55 },
-  { kind: 'rock', position: { x: 58, z: 76 }, rotationTurns: 0.35, scale: 1.4 },
-  { kind: 'rock', position: { x: 60.1, z: 77.6 }, rotationTurns: 0.8, scale: 0.7 },
-  { kind: 'rock', position: { x: 84, z: 30.5 }, rotationTurns: 0.2, scale: 1.5 },
-  { kind: 'rock', position: { x: 86.7, z: 31.8 }, rotationTurns: 0.45, scale: 0.8 },
-  // Haystacks on the stubble just outside the wheat.
+  // Mossy rocks in groups (one big stone, two or three small ones): behind the skirmish, in the
+  // meadow, at the wall foot, and in the middle ground of the castle view.
+  { kind: 'rock', position: { x: 66.6, z: 59.6 }, rotationTurns: 0.1, scale: 1.3 },
+  { kind: 'rock', position: { x: 64.6, z: 61.3 }, rotationTurns: 0.6, scale: 0.5 },
+  { kind: 'rock', position: { x: 68.3, z: 58.5 }, rotationTurns: 0.3, scale: 0.35 },
+  { kind: 'rock', position: { x: 58, z: 76 }, rotationTurns: 0.35, scale: 1.5 },
+  { kind: 'rock', position: { x: 60.2, z: 77.7 }, rotationTurns: 0.8, scale: 0.55 },
+  { kind: 'rock', position: { x: 56.3, z: 77.6 }, rotationTurns: 0.15, scale: 0.4 },
+  { kind: 'rock', position: { x: 84, z: 30.5 }, rotationTurns: 0.2, scale: 1.6 },
+  { kind: 'rock', position: { x: 86.8, z: 31.9 }, rotationTurns: 0.45, scale: 0.6 },
+  { kind: 'rock', position: { x: 82.5, z: 32.3 }, rotationTurns: 0.7, scale: 0.45 },
+  { kind: 'rock', position: { x: 73.5, z: 37.5 }, rotationTurns: 0.55, scale: 1.4 },
+  { kind: 'rock', position: { x: 75.4, z: 38.8 }, rotationTurns: 0.05, scale: 0.5 },
+  { kind: 'rock', position: { x: 72.1, z: 36.2 }, rotationTurns: 0.9, scale: 0.4 },
+  // Haystacks in a group of three on the stubble just outside the wheat.
   { kind: 'haystack', position: { x: 103, z: 67 }, rotationTurns: 0, scale: 1 },
   { kind: 'haystack', position: { x: 108.5, z: 65.8 }, rotationTurns: 0.3, scale: 0.85 },
+  { kind: 'haystack', position: { x: 105.8, z: 63.4 }, rotationTurns: 0.6, scale: 0.75 },
 ];
 /** Fallen log: first free spot beyond the wood edge along this line (m). */
 const LOG_SEARCH = { z: 50, fromX: 12, toX: 70, forestBelow: 0.28, offsetM: 2.5, scale: 1 };
+/** The tower's glacis flares about 1 m past its radius: the postern porch stands on its foot (m). */
+const POSTERN_OUTSET_M = 1.0;
 /** Vegetation kept clear of a prop (m beyond its size). */
 const PROP_CLEARANCE_M = 0.6;
 const HOUSES: readonly Omit<HouseSite, 'baseHeightM'>[] = [
@@ -199,8 +209,10 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     const fern = forestMask(p) > 0.45 && vegRng.chance(0.6);
     trees.push({ species: fern ? 'fern' : 'bush', position: p, scale: vegRng.float(0.6, 1.7), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
-  // A few lone trees in the meadow near the houses break the edge and frame the view.
-  for (const p of [{ x: 60, z: 58 }, { x: 40, z: 100 }, { x: 118, z: 112 }]) {
+  // A few lone trees in the meadow near the houses break the edge and frame the view; the one
+  // by the houses stands clear of the skirmish (its afternoon shadow drowned the close-up).
+  // (70, 40): the middle-ground tree of the castle view, left of the wall (review v19, #1).
+  for (const p of [{ x: 57, z: 62 }, { x: 40, z: 100 }, { x: 118, z: 112 }, { x: 70, z: 40 }]) {
     trees.push({ species: 'oak', position: p, scale: vegRng.float(1.05, 1.3), rotationTurns: vegRng.next(), tint: vegRng.float(-1, 1) });
   }
 
@@ -217,6 +229,16 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
   const propClear = (p: Vec2): boolean =>
     !blocked(p) && projectOnPolyline(p, path).distance > PATH.widthM / 2 + 1.5 && projectOnPolyline(p, river).distance > RIVER.widthM / 2 + 2;
   const props: PropSite[] = PROPS.filter((pr) => propClear(pr.position));
+  // Postern in the tower, facing the end of the path.
+  const pathEnd = path[path.length - 1] as Vec2;
+  const toPath = { x: pathEnd.x - TOWER.center.x, z: pathEnd.z - TOWER.center.z };
+  const toPathLen = Math.hypot(toPath.x, toPath.z);
+  props.push({
+    kind: 'postern',
+    position: { x: TOWER.center.x + (toPath.x / toPathLen) * (TOWER.radiusM + POSTERN_OUTSET_M), z: TOWER.center.z + (toPath.z / toPathLen) * (TOWER.radiusM + POSTERN_OUTSET_M) },
+    rotationTurns: Math.atan2(toPath.x, toPath.z) / (Math.PI * 2),
+    scale: 1,
+  });
   for (let x = LOG_SEARCH.fromX; x < LOG_SEARCH.toX; x += 0.5) {
     const edge = { x, z: LOG_SEARCH.z };
     if (forestMask(edge) > LOG_SEARCH.forestBelow) continue;
@@ -225,7 +247,7 @@ export function generateLookdev(seed: Seed = 'lookdev'): WorldLayout {
     break;
   }
   const clearOfProps = (p: Vec2): boolean =>
-    props.every((pr) => Math.hypot(p.x - pr.position.x, p.z - pr.position.z) > (pr.kind === 'log' ? 1.8 : pr.kind === 'haystack' ? 1.3 : pr.scale) + PROP_CLEARANCE_M);
+    props.every((pr) => Math.hypot(p.x - pr.position.x, p.z - pr.position.z) > (pr.kind === 'log' ? 1.8 : pr.kind === 'haystack' ? 1.4 : pr.kind === 'postern' ? 1 : pr.scale) + PROP_CLEARANCE_M);
 
   return {
     name: 'lookdev',

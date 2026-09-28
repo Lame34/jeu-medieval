@@ -136,13 +136,13 @@ export interface TowerSite {
   readonly shape?: 'round' | 'square';
 }
 
-export type PropKind = 'rock' | 'haystack' | 'log';
+export type PropKind = 'rock' | 'haystack' | 'log' | 'postern';
 
 export interface PropSite {
   readonly kind: PropKind;
   readonly position: Vec2;
   readonly rotationTurns: number;
-  /** Size factor (rock: radius in m; haystack and log: 1 = nominal size). */
+  /** Size factor (rock: radius in m; haystack, log and postern: 1 = nominal size). */
   readonly scale: number;
 }
 

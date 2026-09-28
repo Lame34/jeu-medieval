@@ -29,14 +29,19 @@ const EDGE_SLOPE_FADE_M = 40;
 const EDGE_SLOPE_MAX = 0.25;
 const EDGE_SLOPE_PROBE_M = 4;
 /** Ring vertices closer than this to the map take analytic normals (no crease at the seam). */
-const SEAM_NORMALS_M = 12;
-const SPLAT_SIZE = 256;
+const SEAM_NORMALS_M = 60;
+const SPLAT_SIZE = 512;
+/** Forest floor radius under a clump, in clump scales (the canopy's footprint and its shade). */
+const CLUMP_FLOOR_RADIUS = 1.6;
 const FAR_CLUMPS = 1800;
 /** Clumps start right at the map edge: a bare first strip is what signs "outside". */
 const CLUMP_MIN_DIST_M = 6;
 const CLUMP_MAX_DIST_M = 900;
 /** Clumps within this distance of the map use the detailed blob, up to this count. */
-const NEAR_CLUMPS_DIST_M = 60;
+const NEAR_CLUMPS_DIST_M = 40;
+/** Extra forest cover in a belt past the map edge (m). */
+const EDGE_BELT = 0.35;
+const EDGE_BELT_M: readonly [number, number] = [20, 120];
 const NEAR_CLUMPS_MAX = 320;
 /** Placement attempts per clump (massifs are sparse: most samples fall in clearings). */
 const CLUMP_ATTEMPTS = 18;
@@ -173,7 +178,8 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // Massifs separated by clearings (a narrower band than a uniform sprinkle).
     /** Visible surface: the map itself inside, the ring outside (no hidden drop). */
     const surfaceAt = (x: number, z: number): number => (outside(x, z) <= 0 ? sampleHeight(terrain, clamp(x, 0, W), clamp(z, 0, D)) : heightAt(x, z));
-    const forestAt = (x: number, z: number) => smoothstep(0.12, 0.3, fbm(forestNoise, x, z, FOREST));
+    const forestAt = (x: number, z: number) =>
+      Math.min(1, smoothstep(0.12, 0.3, fbm(forestNoise, x, z, FOREST)) + EDGE_BELT * (1 - smoothstep(EDGE_BELT_M[0], EDGE_BELT_M[1], outside(x, z))));
 
     // --- Ring mesh -----------------------------------------------------------------------
     const xs = axis(W);
@@ -216,17 +222,26 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       nor.setXYZ(i, -dx / len, 2 / len, -dz / len);
     }
 
-    // --- Far splat: forest floor where the clumps grow --------------------------------------
+    // --- Far splat: forest floor under the clumps (stamped once they are placed, below) ------
     const origin = { x: -RING_RADIUS_M, z: -RING_RADIUS_M };
     const size = { x: W + 2 * RING_RADIUS_M, z: D + 2 * RING_RADIUS_M };
     const bytes = new Uint8Array(SPLAT_SIZE * SPLAT_SIZE * 4);
-    for (let j = 0; j < SPLAT_SIZE; j++) {
-      for (let i = 0; i < SPLAT_SIZE; i++) {
-        const x = origin.x + ((i + 0.5) / SPLAT_SIZE) * size.x;
-        const z = origin.z + ((j + 0.5) / SPLAT_SIZE) * size.z;
-        bytes[(j * SPLAT_SIZE + i) * 4 + 3] = outside(x, z) > 0 ? Math.round(forestAt(x, z) * 255) : 0;
+    const stampFloor = (x: number, z: number, radiusM: number) => {
+      const ci = ((x - origin.x) / size.x) * SPLAT_SIZE - 0.5;
+      const cj = ((z - origin.z) / size.z) * SPLAT_SIZE - 0.5;
+      const rt = Math.max(0.75, (radiusM / size.x) * SPLAT_SIZE);
+      for (let j = Math.max(0, Math.floor(cj - rt)); j <= Math.min(SPLAT_SIZE - 1, Math.ceil(cj + rt)); j++) {
+        for (let i = Math.max(0, Math.floor(ci - rt)); i <= Math.min(SPLAT_SIZE - 1, Math.ceil(ci + rt)); i++) {
+          const k = 1 - Math.hypot(i - ci, j - cj) / (rt + 0.5);
+          if (k <= 0) continue;
+          const tx = origin.x + ((i + 0.5) / SPLAT_SIZE) * size.x;
+          const tz = origin.z + ((j + 0.5) / SPLAT_SIZE) * size.z;
+          if (outside(tx, tz) <= 0) continue;
+          const index = (j * SPLAT_SIZE + i) * 4 + 3;
+          bytes[index] = Math.max(bytes[index] as number, Math.round(255 * Math.min(1, k * 1.6)));
+        }
       }
-    }
+    };
     const splat = new DataTexture(bytes, SPLAT_SIZE, SPLAT_SIZE, RGBAFormat, UnsignedByteType);
     splat.magFilter = LinearFilter;
     splat.minFilter = LinearFilter;
@@ -236,7 +251,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // Same reference height as the map's terrain material (its dryness term depends on it).
     let heightSum = 0;
     for (const h of terrain.heights) heightSum += h;
-    const ringMaterial = createTerrainMaterial(splat, size, heightSum / terrain.heights.length, origin);
+    const ringMaterial = createTerrainMaterial(splat, size, heightSum / terrain.heights.length, origin, true);
     const ring = new Mesh(geometry, ringMaterial);
     ring.name = 'DistantLandscape';
     ring.receiveShadow = true;
@@ -267,6 +282,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // Collected, then written nearest the map first: massifs overlap, and drawing them roughly
     // front to back (the camera is over the map) lets the depth test reject hidden clumps.
     const pending = meshes.map(() => [] as { d: number; matrix: Matrix4; color: Color }[]);
+    const floors: { x: number; z: number; r: number }[] = [];
     for (let parent = 0; parent < FAR_CLUMPS * CLUMP_ATTEMPTS && placed < FAR_CLUMPS; parent++) {
       const px = rng.float(-CLUMP_MAX_DIST_M, W + CLUMP_MAX_DIST_M);
       const pz = rng.float(-CLUMP_MAX_DIST_M, D + CLUMP_MAX_DIST_M);
@@ -301,6 +317,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
         q.setFromAxisAngle(up, rng.next() * Math.PI * 2);
         sc.set(scale, scale * rng.float(0.7, 1.3) * emergent, scale);
         target.push({ d, matrix: m.compose(p, q, sc).clone(), color: clumpTint.copy(massifTint).multiplyScalar(rng.float(0.94, 1.06)).clone() });
+        floors.push({ x, z, r: scale * CLUMP_FLOOR_RADIUS });
         placed++;
         if (near) nearPlaced++;
       }
@@ -315,6 +332,8 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
         mesh.count++;
       }
     });
+    for (const f of floors) stampFloor(f.x, f.z, f.r);
+    splat.needsUpdate = true;
     const clumps = meshes.map(({ mesh }) => mesh).filter((mesh) => mesh.count > 0);
     for (const mesh of clumps) {
       mesh.instanceMatrix.needsUpdate = true;

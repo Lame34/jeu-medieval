@@ -156,6 +156,40 @@ export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, 
   return merged;
 }
 
+/**
+ * Solid bands standing in for the merlons in the shadow pass (drawn invisible in the view): the merlons themselves cast a
+ * comb of 0.6 m slits that the shadow map renders as crawling 1–3 px streaks; a painter would
+ * lay the parapet's shadow as one band.
+ */
+export function buildCrenelShadowProxy(walls: readonly WallRun[], towers: readonly TowerSite[]): BufferGeometry | null {
+  const parts: BufferGeometry[] = [];
+  for (const wall of walls) {
+    for (let i = 0; i < wall.points.length - 1; i++) {
+      const a = wall.points[i] as Vec2;
+      const b = wall.points[i + 1] as Vec2;
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      const yaw = segmentYaw(a, b);
+      const dir = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+      const outward = new Vector3(dir.z, 0, -dir.x);
+      const c = new Vector3((a.x + b.x) / 2, 0, (a.z + b.z) / 2)
+        .addScaledVector(outward, wall.thicknessM / 2 - MERLON_DEPTH_M / 2)
+        .setY(wall.baseHeightM + wall.heightM + MERLON_HEIGHT_M / 2);
+      parts.push(boxGeometry({ center: c, size: new Vector3(len + wall.thicknessM, MERLON_HEIGHT_M, MERLON_DEPTH_M), yaw }));
+    }
+  }
+  for (const tower of towers) {
+    const ring = new CylinderGeometry(tower.radiusM + 0.35, tower.radiusM + 0.35, MERLON_HEIGHT_M, TOWER_SIDES, 1, true);
+    ring.deleteAttribute('uv');
+    ring.translate(tower.center.x, tower.baseHeightM + tower.heightM + MERLON_HEIGHT_M / 2, tower.center.z);
+    parts.push(ring.toNonIndexed());
+    ring.dispose();
+  }
+  if (parts.length === 0) return null;
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((p) => p.dispose());
+  return merged;
+}
+
 /** Battered talus along the outer foot of a wall segment: a sloped band that anchors it. */
 function talusGeometry(a: Vec2, b: Vec2, outward: Vector3, thickness: number, base: number): BufferGeometry {
   const face = thickness / 2;

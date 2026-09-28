@@ -4,12 +4,12 @@
  * costs three draw calls (plus the shadow pass).
  */
 import { useEffect, useMemo } from 'react';
-import { Mesh, type BufferGeometry, type Material } from 'three';
+import { DoubleSide, Mesh, MeshBasicMaterial, type BufferGeometry, type Material } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { BridgeSite, GateSite, KeepSite, TowerSite, WallRun, WaterBody } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
-import { buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
+import { buildCrenelShadowProxy, buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
 import { buildGate, buildKeep, buildStoneBridge } from './castle-parts.ts';
 import { createStoneMaterial } from './stone-material.ts';
 
@@ -61,6 +61,16 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain }:
       mergedMesh(roofParts, createPaintedMaterial({ name: 'Castle:roof', vertexColors: true, vertexData: true, heightM: TOWER_ROOF_HEIGHT_M, gradientBase: 0.6 }), 'Castle:roof'),
       mergedMesh(woodParts, createPaintedMaterial({ name: 'Castle:wood', vertexColors: true, vertexData: true, heightM: TIMBER_HEIGHT_M, gradientBase: 0.85, groundAO: 0.1 }), 'Castle:wood'),
     ];
+    const proxy = buildCrenelShadowProxy(walls, towers);
+    if (proxy) {
+      // Invisible in the view (writes neither colour nor depth), cast in the shadow pass: one
+      // band, no comb. (three r186 filters shadow casters by the view camera's layers, so a
+      // layer cannot hide it.)
+      const mesh = new Mesh(proxy, new MeshBasicMaterial({ side: DoubleSide, colorWrite: false, depthWrite: false }));
+      mesh.name = 'Castle:crenelShadow';
+      mesh.castShadow = true;
+      meshes.push(mesh);
+    }
     return meshes.filter((m): m is Mesh => m !== null);
   }, [walls, towers, gates, keeps, bridges, water, terrain]);
 
