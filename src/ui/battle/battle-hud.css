@@ -282,3 +282,10 @@ kbd {
     transition: none;
   }
 }
+
+/* Coût en PA au-dessus de la destination prévue. */
+.battle-ap-label {
+  z-index: 3;
+  font-size: 16px;
+  color: var(--parchment);
+}

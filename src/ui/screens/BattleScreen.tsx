@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
+import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
 import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
 import { TacticalCamera, type CameraHandle } from '../../render/camera/TacticalCamera.tsx';
 import { isBenchMode } from '../../render/debug/PerfProbe.tsx';
@@ -100,6 +101,7 @@ export default function BattleScreen() {
       <GameCanvas>
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} />
         {session && <BattleDirector session={session} handles={handles} terrain={layout.terrain} focusOn={focusOn} />}
+        {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
       {session && (

@@ -6,6 +6,14 @@
 import { Color, Vector2, type Texture } from 'three';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
+import { moveFieldUniforms } from '../battle/move-field.ts';
+
+/** Movement contours: wash strengths inside the two zones, line half-width (px). */
+const MOVE_WASH_INNER = 0.5;
+const MOVE_WASH_OUTER = 0.35;
+const MOVE_LINE_PX = 1.7;
+const MOVE_INNER_COLOR = '#e6c35a';
+const MOVE_OUTER_COLOR = '#f2e6c8';
 
 /** Ring patchwork (m): parcels fade in past the map edge; rows, hedge width and far fade. */
 const RING_PARCELS_FROM_M = 25;
@@ -113,11 +121,46 @@ const TERRAIN_ALBEDO = /* glsl */ `
 
   #ifdef TERRAIN_RING
   col = terrainParcels(col, lush, dryC, p, nLarge, nFine, wForest);
+  #else
+  col = terrainMoveContours(col, p);
   #endif
 
   // Large painterly hue drift across the landscape.
   col = max(paintedHueShift(col, (nLarge - 0.5) * 0.05), 0.0);
   diffuseColor.rgb = col;
+}
+`;
+
+/**
+ * Map terrain only: the selected unit's movement area (render/battle/move-field.ts) as two
+ * painted contours — gold for "move + act", parchment for "move only" — over light washes. The
+ * AP-cost field is filtered bilinearly, so the outer line falls on the edge of the reachable
+ * cells; derivatives keep both lines about 2.5 px wide, with a brush-like wobble.
+ */
+const MOVE_CONTOURS = /* glsl */ `
+uniform sampler2D uMoveField;
+uniform vec2 uMoveFieldOrigin;
+uniform vec2 uMoveFieldSize;
+uniform float uMoveInner;
+uniform float uMoveOn;
+uniform vec3 uMoveInnerColor;
+uniform vec3 uMoveOuterColor;
+vec3 terrainMoveContours(vec3 col, vec3 p) {
+  if (uMoveOn < 0.5) return col;
+  vec2 uv = (p.xz - uMoveFieldOrigin) / uMoveFieldSize;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return col;
+  float cost = texture2D(uMoveField, uv).r * (255.0 / 254.0);
+  float fw = max(fwidth(cost), 1e-4);
+  float inner = 1.0 - smoothstep(uMoveInner - fw, uMoveInner + fw, cost);
+  float outer = 1.0 - smoothstep(1.0 - fw, 1.0 + fw, cost);
+  col = mix(col, col * vec3(1.07, 1.04, 0.94) + vec3(0.015, 0.012, 0.0), ${MOVE_WASH_INNER.toFixed(2)} * inner);
+  col = mix(col, col * 1.04 + vec3(0.008), ${MOVE_WASH_OUTER.toFixed(2)} * (outer - inner));
+  float wobble = 0.8 + 0.4 * paintedValueNoise(p.xz * 0.9);
+  float lineInner = 1.0 - smoothstep(0.0, ${MOVE_LINE_PX.toFixed(2)} * wobble, abs(cost - uMoveInner) / fw);
+  float lineOuter = 1.0 - smoothstep(0.0, ${MOVE_LINE_PX.toFixed(2)} * wobble, abs(cost - 1.0) / fw);
+  col = mix(col, uMoveInnerColor, lineInner * 0.9);
+  col = mix(col, uMoveOuterColor, lineOuter * 0.85);
+  return col;
 }
 `;
 
@@ -177,7 +220,7 @@ export function createTerrainMaterial(
     customAlbedo: {
       key: ring ? 'terrain-ring-v1' : 'terrain-v2',
       pars: ring ? `#define TERRAIN_RING
-${TERRAIN_PARS}${RING_PARCELS}` : TERRAIN_PARS,
+${TERRAIN_PARS}${RING_PARCELS}` : `${TERRAIN_PARS}${MOVE_CONTOURS}`,
       body: TERRAIN_ALBEDO,
       uniforms: {
         uSplat: { value: splat },
@@ -204,6 +247,7 @@ ${TERRAIN_PARS}${RING_PARCELS}` : TERRAIN_PARS,
         uParcelFallow: c(PALETTE.fallow.lit),
         uParcelRye: c(PALETTE.rye.lit),
         uHedgeRow: c(PALETTE.moss.base),
+        ...(ring ? {} : { ...moveFieldUniforms, uMoveInnerColor: c(MOVE_INNER_COLOR), uMoveOuterColor: c(MOVE_OUTER_COLOR) }),
       },
     },
   });
