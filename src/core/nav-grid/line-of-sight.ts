@@ -11,6 +11,11 @@ import { traverseSegment } from './traverse.ts';
 
 /** Accumulated obscurance at which sight is considered fully blocked. */
 export const OPAQUE_OBSCURANCE = 1;
+/**
+ * Tolerance on the opacity threshold: a 1 m-deep wall (density 1/m) crossed exactly across sums
+ * its per-cell fractions to 0.9999999999999998 in floating point and would let the ray through.
+ */
+const OBSCURANCE_EPSILON = 1e-9;
 
 export interface SightQuery {
   readonly from: Vec2;
@@ -68,7 +73,7 @@ export function lineOfSight(nav: NavGrid, query: SightQuery): SightResult {
       const groundY = sampleHeight(terrain, from.x + (to.x - from.x) * tm, from.z + (to.z - from.z) * tm);
       if (rayY < groundY + obstacleH) {
         obscurance += (nav.sightDensity[i] as number) * (t1 - t0) * horizontalM;
-        if (obscurance >= OPAQUE_OBSCURANCE) {
+        if (obscurance >= OPAQUE_OBSCURANCE - OBSCURANCE_EPSILON) {
           blockedBy = 'obstacle';
           return false;
         }
