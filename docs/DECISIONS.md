@@ -127,6 +127,16 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - les chantiers structurels (houppiers peints en grappes de lobes, herbe en touffes, stylisation des personnages par shader, armes grossies) sont reportés au polish J7. La cible de 8/10 sera réévaluée à ce moment-là ;
 - les à-coups de la carte de bataille et le temps de chargement sont profilés au début de J3, avant l'ajout des unités et des effets.
 
+## ADR-023 — Boucle de combat (J3)
+**Décision** :
+- **Économie d'actions.** Une attaque coûte `attackApCost` (1 PA, la réserve du contour « déplacement + action ») et une unité attaque au plus `actionsPerTurn` fois par tour (1). Sans cette limite, quatre PA immobiles feraient quatre attaques.
+- **Même calcul pour l'aperçu et la résolution.** `previewAttack` et `resolveAttack` (`battle/combat.ts`) partagent `blowOdds` : les chances affichées sont celles tirées. Le couvert ne s'applique qu'aux tirs (cellule de la cible, haie ou muret à 1,6 m devant elle côté tireur, feuillage traversé). La hauteur compte par tranche entière de 3 m, dans les deux sens. Une attaque au contact attire une riposte, moins précise (×0,75).
+- **Garde** (`battle/overwatch.ts`). Réservée au tir direct. Le déplacement adverse est échantillonné tous les 0,5 m ; le premier point dans le cône (±40°), à portée et en vue, déclenche un tir (×0,85). Le déplacement est découpé en segments autour de chaque tir pour que la file d'animation les joue dans l'ordre. La garde expire au tour suivant de l'unité.
+- **Morale** (`battle/morale.ts`). Allié mort à 12 m ou moins : −15 ; passage sous la moitié des PV : −10 ; victime : +5 ; récupération de +5 par tour. Sous 30, −1 PA ; sous 15, l'unité fuit d'elle-même vers la cellule atteignable la plus éloignée de l'ennemi et n'obéit plus. Encerclement, feu et effondrements en J4.
+- **IA** (`ai/planner.ts`). Scores d'utilité sur au plus 160 cases atteignables par unité (attaque attendue, chance de tuer, priorité aux engins et aux blessés, riposte, exposition, couvert, trajet). L'approche se mesure en PA par un Dijkstra multi-sources depuis les ennemis (`computeCostField`), pour ne pas piétiner devant une garnison hors d'atteinte. Coût : 0,2 à 0,5 s par tour sur la carte de 512 m, à déplacer dans un worker si cela se ressent.
+- **Avant-poste.** Les remparts ne sont pas encore praticables (J4). La carte de bataille place donc quatre défenseurs dans le village, en terrain ouvert, pour que la boucle se joue.
+- **Architecture.** `BattleSession` (`ui/battle/session.ts`) détient l'état et le journal de commandes. Le store `battle-ui` n'en est qu'un miroir pour le HUD. `BattleDirector` joue les événements un par un (poignées d'unité : clip, vivant, silhouette). `BattleOverlays` dessine les contours, le chemin, les anneaux et les cônes de garde. Le point d'accès `?e2e` (`window.__battle`) et `?fast` (animations ×8) servent aux tests.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

@@ -29,6 +29,29 @@ Autres corrections du 30/09 :
 - la médiane de la passe non plafonnée, sans signification (rafales de `requestAnimationFrame`, ADR-019), est remplacée par un compte d'à-coups : frames de plus de 25 ms dans la passe à 60 Hz ;
 - un aperçu orphelin gardait le port 4188 : le bench refuse maintenant de démarrer si le port répond, et il tue l'arbre de processus avant le shell.
 
+## Profilage des à-coups de la bataille (début de J3, ADR-022)
+Outils : `scripts/trace-frames.ts` (trace Chromium à 60 Hz), `scripts/frame-breakdown.ts` (coût par famille d'objets, en masquant chacune), `scripts/alloc-profile.ts` (allocations par site).
+
+**Cause.** Vue d'ensemble de la bataille à 60 Hz sur le build : aucun à-coup pendant les 100 premières secondes, puis 46 en 3 minutes. Chacun bloque 20 à 42 ms dans `DXGISwapChainImageBacking::Present` : le GPU est en retard. Une fois chaud, l'iGPU baisse sa fréquence, et cette vue, déjà proche des 16,7 ms, dépasse le budget. Le CPU n'y est pour rien : callback d'animation à 3,0 ms en médiane (3,9 avant correctifs), 11,5 ms au maximum.
+
+**Correctifs CPU** (commit `0e37529`). Allocations : 5,7 → 2,1 Mo/s au serveur de dev ; ramasse-miettes : 85 → 30 passages en 10 s.
+- Un matériau de profondeur d'ombre par nature d'objet : le matériau partagé changeait de programme à chaque frontière de groupe.
+- Niveau de détail des animations : pleine cadence sous 35 m, puis une frame sur 2, puis sur 4.
+- Plus de fermetures créées dans les boucles de frame.
+
+**Postes GPU principaux**, par masquage, mesure bruitée à ±20 % par la chaleur :
+
+| Poste | Coût par frame |
+|---|---|
+| Terrain | 2,6 à 4,1 ms |
+| Végétation | 3 à 3,6 ms |
+| Passe d'ombre | 2,6 à 3,2 ms |
+| Fixe (post-process et effacements, rien dessiné) | environ 1,2 ms |
+
+Les requêtes de chronométrage WebGL ont été écartées : dans Chromium/ANGLE, elles comptent aussi le travail des autres contextes et les attentes de la chaîne de présentation.
+
+**Pistes.** Retirer le terrain des objets qui projettent une ombre (son auto-ombrage se voit peu) ; alléger les maisons en LOD (149 k triangles) ; résolution dynamique sans réallocation (J8), qui reste la réponse naturelle au bridage thermique.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.

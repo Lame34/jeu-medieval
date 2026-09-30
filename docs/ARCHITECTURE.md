@@ -18,7 +18,18 @@
 `             └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ````
 `
-`## Monde logique et monde visuel
+`## Boucle de combat (J3, ADR-023)
+| Rôle | Où |
+|---|---|
+| Règles : déplacement, attaque avec aperçu, riposte, garde, morale, fuite | `core/battle/{movement,combat,overwatch,morale}.ts`, réglages dans `data/damage.json` |
+| IA : scores d'utilité, champs d'approche | `core/ai/planner.ts`, `core/nav-grid/reachable.ts` (`computeCostField`) |
+| Partie en cours : état, journal de commandes, tour de l'IA | `ui/battle/session.ts` |
+| Miroir pour le HUD : sélection, survol, occupation, journal | `state/battle-ui.ts` |
+| File d'animation, souris et clavier, tour de l'IA | `render/battle/BattleDirector.tsx` |
+| Contours peints, chemin, anneaux, cônes de garde | `render/battle/{BattleOverlays.tsx,move-field.ts}`, `terrain-material.ts` |
+| HUD | `ui/battle/BattleHud.tsx`, `describe.ts` |
+
+## Monde logique et monde visuel
 `- La **même `TerrainData`** (heightfield aux coins et couche par cellule de 1 m) alimente la navigation et le rendu : relief du mesh de terrain, splatmap, placement de la végétation. Le joueur ne voit jamais la grille.
 `- Le rendu peut ajouter du détail purement visuel (bruit de couleur, touffes d'herbe, cailloux), mais ne modifie jamais la navigation.
 `- La physique (Rapier) est cosmétique : débris et chutes. Aucun résultat physique ne remonte vers le core.

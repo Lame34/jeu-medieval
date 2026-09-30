@@ -145,6 +145,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
     return { selectRing, targetRing, destRing, path, pathMaterial, cones, coneMaterial };
   }, []);
   const lastBattle = useRef<BattleState | null>(null);
+  const silhouetted = useRef<UnitHandle[]>([]);
   const follow = useRef<{ select: UnitHandle | null; target: UnitHandle | null }>({ select: null, target: null });
   const label = useRef<{ el: HTMLSpanElement | null; at: Vector3; on: boolean }>({ el: null, at: new Vector3(), on: false });
   const scratch = useRef(new Vector3());
@@ -177,6 +178,11 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       const hover = ui.hover;
       follow.current.target = hover.kind === 'attack' ? (handles?.get(hover.preview.targetId) ?? null) : null;
       parts.targetRing.visible = follow.current.target !== null;
+      // Seen through what hides them: the selected unit and the targeted enemy.
+      const lit = [follow.current.select, follow.current.target].filter((h): h is UnitHandle => h !== null);
+      for (const h of silhouetted.current) if (!lit.includes(h)) h.setSilhouette(false);
+      for (const h of lit) h.setSilhouette(true);
+      silhouetted.current = lit;
       if (hover.kind === 'move' && active) {
         parts.path.geometry.dispose();
         parts.path.geometry = dashGeometry(hover.plan.path, terrain);

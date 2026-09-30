@@ -7,7 +7,7 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AnimationMixer, Group, LoopOnce, LoopRepeat, SkinnedMesh, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
+import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -16,6 +16,7 @@ import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
 import { createPennants } from './Pennants.ts';
+import { PALETTE } from '../materials/palette.ts';
 import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
 
 const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
@@ -56,6 +57,12 @@ const CLIPS: Readonly<Record<Body, Readonly<Record<Exclude<UnitClip, 'idle'>, st
 };
 /** Crossfade between clips (s). */
 const CLIP_FADE_S = 0.2;
+/**
+ * Occluded-unit silhouette (brief §8, dynamic transparency): drawn only where the body is hidden
+ * (depth test inverted), in the side's colour, for the selected unit and the targeted enemy.
+ */
+const SILHOUETTE_OPACITY = 0.55;
+const SILHOUETTE_ORDER = 5;
 
 /** Drives one unit on screen (battle animation queue). */
 export interface UnitHandle {
@@ -65,6 +72,8 @@ export interface UnitHandle {
   play(clip: UnitClip, once?: boolean): number;
   /** A dead unit loses its allegiance ring and pennant. */
   setAlive(alive: boolean): void;
+  /** Shows the unit through what hides it (selected unit, targeted enemy). */
+  setSilhouette(on: boolean): void;
 }
 
 const LOADOUTS: Readonly<Record<string, Loadout>> = {
@@ -136,6 +145,17 @@ export function Units({
       return material;
     };
     const clips = new Map<string, AnimationClip>(anims.animations.map((c) => [c.name, c]));
+    const silhouetteMaterials = new Map<Faction, MeshBasicMaterial>();
+    const silhouetteMaterialFor = (faction: Faction): MeshBasicMaterial => {
+      let m = silhouetteMaterials.get(faction);
+      if (!m) {
+        m = new MeshBasicMaterial({ color: new Color(PALETTE[faction].primary), transparent: true, opacity: SILHOUETTE_OPACITY, depthFunc: GreaterDepth, depthWrite: false, fog: false });
+        m.name = `UnitSilhouette:${faction}`;
+        silhouetteMaterials.set(faction, m);
+        materials.set(`silhouette:${faction}`, m);
+      }
+      return m;
+    };
     const mixers: AnimationMixer[] = [];
     const starts: (() => void)[] = [];
     const roots: Group[] = [];
@@ -185,6 +205,9 @@ export function Units({
         current.time = (index * 0.37) % idle.duration;
       });
       const slot = roots.length;
+      // Silhouette: the same skinned geometry bound to the same skeleton, created on first use.
+      let silhouettes: SkinnedMesh[] | null = null;
+      const silhouetteMaterial = silhouetteMaterialFor(unit.faction);
       factionOf.push(unit.faction);
       alive.push(true);
       handles.set(unit.id, {
@@ -205,6 +228,24 @@ export function Units({
         setAlive(on) {
           alive[slot] = on;
           ring.visible = on;
+        },
+        setSilhouette(on) {
+          if (!silhouettes) {
+            if (!on) return;
+            const owners: SkinnedMesh[] = [];
+            body.traverse((o) => {
+              if (o instanceof SkinnedMesh) owners.push(o);
+            });
+            silhouettes = owners.map((o) => {
+              const ghost = new SkinnedMesh(o.geometry, silhouetteMaterial);
+              ghost.bind(o.skeleton, o.bindMatrix);
+              ghost.frustumCulled = false;
+              ghost.renderOrder = SILHOUETTE_ORDER;
+              o.parent?.add(ghost);
+              return ghost;
+            });
+          }
+          for (const ghost of silhouettes) ghost.visible = on;
         },
       });
       roots.push(root);

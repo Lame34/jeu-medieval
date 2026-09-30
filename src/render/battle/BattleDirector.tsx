@@ -49,6 +49,8 @@ const FLOAT_POOL = 16;
 const FLOAT_LIFE_S = 1.4;
 const FLOAT_RISE_M = 1.2;
 const FLOAT_HEIGHT_M = 2.6;
+/** Tests (`?fast`) play the animation queue this much faster. */
+const TIME_SCALE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fast') ? 8 : 1;
 
 interface Step {
   duration: number;
@@ -414,6 +416,7 @@ export function BattleDirector({
     window.__battle = {
       state: () => session.state,
       issue: (command) => session.issue(command),
+      aiTurn: () => session.playAiTurn(session.state.activeFaction),
       busy: () => useBattleUi.getState().busy || queue.current.length > 0 || step.current !== null,
       unitScreen: (id) => {
         const h = handles?.get(id);
@@ -428,7 +431,7 @@ export function BattleDirector({
 
   // --- Frame: play the queue, move floating texts, start the AI turn -----------------------
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1);
+    const dt = Math.min(delta, 0.1) * TIME_SCALE;
     let current = step.current;
     while (!current && queue.current.length > 0 && handles) {
       const next = makeStep(queue.current.shift() as GameEvent);
@@ -477,6 +480,8 @@ export function BattleDirector({
 export interface BattleTestHook {
   state(): BattleState;
   issue(command: Command): unknown;
+  /** The AI plays the active side's turn (tests drive both sides with it). */
+  aiTurn(): void;
   /** Animations, queue or AI turn in progress. */
   busy(): boolean;
   /** Screen position (CSS px) of a unit's body, or null. */
