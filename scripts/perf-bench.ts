@@ -10,7 +10,7 @@
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { gpuString, isIntelArc, launch, openScene } from './browser.ts';
+import { baseUrl, gpuString, isIntelArc, launch, openScene } from './browser.ts';
 
 const args = process.argv.slice(2);
 const arg = (name: string, fallback: string): string => {
@@ -27,13 +27,17 @@ const WARMUP_MS = 2500;
 const PREVIEW_PORT = 4188;
 const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}`;
 const LOW_PERCENTILE = 0.99;
+/** A frame this long at 60 Hz has missed at least one vsync (uncapped medians are meaningless: rAF bursts). */
+const HITCH_MS = 25;
 const BUDGET = { avgFps: 60, lowFps: 40, throttledAvgFps: 40, drawCalls: 150, triangles: 1_500_000 };
 
 interface ViewResult {
   readonly view: number;
   readonly avgFps: number;
   readonly lowFps: number;
-  readonly medianMs: number;
+  /** Frames over HITCH_MS in the paced (60 Hz) pass: rare stalls rather than a slow average. */
+  readonly hitches: number;
+  readonly pacedFrames: number;
   readonly frames: number;
   readonly calls: number;
   readonly triangles: number;
@@ -122,12 +126,12 @@ async function main(): Promise<void> {
     const results: ViewResult[] = throughput.views.map((v, view) => {
       const total = v.times.reduce((s, t) => s + t, 0);
       const paced = [...(pacing.views[view]?.times ?? [])].sort((a, b) => a - b);
-      const sorted = [...v.times].sort((a, b) => a - b);
       return {
         view,
         avgFps: total > 0 ? (1000 * v.times.length) / total : 0,
         lowFps: 1000 / Math.max(percentile(paced, LOW_PERCENTILE), 1e-3),
-        medianMs: percentile(sorted, 0.5),
+        hitches: paced.filter((t) => t > HITCH_MS).length,
+        pacedFrames: paced.length,
         frames: v.times.length,
         calls: v.calls,
         triangles: v.triangles,
@@ -155,9 +159,9 @@ function report(gpu: string, results: ViewResult[], heapBytes: number, textures:
   const tris = Math.max(...results.map((r) => r.triangles));
   const fpsBudget = CPU_THROTTLE > 1 ? BUDGET.throttledAvgFps : BUDGET.avgFps;
   const verdict = avg >= fpsBudget && (CPU_THROTTLE > 1 || low >= BUDGET.lowFps) && calls < BUDGET.drawCalls && tris < BUDGET.triangles;
-  console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE}`);
+  console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE} url=${baseUrl()}`);
   for (const r of results) {
-    console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · median ${r.medianMs.toFixed(2)} ms · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames · scale ${r.scale.toFixed(2)}`);
+    console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · hitches ${r.hitches}/${r.pacedFrames} (> ${HITCH_MS} ms) · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames · scale ${r.scale.toFixed(2)}`);
   }
   console.log(`TOTAL avg ${avg.toFixed(1)} fps · worst 1% low ${low.toFixed(1)} · max ${calls} calls · max ${(tris / 1e6).toFixed(2)} M tris · heap ${(heapBytes / 1048576).toFixed(0)} MB · ${textures} textures → ${verdict ? 'WITHIN BUDGET' : 'OVER BUDGET'}`);
   if (errors.length > 0) console.log(`console errors: ${errors.length}`);

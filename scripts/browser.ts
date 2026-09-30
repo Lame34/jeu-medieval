@@ -5,7 +5,15 @@
 import { chromium, type Browser, type Page } from '@playwright/test';
 
 export const VIEWPORT = { width: 1920, height: 1080 } as const;
-export const DEV_URL = process.env['SIEGE_URL'] ?? 'http://localhost:5188';
+const DEFAULT_URL = 'http://localhost:5188';
+/**
+ * Server the scripts open: `SIEGE_URL` (the bench points it at its production preview) or the
+ * dev server. Read at call time: a constant evaluated at import ran before the bench set the
+ * variable, so every bench measured the dev server instead of the build (fixed 2026-09-30).
+ */
+export function baseUrl(): string {
+  return process.env['SIEGE_URL'] ?? DEFAULT_URL;
+}
 
 export const GPU_ARGS = ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-zero-copy'];
 /** Uncapped frame rate for benchmarks (measures headroom above 60 Hz). */
@@ -26,7 +34,7 @@ export async function openScene(browser: Browser, path: string): Promise<{ page:
     if (msg.type() === 'error') errors.push(msg.text());
   });
   page.on('pageerror', (err) => errors.push(String(err)));
-  await page.goto(`${DEV_URL}${path}`);
+  await page.goto(`${baseUrl()}${path}`);
   await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true' && window.__perf?.ready === true, undefined, { timeout: 120_000 });
   return { page, errors };
 }

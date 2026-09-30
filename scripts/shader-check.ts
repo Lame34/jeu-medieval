@@ -2,7 +2,7 @@
  * Loads a scene headless and prints every WebGL / console error (shader compile logs included).
  * Usage: node scripts/shader-check.ts [/lookdev]
  */
-import { launch, VIEWPORT, DEV_URL } from './browser.ts';
+import { baseUrl, launch, VIEWPORT } from './browser.ts';
 
 const path = process.argv[2] ?? '/lookdev';
 const browser = await launch();
@@ -13,7 +13,7 @@ try {
     if (msg.type() === 'error' || msg.type() === 'warning') messages.push(`[${msg.type()}] ${msg.text()}`);
   });
   page.on('pageerror', (err) => messages.push(`[pageerror] ${String(err)}`));
-  await page.goto(`${DEV_URL}${path}?bench`);
+  await page.goto(`${baseUrl()}${path}?bench`);
   await page.waitForTimeout(15_000);
   const ready = await page.evaluate(() => document.body.dataset['sceneReady'] ?? 'no');
   console.log(`sceneReady=${ready} gpu=${await page.evaluate(() => window.__perf?.gpu ?? '?')}`);
