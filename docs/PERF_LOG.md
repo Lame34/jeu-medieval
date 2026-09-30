@@ -22,6 +22,13 @@
 | Mémoire textures | < 400 Mo |
 | Chargement d'une bataille | < 10 s |
 
+## ⚠️ Mesures antérieures au 30/09 : serveur de dev, pas le build
+`scripts/browser.ts` lisait `SIEGE_URL` dans une constante évaluée à l'import, avant que `perf-bench.ts` ne la règle sur l'aperçu de production. Toutes les lignes du journal antérieures au 30/09/2026 ont donc mesuré le **serveur Vite de dev** (lancé pour les captures) et non le build. Corrigé dans `fix(perf): bench the production preview` : l'URL est lue à l'appel et imprimée dans le rapport (`url=http://localhost:4188`). Ces anciennes lignes restent comme historique ; les comparer aux nouvelles n'a pas de sens.
+
+Autres corrections du 30/09 :
+- la médiane de la passe non plafonnée, sans signification (rafales de `requestAnimationFrame`, ADR-019), est remplacée par un compte d'à-coups : frames de plus de 25 ms dans la passe à 60 Hz ;
+- un aperçu orphelin gardait le port 4188 : le bench refuse maintenant de démarrer si le port répond, et il tue l'arbre de processus avant le shell.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.
@@ -60,3 +67,7 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-09-28 12:31 | 3d5aee6 | lookdev | portable | ×4 | 131.7 | 33.7 | 56 | 0.57 M | 48 | ✅ |
 | 2026-09-28 12:33 | 3d5aee6 | battle | portable | ×1 | 132.9 | 19.7 | 112 | 1.42 M | 61 | ❌ |
 | 2026-09-28 12:35 | 3d5aee6 | battle | portable | ×4 | 94.2 | 27.8 | 112 | 1.42 M | 61 | ✅ |
+| 2026-09-30 16:16 | d7a66ec | lookdev | portable | ×1 | 89.7 | 52.1 | 66 | 0.47 M | 48 | ✅ |
+| 2026-09-30 16:17 | d7a66ec | lookdev | portable | ×4 | 95.4 | 15.1 | 66 | 0.47 M | 48 | ✅ |
+| 2026-09-30 16:19 | d7a66ec | battle | portable | ×1 | 78.5 | 54.6 | 120 | 1.42 M | 61 | ✅ |
+| 2026-09-30 16:21 | d7a66ec | battle | portable | ×4 | 63.2 | 8.2 | 120 | 1.42 M | 61 | ✅ |
