@@ -4,6 +4,7 @@ import {
   IMPASSABLE,
   Rng,
   TerrainLayer,
+  computeCostField,
   computeReachable,
   createPathContext,
   findPath,
@@ -76,5 +77,70 @@ describe('computeReachable', () => {
     const ctx = createPathContext(nav);
     const field = computeReachable(ctx, { profile: FOOT, origin, budget: 5 });
     for (const c of field.cost) expect(c).toBe(IMPASSABLE);
+  });
+});
+
+describe('computeCostField', () => {
+  it('is exactly 0 at every origin cell', () => {
+    const nav = buildNav(flatTerrain(8, 8, 1));
+    const ctx = createPathContext(nav);
+    const origins = [0, 5 * 8 + 3, 63]; // three scattered cells
+    const field = computeCostField(ctx, FOOT, origins, 10);
+    for (const origin of origins) expect(field[origin]).toBe(0);
+  });
+
+  it('every non-IMPASSABLE cell respects the budget', () => {
+    const rng = Rng.create(SEEDS.reachableFuzz);
+    const nav = randomNav(rng, { minSize: 6, maxSize: 9 });
+    const ctx = createPathContext(nav);
+    const origin = pickPassableCell(rng, nav, FOOT);
+    expect(origin).not.toBeNull();
+    const budget = rng.float(1, 5);
+    const field = computeCostField(ctx, FOOT, [origin as number], budget);
+    let checked = 0;
+    for (const cost of field) {
+      if (cost === IMPASSABLE) continue;
+      expect(cost).toBeLessThanOrEqual(budget);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0); // sanity: the origin itself always fits
+  });
+
+  it('ignores an impassable origin: the field falls back to the other, passable origins', () => {
+    const t = flatTerrain(6, 6, 1);
+    fillRect(t, 2, 2, 2, 2, TerrainLayer.Wall);
+    const nav = buildNav(t);
+    const ctx = createPathContext(nav);
+    const wallOrigin = 2 * 6 + 2;
+    const passableOrigin = 0;
+    const field = computeCostField(ctx, FOOT, [wallOrigin, passableOrigin], 10);
+    expect(field[passableOrigin]).toBe(0);
+    expect(field[wallOrigin]).toBe(IMPASSABLE); // the Wall cell is never reached, not even as its own origin
+  });
+
+  it('is IMPASSABLE everywhere when every origin is impassable', () => {
+    const t = flatTerrain(4, 4, 1);
+    fillRect(t, 1, 1, 1, 1, TerrainLayer.Wall);
+    const nav = buildNav(t);
+    const ctx = createPathContext(nav);
+    const wallOrigin = 1 * 4 + 1;
+    const field = computeCostField(ctx, FOOT, [wallOrigin], 10);
+    for (const cost of field) expect(cost).toBe(IMPASSABLE);
+  });
+
+  it('is IMPASSABLE beyond the budget and across a fully enclosed pocket', () => {
+    // A lone free cell (2, 2), walled in on every side: unreachable from any outside origin.
+    const t = flatTerrain(6, 6, 1);
+    fillRect(t, 1, 1, 3, 3, TerrainLayer.Wall);
+    fillRect(t, 2, 2, 2, 2, TerrainLayer.Plain);
+    const nav = buildNav(t);
+    const ctx = createPathContext(nav);
+    const pocket = 2 * 6 + 2;
+    const field = computeCostField(ctx, FOOT, [0], 100); // ample budget, but the pocket is sealed
+    expect(field[pocket]).toBe(IMPASSABLE);
+
+    const farCell = 5 * 6 + 5;
+    const starved = computeCostField(ctx, FOOT, [0], 0.01); // smaller than the cost of a single step
+    expect(starved[farCell]).toBe(IMPASSABLE);
   });
 });

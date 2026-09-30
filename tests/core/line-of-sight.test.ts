@@ -77,6 +77,24 @@ describe('lineOfSight: obstacles', () => {
     expect(result.obscurance).toBe(1);
   });
 
+  it('a single cell crossed for exactly its own width still blocks (obscurance-threshold regression)', () => {
+    // Regression for a floating-point edge case: a 1 m-wide, density-1/m wall crossed for
+    // exactly 1 m used to sum its obscurance to 0.9999999999999998 (just under the opacity
+    // threshold), letting the ray through. OBSCURANCE_EPSILON in line-of-sight.ts fixes it.
+    const t = flatTerrain(6, CORRIDOR_DEPTH, 1);
+    fillRect(t, 3, 1, 3, 1, TerrainLayer.Wall); // a single Wall cell, traversed for exactly 1 m
+    const nav = buildNav(t);
+    const result = lineOfSight(nav, {
+      from: vec2(0.5, CORRIDOR_Z),
+      to: vec2(5.5, CORRIDOR_Z),
+      eyeHeightM: EYE_HEIGHT_M,
+      targetHeightM: TARGET_HEIGHT_M,
+    });
+    expect(result.visible).toBe(false);
+    expect(result.blockedBy).toBe('obstacle');
+    expect(result.obscurance).toBe(1);
+  });
+
   it('a short stretch of forest is visible but obscured (obscurance > 0)', () => {
     const t = flatTerrain(10, CORRIDOR_DEPTH, 1);
     fillRect(t, 5, 1, 5, 1, TerrainLayer.Forest); // one Forest cell

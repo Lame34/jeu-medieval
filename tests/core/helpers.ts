@@ -178,6 +178,7 @@ export const SEEDS = {
   combatStatistical: 'test-combat-statistical',
   morale: 'test-morale-e2e',
   overwatch: 'test-overwatch-e2e',
+  aiPlanner: 'test-ai-planner-e2e',
 } as const satisfies Record<string, Seed>;
 
 /** Centre of cell (cx, cz) on a cellSize=1 map, matching how createBattle snaps spawns. */
