@@ -130,6 +130,28 @@ export function PerfProbe() {
     api.control['showAll'] = () => {
       for (const o of hidden.splice(0)) o.visible = true;
     };
+    // Materials drawn by objects of different kinds: three switches their program on every draw
+    // (getParameters + cache key strings each time), a per-frame CPU and allocation cost.
+    api.control['sharedMaterials'] = () => {
+      const kinds = new Map<string, { name: string; signatures: Set<string>; users: Set<string> }>();
+      scene.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const colors = (o.geometry as { getAttribute(n: string): { itemSize: number } | undefined }).getAttribute('color');
+        const signature = [
+          o instanceof InstancedMesh ? `instanced${o.instanceColor ? '+color' : ''}` : '',
+          o instanceof BatchedMesh ? 'batched' : '',
+          (o as { isSkinnedMesh?: boolean }).isSkinnedMesh ? 'skinned' : '',
+          colors ? `vc${colors.itemSize}` : '',
+        ].join('|');
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          const entry = kinds.get(m.uuid) ?? { name: m.name || m.type, signatures: new Set<string>(), users: new Set<string>() };
+          entry.signatures.add(signature);
+          entry.users.add(family(o));
+          kinds.set(m.uuid, entry);
+        }
+      });
+      return [...kinds.values()].filter((k) => k.signatures.size > 1).map((k) => ({ material: k.name, signatures: [...k.signatures], users: [...k.users] }));
+    };
     api.control['shadowPass'] = (on: boolean) => {
       gl.shadowMap.autoUpdate = on;
       gl.shadowMap.needsUpdate = true;
