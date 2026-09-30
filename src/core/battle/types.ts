@@ -19,6 +19,8 @@ export interface UnitState {
   readonly ap: number;
   /** Attacks left this turn. */
   readonly actions: number;
+  /** Overwatch cone direction (unit length) while on guard; null otherwise. */
+  readonly overwatch: Vec2 | null;
   readonly morale: number;
   readonly alive: boolean;
 }

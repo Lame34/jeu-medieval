@@ -98,7 +98,8 @@ export function startTurn(ctx: BattleContext, state: BattleState, faction: UnitS
     if (u.faction !== faction || !u.alive) return u;
     const recovered = shift(rules, u, rules.recoveryPerTurn, 'recovery', events);
     const penalty = moraleStanding(rules, recovered.morale) === 'shaken' ? rules.shakenApPenalty : 0;
-    return { ...recovered, ap: Math.max(0, unitType(ctx, u).ap - penalty), actions: ctx.rules.damage.actionsPerTurn };
+    // A guard set last turn expires when the unit's own turn comes back.
+    return { ...recovered, ap: Math.max(0, unitType(ctx, u).ap - penalty), actions: ctx.rules.damage.actionsPerTurn, overwatch: null };
   });
   let next: BattleState = { ...state, units };
   for (const unit of units) {

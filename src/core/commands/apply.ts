@@ -4,13 +4,14 @@
  */
 import { previewAttack, resolveAttack } from '../battle/combat.ts';
 import { moraleStanding, startTurn } from '../battle/morale.ts';
+import { canOverwatch, moveThroughOverwatch } from '../battle/overwatch.ts';
 import type { BattleContext } from '../battle/context.ts';
 import { findUnit, planMove, type MovePlan } from '../battle/movement.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
-import { normalize, sub, type Vec2 } from '../math/vec2.ts';
+import { normalize } from '../math/vec2.ts';
 import type { Faction } from '../rules/types.ts';
-import type { AttackCommand, Command, CommandRejection, EndTurnCommand, MoveCommand } from './types.ts';
+import type { AttackCommand, Command, CommandRejection, EndTurnCommand, MoveCommand, OverwatchCommand } from './types.ts';
 
 export interface CommandResult {
   readonly state: BattleState;
@@ -28,14 +29,6 @@ function replaceUnit(state: BattleState, updated: UnitState): BattleState {
   return { ...state, units: state.units.map((u) => (u.id === updated.id ? updated : u)) };
 }
 
-function facingAlong(path: readonly Vec2[], fallback: Vec2): Vec2 {
-  const last = path[path.length - 1];
-  const beforeLast = path[path.length - 2];
-  if (!last || !beforeLast) return fallback;
-  const dir = normalize(sub(last, beforeLast));
-  return dir.x === 0 && dir.z === 0 ? fallback : dir;
-}
-
 function applyMove(ctx: BattleContext, state: BattleState, command: MoveCommand): CommandResult {
   const unit = findUnit(state, command.unitId);
   if (!unit) return reject(state, command, 'unknownUnit');
@@ -45,17 +38,24 @@ function applyMove(ctx: BattleContext, state: BattleState, command: MoveCommand)
   const result = planMove(ctx, state, command.unitId, command.to);
   if (!result.ok) return reject(state, command, result.reason);
   const plan: MovePlan = result.plan;
-  const moved: UnitState = {
-    ...unit,
-    position: plan.destination,
-    facing: facingAlong(plan.path, unit.facing),
-    ap: unit.ap - plan.apSpent,
-  };
-  return {
-    state: replaceUnit(state, moved),
-    events: [{ type: 'unitMoved', unitId: unit.id, path: plan.path, apCost: plan.apCost, apSpent: plan.apSpent }],
-    rejection: null,
-  };
+  // Through the enemy's overwatch cones: reaction shots cut the move into segments.
+  const moved = moveThroughOverwatch(ctx, state, unit, plan);
+  return { state: moved.state, events: moved.events, rejection: null };
+}
+
+function applyOverwatch(ctx: BattleContext, state: BattleState, command: OverwatchCommand): CommandResult {
+  const unit = findUnit(state, command.unitId);
+  if (!unit) return reject(state, command, 'unknownUnit');
+  if (!unit.alive) return reject(state, command, 'unitDead');
+  if (unit.faction !== state.activeFaction) return reject(state, command, 'notYourTurn');
+  if (moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
+  if (!canOverwatch(ctx, unit)) return reject(state, command, 'cannotOverwatch');
+  if (unit.actions <= 0) return reject(state, command, 'noActionLeft');
+  if (unit.ap < ctx.rules.damage.attackApCost) return reject(state, command, 'insufficientAp');
+  const direction = normalize(command.direction);
+  if (direction.x === 0 && direction.z === 0) return reject(state, command, 'invalidDirection');
+  const guarded: UnitState = { ...unit, overwatch: direction, facing: direction, ap: 0, actions: 0 };
+  return { state: replaceUnit(state, guarded), events: [{ type: 'overwatchSet', unitId: unit.id, direction }], rejection: null };
 }
 
 function applyAttack(ctx: BattleContext, state: BattleState, command: AttackCommand): CommandResult {
@@ -89,6 +89,8 @@ export function applyCommand(ctx: BattleContext, state: BattleState, command: Co
       return applyMove(ctx, state, command);
     case 'attack':
       return applyAttack(ctx, state, command);
+    case 'overwatch':
+      return applyOverwatch(ctx, state, command);
     case 'endTurn':
       return applyEndTurn(ctx, state, command);
   }

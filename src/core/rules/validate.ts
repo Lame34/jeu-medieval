@@ -180,6 +180,9 @@ function readDamage(raw: unknown): DamageRules {
     obscurancePenalty: num(d['obscurancePenalty'], 'damage.obscurancePenalty', ...PROBABILITY),
     directionalCoverReachM: num(d['directionalCoverReachM'], 'damage.directionalCoverReachM', 0),
     minDamageOnHit: integer(d['minDamageOnHit'], 'damage.minDamageOnHit', 0),
+    overwatchHalfAngleDeg: num(d['overwatchHalfAngleDeg'], 'damage.overwatchHalfAngleDeg', 0, 180),
+    overwatchAccuracyFactor: num(d['overwatchAccuracyFactor'], 'damage.overwatchAccuracyFactor', ...PROBABILITY),
+    overwatchSampleM: num(d['overwatchSampleM'], 'damage.overwatchSampleM', Number.MIN_VALUE),
   });
 }
 

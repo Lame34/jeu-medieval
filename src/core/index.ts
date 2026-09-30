@@ -22,3 +22,4 @@ export * from './battle/movement.ts';
 export * from './battle/combat.ts';
 export * from './battle/replay.ts';
 export * from './battle/morale.ts';
+export * from './battle/overwatch.ts';

@@ -56,6 +56,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
       hp: type.hp,
       ap: type.faction === firstFaction ? type.ap : 0,
       actions: type.faction === firstFaction ? ctx.rules.damage.actionsPerTurn : 0,
+      overwatch: null,
       morale,
       alive: true,
     });

@@ -22,6 +22,9 @@
   "obscurancePenalty": 0.25,
   "directionalCoverReachM": 1.6,
   "minDamageOnHit": 1,
+  "overwatchHalfAngleDeg": 40,
+  "overwatchAccuracyFactor": 0.85,
+  "overwatchSampleM": 0.5,
   "morale": {
     "$comment": "Brief §9.7 : sous 30 ébranlée (−1 PA), sous 15 en fuite. Pertes et gains : valeurs de départ (J7 : équilibrage).",
     "max": 100,

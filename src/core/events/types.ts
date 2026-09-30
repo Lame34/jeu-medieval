@@ -12,6 +12,7 @@ export type GameEvent =
   | UnitAttackedEvent
   | UnitDiedEvent
   | MoraleChangedEvent
+  | OverwatchSetEvent
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
@@ -36,6 +37,8 @@ export interface UnitAttackedEvent {
   readonly attackerId: string;
   readonly targetId: string;
   readonly riposte: boolean;
+  /** A reaction shot from overwatch, fired mid-move. */
+  readonly reaction?: boolean;
   /** The odds that were rolled (shown in the preview). */
   readonly hitChance: number;
   readonly hit: boolean;
@@ -48,6 +51,12 @@ export interface UnitDiedEvent {
   readonly type: 'unitDied';
   readonly unitId: string;
   readonly byId: string;
+}
+
+export interface OverwatchSetEvent {
+  readonly type: 'overwatchSet';
+  readonly unitId: string;
+  readonly direction: Vec2;
 }
 
 export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery';

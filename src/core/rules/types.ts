@@ -124,6 +124,12 @@ export interface DamageRules {
   readonly directionalCoverReachM: number;
   /** Damage of a landed blow never falls below this. */
   readonly minDamageOnHit: number;
+  /** Overwatch cone half-angle (degrees) around the chosen direction. */
+  readonly overwatchHalfAngleDeg: number;
+  /** Accuracy factor of reaction shots. */
+  readonly overwatchAccuracyFactor: number;
+  /** Spacing (m) of the points where a moving unit is checked against overwatch cones. */
+  readonly overwatchSampleM: number;
 }
 
 /** Morale (brief §9.7), 0 to max. */

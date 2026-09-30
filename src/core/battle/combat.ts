@@ -104,7 +104,7 @@ export function coverAgainst(ctx: BattleContext, shooter: Vec2, target: Vec2): C
   return COVER_LEVELS[best] as CoverLevel;
 }
 
-function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: UnitTypeRule, accuracyFactor: number, steps: number, cover: CoverLevel, obscurance: number): BlowOdds {
+export function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: UnitTypeRule, accuracyFactor: number, steps: number, cover: CoverLevel, obscurance: number): BlowOdds {
   const d = ctx.rules.damage;
   const hitChance = clamp(
     attack.accuracy * accuracyFactor + steps * d.accuracyPerHeightStep - d.coverPenalty[cover] - obscurance * d.obscurancePenalty,
@@ -166,24 +166,24 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   };
 }
 
-interface Roll {
+export interface Roll {
   readonly hit: boolean;
   readonly crit: boolean;
   readonly damage: number;
 }
 
-function roll(rng: Rng, odds: BlowOdds): Roll {
+export function rollBlow(rng: Rng, odds: BlowOdds): Roll {
   const hit = rng.next() < odds.hitChance;
   const crit = hit && rng.next() < odds.critChance;
   return { hit, crit, damage: hit ? (crit ? odds.damage.max : odds.damage.min) : 0 };
 }
 
-function faceTowards(from: Vec2, to: Vec2, fallback: Vec2): Vec2 {
+export function faceTowards(from: Vec2, to: Vec2, fallback: Vec2): Vec2 {
   const dir = normalize(sub(to, from));
   return dir.x === 0 && dir.z === 0 ? fallback : dir;
 }
 
-function statusOf(units: readonly UnitState[]): BattleStatus {
+export function battleStatus(units: readonly UnitState[]): BattleStatus {
   const attackers = units.some((u) => u.alive && u.faction === 'attacker');
   const defenders = units.some((u) => u.alive && u.faction === 'defender');
   if (attackers && defenders) return 'ongoing';
@@ -198,7 +198,7 @@ export function resolveAttack(ctx: BattleContext, state: BattleState, preview: A
   const events: GameEvent[] = [];
   const blows: BlowOutcome[] = [];
 
-  const blow = roll(rng, preview.blow);
+  const blow = rollBlow(rng, preview.blow);
   const targetHp = Math.max(0, target.hp - blow.damage);
   events.push({ type: 'unitAttacked', attackerId: attacker.id, targetId: target.id, riposte: false, hitChance: preview.blow.hitChance, hit: blow.hit, crit: blow.crit, damage: blow.damage, hpAfter: targetHp });
   if (targetHp === 0) events.push({ type: 'unitDied', unitId: target.id, byId: attacker.id });
@@ -206,7 +206,7 @@ export function resolveAttack(ctx: BattleContext, state: BattleState, preview: A
 
   let attackerHp = attacker.hp;
   if (targetHp > 0 && preview.riposte) {
-    const answer = roll(rng, preview.riposte);
+    const answer = rollBlow(rng, preview.riposte);
     attackerHp = Math.max(0, attacker.hp - answer.damage);
     events.push({ type: 'unitAttacked', attackerId: target.id, targetId: attacker.id, riposte: true, hitChance: preview.riposte.hitChance, hit: answer.hit, crit: answer.crit, damage: answer.damage, hpAfter: attackerHp });
     if (attackerHp === 0) events.push({ type: 'unitDied', unitId: attacker.id, byId: target.id });
@@ -229,7 +229,7 @@ export function resolveAttack(ctx: BattleContext, state: BattleState, preview: A
   };
   const struck = state.units.map((u) => (u.id === attacker.id ? updatedAttacker : u.id === target.id ? updatedTarget : u));
   const units = moraleAfterBlows(ctx, struck, blows, events);
-  const status = statusOf(units);
+  const status = battleStatus(units);
   if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
   return { state: { ...state, units, status, rng: rng.getState() }, events };
 }
