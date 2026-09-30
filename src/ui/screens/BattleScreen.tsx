@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { BattleState } from '../../core/battle/types.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
 import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
@@ -28,9 +27,16 @@ function mapParams(): WorldgenRequest {
   return { seed: query.get('seed') ?? DEFAULT_SEED, castleIndex: castle === 2 || castle === 3 || castle === 4 ? castle : 1 };
 }
 
-/** Markers of a battle's units, for the unit renderer. */
-function markersOf(state: BattleState): UnitMarker[] {
-  return state.units.map((u) => ({ id: u.id, faction: u.faction, typeKey: u.typeKey, position: u.position, facingTurns: Math.atan2(u.facing.x, u.facing.z) / (2 * Math.PI) }));
+/** Markers of a battle's units, for the unit renderer (standing on decks where there are). */
+function markersOf(session: BattleSession): UnitMarker[] {
+  return session.state.units.map((u) => ({
+    id: u.id,
+    faction: u.faction,
+    typeKey: u.typeKey,
+    position: u.position,
+    facingTurns: Math.atan2(u.facing.x, u.facing.z) / (2 * Math.PI),
+    elevationM: session.standHeight(u.position.x, u.position.z),
+  }));
 }
 
 /** Generates the 500 m battle map in a worker (the page stays responsive), then shows it. */
@@ -62,7 +68,7 @@ export default function BattleScreen() {
   const bench = isBenchMode();
   // The battle itself (not in bench mode: measurements keep the map's fixed markers).
   const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed) : null), [layout, bench]);
-  const units = useMemo(() => (session ? markersOf(session.state) : undefined), [session]);
+  const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   useEffect(() => () => useBattleUi.getState().reset(), []);
 

@@ -8,7 +8,7 @@
 import { Color, ConeGeometry, Vector3, type BufferGeometry } from 'three';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
-import type { BridgeSite, GateSite, KeepSite } from '../../core/worldgen/types.ts';
+import type { BridgeSite, GateSite, KeepSite, StairSite } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { boxGeometry, buildWallGeometry, BURY_M, finish, ROOF_COLOR, ROOF_SHINGLE_ROWS, type AlongFn } from './castle-geometry.ts';
 
@@ -199,6 +199,30 @@ export function buildStoneBridge(bridge: BridgeSite, terrain: TerrainData, water
     const top = deckAt(t) - STONE_DECK_THICKNESS_M;
     const bottom = waterLevelM - 2.5;
     stone.push(finish(boxGeometry({ center: new Vector3(c.x, (top + bottom) / 2, c.z), size: new Vector3(PIER_WIDTH_M, top - bottom, bridge.widthM + 0.4), yaw }), paintBase, WHITE, along));
+  }
+  return { stone, roof: [], wood: [] };
+}
+
+/** Stairs up to the wall-walk (J4): stone steps from the courtyard to the wall-walk height. */
+const STAIR_TREAD_M = 0.5;
+
+export function buildStairs(stair: StairSite): CastleParts {
+  const dx = stair.top.x - stair.bottom.x;
+  const dz = stair.top.z - stair.bottom.z;
+  const length = Math.hypot(dx, dz) || 1;
+  const dir = { x: dx / length, z: dz / length };
+  const yaw = Math.atan2(-dir.z, dir.x);
+  const steps = Math.max(1, Math.round(length / STAIR_TREAD_M));
+  const tread = length / steps;
+  const base = stair.bottomHeightM - BURY_M;
+  const stone: BufferGeometry[] = [];
+  // Masonry courses run along the flight.
+  const along: AlongFn = (x, z) => (x - stair.bottom.x) * dir.x + (z - stair.bottom.z) * dir.z;
+  for (let k = 0; k < steps; k++) {
+    const topY = stair.bottomHeightM + ((stair.topHeightM - stair.bottomHeightM) * (k + 1)) / steps;
+    const s = (k + 0.5) * tread;
+    const center = new Vector3(stair.bottom.x + dir.x * s, (base + topY) / 2, stair.bottom.z + dir.z * s);
+    stone.push(finish(boxGeometry({ center, size: new Vector3(tread, topY - base, stair.widthM), yaw }), stair.bottomHeightM, WHITE, along));
   }
   return { stone, roof: [], wood: [] };
 }

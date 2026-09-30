@@ -95,7 +95,7 @@ export function WorldScene({
       <Fields fields={layout.fields} terrain={t} />
       <Hedges hedges={layout.hedges} terrain={t} />
       {layout.props && layout.props.length > 0 && <Props props={layout.props} terrain={t} />}
-      <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} />
+      <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} stairs={layout.stairs} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} terrain={t} />
         <Units units={units ?? layout.units} terrain={t} onHandles={onUnitHandles} />

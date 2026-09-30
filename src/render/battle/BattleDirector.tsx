@@ -19,7 +19,7 @@ import type { Command } from '../../core/commands/types.ts';
 import { threatsAt } from '../../core/battle/overwatch.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
-import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
@@ -75,8 +75,8 @@ function approachAngle(from: number, to: number, maxStep: number): number {
   return from + Math.max(-maxStep, Math.min(maxStep, d));
 }
 
-/** First point where the view ray meets the heightfield, or null when it leaves the map. */
-function groundHit(ray: Raycaster['ray'], terrain: TerrainData, out: Vector3): boolean {
+/** First point where the view ray meets the ground (relief + decks), or null when it leaves the map. */
+function groundHit(ray: Raycaster['ray'], terrain: TerrainData, heightAt: (x: number, z: number) => number, out: Vector3): boolean {
   const W = terrain.width * terrain.cellSize;
   const D = terrain.depth * terrain.cellSize;
   let prevT = 0;
@@ -86,14 +86,14 @@ function groundHit(ray: Raycaster['ray'], terrain: TerrainData, out: Vector3): b
       prevT = t;
       continue;
     }
-    if (out.y <= sampleHeight(terrain, out.x, out.z)) {
+    if (out.y <= heightAt(out.x, out.z)) {
       // Bisect between the last point above and this one.
       let lo = prevT;
       let hi = t;
       for (let k = 0; k < 8; k++) {
         const mid = (lo + hi) / 2;
         ray.at(mid, out);
-        if (out.y <= sampleHeight(terrain, out.x, out.z)) hi = mid;
+        if (out.y <= heightAt(out.x, out.z)) hi = mid;
         else lo = mid;
       }
       ray.at(hi, out);
@@ -196,12 +196,12 @@ export function BattleDirector({
             const k = len > 0 ? (s - (lengths[segment] as number)) / len : 1;
             const x = a.x + (b.x - a.x) * k;
             const z = a.z + (b.z - a.z) * k;
-            h.root.position.set(x, sampleHeight(terrain, x, z), z);
+            h.root.position.set(x, session.standHeight(x, z), z);
             h.root.rotation.y = approachAngle(h.root.rotation.y, yawOf(b.x - a.x, b.z - a.z), TURN_RATE * dt);
           },
           finish() {
             const end = path[path.length - 1] as Vec2;
-            h.root.position.set(end.x, sampleHeight(terrain, end.x, end.z), end.z);
+            h.root.position.set(end.x, session.standHeight(end.x, end.z), end.z);
             h.play('idle');
           },
         };
@@ -277,7 +277,7 @@ export function BattleDirector({
           unitId = u.id;
         }
       }
-      const ground = groundHit(s.ray.ray, terrain, s.ground) ? { x: s.ground.x, z: s.ground.z } : null;
+      const ground = groundHit(s.ray.ray, terrain, (x, z) => session.standHeight(x, z), s.ground) ? { x: s.ground.x, z: s.ground.z } : null;
       return { ground, unitId };
     };
     const refreshHover = () => {
@@ -422,7 +422,7 @@ export function BattleDirector({
         const h = handles?.get(id);
         return h ? toScreen(h.root.position.x, h.root.position.y + UNIT_PICK_HEIGHT_M / 2, h.root.position.z) : null;
       },
-      groundScreen: (x, z) => toScreen(x, sampleHeight(terrain, x, z), z),
+      groundScreen: (x, z) => toScreen(x, session.standHeight(x, z), z),
     };
     return () => {
       delete window.__battle;

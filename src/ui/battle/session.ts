@@ -4,7 +4,7 @@
  * is `seed + scenario + commands`: the log replays it exactly.
  */
 import { playTurn } from '../../core/ai/planner.ts';
-import { createBattleContext, type BattleContext } from '../../core/battle/context.ts';
+import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
 import { createBattle } from '../../core/battle/create.ts';
 import type { BattleState, Scenario, UnitSpawn } from '../../core/battle/types.ts';
 import { applyCommand, type CommandResult } from '../../core/commands/apply.ts';
@@ -12,6 +12,7 @@ import type { Command } from '../../core/commands/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import { isPassable } from '../../core/nav-grid/nav-grid.ts';
 import type { Seed } from '../../core/rng.ts';
+import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import type { Faction } from '../../core/rules/types.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -21,15 +22,12 @@ export const PLAYER_FACTION: Faction = 'attacker';
 
 export type SessionListener = (events: readonly GameEvent[], state: BattleState) => void;
 
-/**
- * Scenario from the map's unit markers. Rampart walkways and tower tops are not walkable yet
- * (siege, J4): units placed there wait out of the battle.
- */
+/** Scenario from the map's unit markers (units on wall-walks and towers stand on their decks). */
 function scenarioFrom(ctx: BattleContext, layout: WorldLayout): Scenario {
   const units: UnitSpawn[] = [];
   for (const marker of layout.units) {
     const type = ctx.rules.units[marker.typeKey];
-    if (!type || marker.elevationM !== undefined) continue;
+    if (!type) continue;
     const cx = Math.floor(marker.position.x / ctx.nav.cellSize);
     const cz = Math.floor(marker.position.z / ctx.nav.cellSize);
     if (!isPassable(ctx.nav, type.movement, cx, cz)) continue;
@@ -48,10 +46,15 @@ export class BattleSession {
   private readonly listeners = new Set<SessionListener>();
 
   constructor(layout: WorldLayout, seed: Seed) {
-    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES);
+    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck);
     this.seed = seed;
     this.scenario = scenarioFrom(this.ctx, layout);
     this.current = createBattle(this.ctx, seed, this.scenario);
+  }
+
+  /** Height (m) a unit stands at: the relief plus the deck it is on (wall-walk, stairs). */
+  standHeight(x: number, z: number): number {
+    return sampleHeight(this.ctx.terrain, x, z) + deckAt(this.ctx, { x, z });
   }
 
   get state(): BattleState {

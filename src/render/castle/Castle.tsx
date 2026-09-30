@@ -7,10 +7,10 @@ import { useEffect, useMemo } from 'react';
 import { DoubleSide, Mesh, MeshBasicMaterial, type BufferGeometry, type Material } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
-import type { BridgeSite, GateSite, KeepSite, TowerSite, WallRun, WaterBody } from '../../core/worldgen/types.ts';
+import type { BridgeSite, GateSite, KeepSite, StairSite, TowerSite, WallRun, WaterBody } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { buildCrenelShadowProxy, buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
-import { buildGate, buildKeep, buildStoneBridge } from './castle-parts.ts';
+import { buildGate, buildKeep, buildStairs, buildStoneBridge } from './castle-parts.ts';
 import { createStoneMaterial } from './stone-material.ts';
 
 const TOWER_ROOF_HEIGHT_M = 16;
@@ -24,6 +24,8 @@ export interface CastleProps {
   readonly bridges: readonly BridgeSite[];
   readonly water: readonly WaterBody[];
   readonly terrain: TerrainData;
+  /** Stairs up to the wall-walks (battle castles). */
+  readonly stairs?: readonly StairSite[];
 }
 
 function mergedMesh(parts: BufferGeometry[], material: Material, name: string): Mesh | null {
@@ -38,7 +40,10 @@ function mergedMesh(parts: BufferGeometry[], material: Material, name: string): 
   return mesh;
 }
 
-export function Castle({ walls, towers, gates, keeps, bridges, water, terrain }: CastleProps) {
+/** Stable default (a fresh [] each render would rebuild the castle every render). */
+const NO_STAIRS: readonly StairSite[] = [];
+
+export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, stairs = NO_STAIRS }: CastleProps) {
   const built = useMemo(() => {
     const stoneParts: BufferGeometry[] = walls.map((w) => buildWallGeometry(w));
     const roofParts: BufferGeometry[] = [];
@@ -49,7 +54,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain }:
       roofParts.push(roof);
     }
     const riverLevel = water.find((b) => b.kind === 'river')?.levelM ?? 0;
-    const parts = [...keeps.map(buildKeep), ...gates.map((g) => buildGate(g, terrain)), ...bridges.map((b) => buildStoneBridge(b, terrain, riverLevel))];
+    const parts = [...keeps.map(buildKeep), ...gates.map((g) => buildGate(g, terrain)), ...bridges.map((b) => buildStoneBridge(b, terrain, riverLevel)), ...stairs.map(buildStairs)];
     for (const p of parts) {
       stoneParts.push(...p.stone);
       roofParts.push(...p.roof);
@@ -72,7 +77,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain }:
       meshes.push(mesh);
     }
     return meshes.filter((m): m is Mesh => m !== null);
-  }, [walls, towers, gates, keeps, bridges, water, terrain]);
+  }, [walls, towers, gates, keeps, bridges, water, terrain, stairs]);
 
   useEffect(
     () => () => {

@@ -10,7 +10,7 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, MeshBasicMate
 import { findUnit, movementArea } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
-import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import type { UnitHandle } from '../units/Units.tsx';
@@ -47,7 +47,7 @@ function flatRing(radii: readonly [number, number], color: string): Mesh {
 }
 
 /** Dashes along a polyline, each a quad draped on the terrain. */
-function dashGeometry(path: readonly Vec2[], terrain: TerrainData): BufferGeometry {
+function dashGeometry(path: readonly Vec2[], heightAt: (x: number, z: number) => number): BufferGeometry {
   const positions: number[] = [];
   const quad = (a: Vec2, b: Vec2) => {
     const dx = b.x - a.x;
@@ -55,8 +55,8 @@ function dashGeometry(path: readonly Vec2[], terrain: TerrainData): BufferGeomet
     const len = Math.hypot(dx, dz) || 1;
     const nx = (-dz / len) * (DASH_WIDTH_M / 2);
     const nz = (dx / len) * (DASH_WIDTH_M / 2);
-    const ya = sampleHeight(terrain, a.x, a.z) + LIFT_M;
-    const yb = sampleHeight(terrain, b.x, b.z) + LIFT_M;
+    const ya = heightAt(a.x, a.z) + LIFT_M;
+    const yb = heightAt(b.x, b.z) + LIFT_M;
     const p = [
       [a.x - nx, ya, a.z - nz],
       [a.x + nx, ya, a.z + nz],
@@ -89,7 +89,7 @@ function dashGeometry(path: readonly Vec2[], terrain: TerrainData): BufferGeomet
  * Guard cones of every unit on overwatch (theirs in red: walking into one draws a reaction shot),
  * as fans draped on the terrain, one merged geometry.
  */
-function guardCones(session: BattleSession, terrain: TerrainData): BufferGeometry {
+function guardCones(session: BattleSession): BufferGeometry {
   const positions: number[] = [];
   const colors: number[] = [];
   const half = (session.ctx.rules.damage.overwatchHalfAngleDeg * Math.PI) / 180;
@@ -104,7 +104,7 @@ function guardCones(session: BattleSession, terrain: TerrainData): BufferGeometr
     const at = (r: number, a: number): readonly [number, number, number] => {
       const x = unit.position.x + Math.sin(a) * r;
       const z = unit.position.z + Math.cos(a) * r;
-      return [x, sampleHeight(terrain, x, z) + CONE_LIFT_M, z];
+      return [x, session.standHeight(x, z) + CONE_LIFT_M, z];
     };
     for (let ring = 0; ring < CONE_RINGS; ring++) {
       const r0 = (range * ring) / CONE_RINGS;
@@ -185,12 +185,12 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       silhouetted.current = lit;
       if (hover.kind === 'move' && active) {
         parts.path.geometry.dispose();
-        parts.path.geometry = dashGeometry(hover.plan.path, terrain);
+        parts.path.geometry = dashGeometry(hover.plan.path, (x, z) => session.standHeight(x, z));
         parts.path.visible = true;
         const d = hover.plan.destination;
-        parts.destRing.position.set(d.x, sampleHeight(terrain, d.x, d.z) + LIFT_M, d.z);
+        parts.destRing.position.set(d.x, session.standHeight(d.x, d.z) + LIFT_M, d.z);
         parts.destRing.visible = true;
-        label.current.at.set(d.x, sampleHeight(terrain, d.x, d.z) + LABEL_HEIGHT_M, d.z);
+        label.current.at.set(d.x, session.standHeight(d.x, d.z) + LABEL_HEIGHT_M, d.z);
         label.current.on = true;
         if (label.current.el) label.current.el.textContent = `${hover.plan.apSpent} PA`;
       } else {
@@ -202,7 +202,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       if (lastBattle.current !== state) {
         lastBattle.current = state;
         parts.cones.geometry.dispose();
-        parts.cones.geometry = guardCones(session, terrain);
+        parts.cones.geometry = guardCones(session);
       }
     };
     refresh();
