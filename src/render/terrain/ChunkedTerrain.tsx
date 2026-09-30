@@ -62,9 +62,17 @@ export function ChunkedTerrain({ terrain, splat }: { readonly terrain: TerrainDa
 
   useFrame(({ camera }) => {
     for (const chunk of built.chunks) {
-      const d = Math.hypot(camera.position.x - chunk.centerX, camera.position.z - chunk.centerZ);
-      let lod = LODS.findIndex((l) => d < l.maxDistM);
-      if (lod < 0) lod = LODS.length - 1;
+      const dx = camera.position.x - chunk.centerX;
+      const dz = camera.position.z - chunk.centerZ;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      // Plain loop: a findIndex closure per chunk per frame was garbage (no allocation in useFrame).
+      let lod = LODS.length - 1;
+      for (let k = 0; k < LODS.length; k++) {
+        if (d < (LODS[k]?.maxDistM ?? 0)) {
+          lod = k;
+          break;
+        }
+      }
       // Hysteresis: only switch when clearly inside the new band (no popping back and forth).
       if (lod !== chunk.lod) {
         const boundary = lod > chunk.lod ? (LODS[chunk.lod]?.maxDistM ?? 0) : (LODS[lod]?.maxDistM ?? 0);

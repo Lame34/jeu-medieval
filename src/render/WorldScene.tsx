@@ -19,6 +19,7 @@ import { DistantLandscape } from './terrain/DistantLandscape.tsx';
 import { Terrain } from './terrain/Terrain.tsx';
 import { useSettings } from '../state/settings.ts';
 import { paintedGlobals } from './materials/painted-globals.ts';
+import { assignShadowDepthMaterials } from './materials/shadow-depth.ts';
 import { QUALITY_PRESETS } from './quality/presets.ts';
 import { buildHeightTexture, buildSplatTexture } from './terrain/terrain-textures.ts';
 import { Units } from './units/Units.tsx';
@@ -36,6 +37,8 @@ function SceneReady() {
   const camera = useThree((s) => s.camera);
   useEffect(() => {
     let cancelled = false;
+    // One shadow depth material per kind of caster (no program switch in the shadow pass).
+    assignShadowDepthMaterials(scene);
     // Compile every program up front (brief §7: no in-game shader hitch).
     void gl.compileAsync(scene, camera).then(() => {
       if (cancelled) return;

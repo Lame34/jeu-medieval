@@ -6,7 +6,7 @@
  */
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { AnimationMixer, Group, SkinnedMesh, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
@@ -29,6 +29,14 @@ const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
  */
 export const UNIT_SCALE = 0.83;
 const UNIT_HEIGHT_M = 2.4;
+/**
+ * Animation level of detail (camera distance, m): mixers update every frame closer than the
+ * first bound, every 2nd frame up to the second, every 4th beyond (with the elapsed time
+ * accumulated, staggered across units). Evaluating 44 bones per unit every frame was the main
+ * per-frame allocation of the battle map (J3 profiling).
+ */
+const ANIM_LOD_M: readonly [number, number] = [35, 80];
+const ANIM_LOD_STRIDE: readonly [number, number, number] = [1, 2, 4];
 const RIM = { color: '#fff1d6', strength: 0.55 };
 /** Quaternius atlases are painted dark for Blender's studio light; the warrior's steel most. */
 const ALBEDO_VALUE: Readonly<Record<Body, number>> = { warrior: 1.7, ranger: 1.3, rogue: 1.35 };
@@ -139,7 +147,7 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
       anchors: roots.filter((_, i) => units[i]?.faction === faction).map((root) => root.position),
     }));
-    return { roots, rings, mixers, starts, materials, textures, pennants };
+    return { roots, rings, mixers, starts, materials, textures, pennants, animElapsed: new Float32Array(mixers.length) };
   }, [anims, bodies, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -148,8 +156,17 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     return () => built.mixers.forEach((m) => m.stopAllAction());
   }, [built]);
 
+  const frame = useRef(0);
   useFrame(({ camera }, delta) => {
-    for (const mixer of built.mixers) mixer.update(delta);
+    const f = frame.current++;
+    for (let i = 0; i < built.mixers.length; i++) {
+      built.animElapsed[i] = (built.animElapsed[i] as number) + delta;
+      const d = camera.position.distanceTo((built.roots[i] as Group).position);
+      const stride = d < ANIM_LOD_M[0] ? ANIM_LOD_STRIDE[0] : d < ANIM_LOD_M[1] ? ANIM_LOD_STRIDE[1] : ANIM_LOD_STRIDE[2];
+      if ((f + i) % stride !== 0) continue;
+      (built.mixers[i] as AnimationMixer).update(built.animElapsed[i] as number);
+      built.animElapsed[i] = 0;
+    }
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale);

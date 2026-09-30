@@ -79,12 +79,13 @@ export function createPennants(faction: Faction, capacity: number, heightM: numb
       mesh.visible = fade > 0;
       if (!mesh.visible) return;
       mesh.count = anchors.length;
-      anchors.forEach((anchor, i) => {
+      for (let i = 0; i < anchors.length; i++) {
+        const anchor = anchors[i] as Vector3;
         p.set(anchor.x, anchor.y + heightM, anchor.z);
         q.setFromAxisAngle(up, Math.atan2(cameraPosition.x - p.x, cameraPosition.z - p.z));
         s.setScalar(fade * sizeScale);
         mesh.setMatrixAt(i, m.compose(p, q, s));
-      });
+      }
       mesh.instanceMatrix.needsUpdate = true;
     },
     dispose() {
