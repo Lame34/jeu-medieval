@@ -116,6 +116,7 @@ function readMovement(raw: unknown): MovementRules {
     eyeHeightM: num(m['eyeHeightM'], 'terrain.movement.eyeHeightM', 0),
     targetHeightM: num(m['targetHeightM'], 'terrain.movement.targetHeightM', 0),
     actionReserveAp: num(m['actionReserveAp'], 'terrain.movement.actionReserveAp', 0),
+    maxDeckStepM: num(m['maxDeckStepM'], 'terrain.movement.maxDeckStepM', 0),
   });
 }
 

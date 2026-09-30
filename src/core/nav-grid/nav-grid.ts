@@ -39,12 +39,20 @@ export interface NavGrid {
   readonly flammable: Uint8Array;
   readonly sightHeight: Float32Array;
   readonly sightDensity: Float32Array;
-  /** 1 on decks (bridges): no slope blocking and no uphill surcharge inside the cell. */
+  /** 1 on decks (bridges, wall-walks, stairs): no slope blocking and no uphill surcharge inside the cell. */
   readonly flatDeck: Uint8Array;
+  /**
+   * Deck elevation above the relief per cell (m): 0 on the ground, the wall-walk height on
+   * ramparts, rising step by step on stairs. Units stand at relief + deck.
+   */
+  readonly deck: Float32Array;
+  readonly maxDeckStepM: number;
 }
 
-export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
+export function buildNavGrid(terrain: TerrainData, rules: GameRules, deck?: Float32Array): NavGrid {
   const count = terrain.width * terrain.depth;
+  if (deck && deck.length !== count) throw new RangeError(`buildNavGrid: deck has ${deck.length} cells, expected ${count}`);
+  const deckElevation = deck ?? new Float32Array(count);
   const centerHeight = new Float32Array(count);
   const grade = new Float32Array(count);
   const cover = new Uint8Array(count);
@@ -81,12 +89,13 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
       cover[i] = COVER_LEVELS.indexOf(layer.cover);
       directionalCover[i] = layer.directionalCover ? 1 : 0;
       flammable[i] = layer.flammable ? 1 : 0;
-      sightHeight[i] = layer.sight.heightM;
+      // Obstacles standing on a deck (merlons on a wall-walk) rise with it.
+      sightHeight[i] = layer.sight.heightM > 0 ? layer.sight.heightM + (deckElevation[i] as number) : 0;
       sightDensity[i] = layer.sight.densityPerM;
-      flatDeck[i] = layer.flatDeck ? 1 : 0;
+      flatDeck[i] = layer.flatDeck || (deckElevation[i] as number) > 0 ? 1 : 0;
       for (const profile of MOVEMENT_PROFILES) {
         const metersPerAp = layer.metersPerAp[profile];
-        const tooSteep = !layer.flatDeck && (grade[i] as number) > rules.movement.maxWalkableGrade[profile];
+        const tooSteep = flatDeck[i] !== 1 && (grade[i] as number) > rules.movement.maxWalkableGrade[profile];
         const cost = metersPerAp > 0 && !tooSteep ? 1 / metersPerAp : IMPASSABLE;
         apPerMeter[profile][i] = cost;
         if (cost < minApPerMeter[profile]) minApPerMeter[profile] = cost;
@@ -115,7 +124,20 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules): NavGrid {
     sightHeight,
     sightDensity,
     flatDeck,
+    deck: deckElevation,
+    maxDeckStepM: rules.movement.maxDeckStepM,
   };
+}
+
+/**
+ * Extra AP to step from cell `from` onto cell `to` (entered at `costTo` AP/m): IMPASSABLE when
+ * their decks differ by more than a step, the uphill surcharge of the rise when climbing, 0
+ * otherwise. Shared by segmentCost and edgeCost so both stay bit-identical.
+ */
+export function deckStepCost(nav: NavGrid, costTo: number, from: number, to: number): number {
+  const step = (nav.deck[to] as number) - (nav.deck[from] as number);
+  if (step > nav.maxDeckStepM || -step > nav.maxDeckStepM) return IMPASSABLE;
+  return step > 0 ? costTo * (nav.uphillPenaltyPerGrade * step) : 0;
 }
 
 export function coverLevelAt(nav: NavGrid, index: number): CoverLevel {
@@ -152,6 +174,7 @@ export function segmentCost(
     return (costs[i] as number) === IMPASSABLE || (blocked?.(i) ?? false);
   };
   let total = 0;
+  let previous = -1;
   const ok = traverseSegment(
     nav,
     ax,
@@ -162,6 +185,12 @@ export function segmentCost(
       if (isBlocked(cx, cz)) return false;
       const pieceM = (t1 - t0) * lengthM;
       const cell = cz * nav.width + cx;
+      if (previous >= 0) {
+        const climb = deckStepCost(nav, costs[cell] as number, previous, cell);
+        if (climb === IMPASSABLE) return false;
+        total += climb;
+      }
+      previous = cell;
       let uphillGrade = 0;
       if (nav.flatDeck[cell] !== 1) {
         const h0 = sampleHeight(terrain, ax + (bx - ax) * t0, az + (bz - az) * t0);

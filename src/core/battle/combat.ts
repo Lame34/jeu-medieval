@@ -20,7 +20,7 @@ import { traverseSegment } from '../nav-grid/traverse.ts';
 import { Rng } from '../rng.ts';
 import { COVER_LEVELS, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
-import type { BattleContext } from './context.ts';
+import { deckAt, type BattleContext } from './context.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { findUnit, unitType } from './movement.ts';
 import type { BattleState, BattleStatus, UnitState } from './types.ts';
@@ -70,13 +70,14 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
-function groundHeight(ctx: BattleContext, p: Vec2): number {
-  return sampleHeight(ctx.terrain, p.x, p.z);
+/** Height a unit stands at: the relief plus the deck it is on (wall-walk, tower top). */
+function standHeight(ctx: BattleContext, p: Vec2): number {
+  return sampleHeight(ctx.terrain, p.x, p.z) + deckAt(ctx, p);
 }
 
 /** Whole steps of height advantage of `from` over `to`, truncated towards zero. */
 export function heightSteps(ctx: BattleContext, from: Vec2, to: Vec2): number {
-  return Math.trunc((groundHeight(ctx, from) - groundHeight(ctx, to)) / ctx.rules.damage.heightStepM);
+  return Math.trunc((standHeight(ctx, from) - standHeight(ctx, to)) / ctx.rules.damage.heightStepM);
 }
 
 /**
@@ -152,6 +153,8 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
         to: target.position,
         eyeHeightM: ctx.rules.movement.eyeHeightM,
         targetHeightM: ctx.rules.movement.targetHeightM,
+        fromElevationM: deckAt(ctx, attacker.position),
+        toElevationM: deckAt(ctx, target.position),
       });
       if (!sight.visible) return { ok: false, reason: 'noLineOfSight' };
       obscurance = sight.obscurance;

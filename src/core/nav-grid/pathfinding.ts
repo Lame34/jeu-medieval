@@ -7,7 +7,7 @@
 import type { Vec2 } from '../math/vec2.ts';
 import type { MovementProfile } from '../rules/types.ts';
 import { CellHeap } from './binary-heap.ts';
-import { IMPASSABLE, segmentCost, type NavGrid } from './nav-grid.ts';
+import { deckStepCost, IMPASSABLE, segmentCost, type NavGrid } from './nav-grid.ts';
 
 /** Tolerance when comparing AP costs (float accumulation). */
 export const AP_EPSILON = 1e-6;
@@ -85,10 +85,13 @@ export function edgeCost(nav: NavGrid, profile: MovementProfile, cx: number, cz:
   if (dz === 0) hm = nav.sampledEastMid[dx > 0 ? from : to] as number;
   else if (dx === 0) hm = nav.sampledSouthMid[dz > 0 ? from : to] as number;
   else hm = nav.sampledCorner[Math.max(cz, nz) * (w + 1) + Math.max(cx, nx)] as number;
-  // Same rule as segmentCost: no uphill surcharge inside a deck cell.
+  // Same rule as segmentCost: no uphill surcharge inside a deck cell; the deck step between the
+  // two cells is added between the two half pieces, in segmentCost's order.
+  const climb = deckStepCost(nav, costTo, from, to);
+  if (climb === IMPASSABLE) return IMPASSABLE;
   const up0 = nav.flatDeck[from] !== 1 && hm > h0 ? (hm - h0) / halfM : 0;
   const up1 = nav.flatDeck[to] !== 1 && h1 > hm ? (h1 - hm) / halfM : 0;
-  return halfM * costFrom * (1 + nav.uphillPenaltyPerGrade * up0) + halfM * costTo * (1 + nav.uphillPenaltyPerGrade * up1);
+  return halfM * costFrom * (1 + nav.uphillPenaltyPerGrade * up0) + climb + halfM * costTo * (1 + nav.uphillPenaltyPerGrade * up1);
 }
 
 function octile(dx: number, dz: number): number {

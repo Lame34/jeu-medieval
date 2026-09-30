@@ -41,6 +41,10 @@ export const TerrainLayer = {
   Rubble: 12,
   Hedge: 13,
   DryStoneWall: 14,
+  /** Wall-walks and tower tops: a deck raised above the relief (nav decks, J4). */
+  Rampart: 15,
+  /** Stairs up to the wall-walk, their deck rising step by step. */
+  Stair: 16,
 } as const;
 export type TerrainLayerId = (typeof TerrainLayer)[keyof typeof TerrainLayer];
 export type TerrainLayerKey = keyof typeof TerrainLayer;
@@ -78,6 +82,11 @@ export interface MovementRules {
   readonly targetHeightM: number;
   /** AP kept in reserve for the inner "move + action" contour. */
   readonly actionReserveAp: number;
+  /**
+   * Largest difference of deck elevation (m) between neighbouring cells a unit can step: a
+   * wall-walk is reached by its stairs, never from the foot of the wall.
+   */
+  readonly maxDeckStepM: number;
 }
 
 export interface UnitAttackRule {

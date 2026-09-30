@@ -15,13 +15,16 @@
     "Bridge":       { "metersPerAp": { "lightFoot": 8, "foot": 8, "mounted": 8,   "engine": 7 }, "cover": "none",    "directionalCover": false, "flammable": true,  "material": "wood",       "sight": { "heightM": 0,   "densityPerM": 0 }, "flatDeck": true },
     "Rubble":       { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 2,   "engine": 0 }, "cover": "partial", "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 1,   "densityPerM": 0.1 } },
     "Hedge":        { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": true,  "flammable": true,  "material": "vegetation", "sight": { "heightM": 1.8, "densityPerM": 0.35 } },
-    "DryStoneWall": { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": true,  "flammable": false, "material": "stone",      "sight": { "heightM": 1.1, "densityPerM": 1 } }
+    "DryStoneWall": { "metersPerAp": { "lightFoot": 3, "foot": 3, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": true,  "flammable": false, "material": "stone",      "sight": { "heightM": 1.1, "densityPerM": 1 } },
+    "Rampart":      { "metersPerAp": { "lightFoot": 6, "foot": 6, "mounted": 0,   "engine": 0 }, "cover": "partial", "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 1.1, "densityPerM": 1 }, "flatDeck": true },
+    "Stair":        { "metersPerAp": { "lightFoot": 4, "foot": 4, "mounted": 0,   "engine": 0 }, "cover": "none",    "directionalCover": false, "flammable": false, "material": "stone",      "sight": { "heightM": 0,   "densityPerM": 0 }, "flatDeck": true }
   },
   "movement": {
     "uphillPenaltyPerGrade": 2.5,
     "maxWalkableGrade": { "lightFoot": 1.0, "foot": 0.9, "mounted": 0.6, "engine": 0.3 },
     "eyeHeightM": 1.6,
     "targetHeightM": 1.2,
-    "actionReserveAp": 1
+    "actionReserveAp": 1,
+    "maxDeckStepM": 1.2
   }
 }

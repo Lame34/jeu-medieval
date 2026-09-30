@@ -8,7 +8,7 @@ import type { GameEvent } from '../events/types.ts';
 import { distance, dot, normalize, sub, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { Rng } from '../rng.ts';
-import type { BattleContext } from './context.ts';
+import { deckAt, type BattleContext } from './context.ts';
 import { battleStatus, blowOdds, coverAgainst, faceTowards, heightSteps, rollBlow, type BlowOdds } from './combat.ts';
 import { snapToCellCenter } from './create.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
@@ -33,7 +33,14 @@ export function shotOddsAt(ctx: BattleContext, shooter: UnitState, targetUnit: U
   const d = ctx.rules.damage;
   const steps = heightSteps(ctx, shooter.position, at);
   if (distance(shooter.position, at) > attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep)) return null;
-  const sight = lineOfSight(ctx.nav, { from: shooter.position, to: at, eyeHeightM: ctx.rules.movement.eyeHeightM, targetHeightM: ctx.rules.movement.targetHeightM });
+  const sight = lineOfSight(ctx.nav, {
+    from: shooter.position,
+    to: at,
+    eyeHeightM: ctx.rules.movement.eyeHeightM,
+    targetHeightM: ctx.rules.movement.targetHeightM,
+    fromElevationM: deckAt(ctx, shooter.position),
+    toElevationM: deckAt(ctx, at),
+  });
   if (!sight.visible) return null;
   return blowOdds(ctx, attack, unitType(ctx, targetUnit), accuracyFactor, steps, coverAgainst(ctx, shooter.position, at), sight.obscurance);
 }
