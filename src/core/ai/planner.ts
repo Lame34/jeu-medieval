@@ -22,7 +22,8 @@ import type { Command } from '../commands/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { distance, sub, type Vec2 } from '../math/vec2.ts';
 import { coverLevelAt, IMPASSABLE } from '../nav-grid/nav-grid.ts';
-import type { Faction } from '../rules/types.ts';
+import { computeCostField } from '../nav-grid/reachable.ts';
+import type { Faction, MovementProfile } from '../rules/types.ts';
 import { cellCenter } from '../terrain-data/terrain-data.ts';
 
 /** Utility weights (tuned in J7 by simulated battles). */
@@ -38,13 +39,16 @@ export const AI_WEIGHTS = {
   coverValue: 10,
   /** Cost per AP of travel (prefers short moves at equal value). */
   travelPerAp: 0.3,
-  /** Reward per metre gained towards the nearest enemy when no attack is possible. */
-  approachPerM: 0.5,
+  /** Reward per AP of travel gained towards the nearest reachable enemy when no attack is possible. */
+  approachPerAp: 3,
   /** Value of ending a move on guard (a possible reaction shot). */
   guardBonus: 1,
   /** Defenders leave their spot only for enemies closer than this (m). */
   defenderEngageRadiusM: 25,
 } as const;
+
+/** Horizon (AP) of the approach fields: enemies farther than this by the ground are ignored. */
+const APPROACH_BUDGET_AP = 120;
 
 /** Spots scored per unit: its own cell plus the cheapest reachable cells on a coarse lattice. */
 const MAX_CANDIDATES = 160;
@@ -142,13 +146,41 @@ interface Decision {
   readonly score: number;
 }
 
+/**
+ * Travel cost (AP) from every cell to the nearest enemy of `faction`, per movement profile:
+ * units close in on enemies they can actually reach, not on a garrison behind a moat.
+ */
+export class ApproachFields {
+  private readonly fields = new Map<MovementProfile, Float32Array>();
+  private readonly ctx: BattleContext;
+  private readonly state: BattleState;
+  private readonly faction: Faction;
+
+  constructor(ctx: BattleContext, state: BattleState, faction: Faction) {
+    this.ctx = ctx;
+    this.state = state;
+    this.faction = faction;
+  }
+
+  costAt(profile: MovementProfile, p: Vec2): number {
+    let field = this.fields.get(profile);
+    if (!field) {
+      const origins = this.state.units.filter((u) => u.alive && u.faction !== this.faction).map((u) => cellIndexOf(this.ctx, u.position));
+      field = computeCostField(this.ctx.paths, profile, origins, APPROACH_BUDGET_AP);
+      this.fields.set(profile, field);
+    }
+    return field[cellIndexOf(this.ctx, p)] as number;
+  }
+}
+
 /** The commands one unit issues this turn (possibly none). */
-export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitState): Command[] {
+export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitState, approach = new ApproachFields(ctx, state, unit.faction)): Command[] {
   if (!unit.alive || unit.faction !== state.activeFaction || moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return [];
   const type = unitType(ctx, unit);
   const actionAp = ctx.rules.damage.attackApCost;
   const canAct = type.attack !== null && unit.actions > 0;
   const budget = canAct ? unit.ap - actionAp : unit.ap;
+  const fromCost = approach.costAt(type.movement, unit.position);
   let best: Decision | null = null;
   const consider = (d: Decision) => {
     if (!best || d.score > best.score) best = d;
@@ -172,11 +204,12 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
     // ground until the enemy comes within engagement range.
     const nearest = nearestEnemy(there, moved, c.position);
     if (nearest) {
-      const gained = distance(unit.position, nearest.position) - distance(c.position, nearest.position);
+      const toCost = approach.costAt(type.movement, c.position);
+      const gained = fromCost === IMPASSABLE || toCost === IMPASSABLE ? 0 : fromCost - toCost;
       const engaged = unit.faction === 'attacker' || distance(unit.position, nearest.position) <= AI_WEIGHTS.defenderEngageRadiusM;
       const holding = canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
       const guard: Command[] = holding ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
-      consider({ commands: [...move, ...guard], score: base + (engaged ? gained * AI_WEIGHTS.approachPerM : 0) + (holding ? AI_WEIGHTS.guardBonus : 0) });
+      consider({ commands: [...move, ...guard], score: base + (engaged ? gained * AI_WEIGHTS.approachPerAp : 0) + (holding ? AI_WEIGHTS.guardBonus : 0) });
     }
   }
   return (best as Decision | null)?.commands ?? [];
@@ -195,9 +228,11 @@ export function playTurn(ctx: BattleContext, state: BattleState, faction: Factio
   const commands: Command[] = [];
   const events: GameEvent[] = [];
   const ids = state.units.filter((u) => u.faction === faction).map((u) => u.id);
+  // Enemies do not move during our turn: one set of approach fields serves every unit.
+  const approach = new ApproachFields(ctx, state, faction);
   for (const id of ids) {
     const unit = current.units.find((u) => u.id === id) as UnitState;
-    for (const command of decideUnit(ctx, current, unit)) {
+    for (const command of decideUnit(ctx, current, unit, approach)) {
       const result = applyCommand(ctx, current, command);
       commands.push(command);
       events.push(...result.events);

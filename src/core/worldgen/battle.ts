@@ -9,7 +9,7 @@ import type { Vec2 } from '../math/vec2.ts';
 import { createSimplex, fbm, ridged, warpedFbm, type FbmOptions } from '../noise/noise.ts';
 import { Rng, type Seed } from '../rng.ts';
 import { TerrainLayer } from '../rules/types.ts';
-import { createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
+import { cellGrade, createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
 import { planCastle, turnsFacing, type CastlePlan } from './castle.ts';
 import { buildParcels } from './fields.ts';
 import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
@@ -54,6 +54,9 @@ const MOAT_BED_BELOW_M = 1.6;
 /** Houses are not built across more than this height difference (diagonal of the plot). */
 const MAX_HOUSE_SLOPE_DROP_M = 2.2;
 const TREES = { minDistM: 4.6, underDistM: 2.4, hedgeTreeEveryM: 11 };
+/** J3 village outpost: defenders placed on open ground on a circle around the village centre. */
+const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], radiusM: 13, angleOffset: 0.4, searchCells: 12, maxGrade: 0.6 } as const;
+const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
 
 export interface BattleMapParams {
   readonly seed: Seed;
@@ -368,6 +371,16 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const p = { x: castleCenter.x + Math.cos(a) * castleRadius * 0.45, z: castleCenter.z + Math.sin(a) * castleRadius * 0.45 };
     units.push({ id: `def-${i}`, faction: 'defender', typeKey, position: { x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 }, facingTurns: turnsFacing(gateOut) });
   });
+  // J3: a village outpost fights in the open (the castle garrison waits for the siege, J4).
+  const deployCenter = { x: (deployment.minX + deployment.maxX) / 2, z: (deployment.minZ + deployment.maxZ) / 2 };
+  const taken = new Set(units.map((u) => `${u.position.x},${u.position.z}`));
+  OUTPOST.types.forEach((typeKey, i) => {
+    const a = OUTPOST.angleOffset + (i / OUTPOST.types.length) * 2 * Math.PI;
+    const spot = nearestOpenCell(t, { x: villageCenter.x + Math.cos(a) * OUTPOST.radiusM, z: villageCenter.z + Math.sin(a) * OUTPOST.radiusM }, taken);
+    if (!spot) return;
+    taken.add(`${spot.x},${spot.z}`);
+    units.push({ id: `def-out-${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: deployCenter.x - spot.x, z: deployCenter.z - spot.z }) });
+  });
 
   const bridges: BridgeSite[] = [{ id: 'bridge', from: bridgeSouth, to: bridgeNorth, widthM: BRIDGE.widthM, deckHeightM: RIVER.levelM + BRIDGE.deckAboveWaterM }];
   const water: WaterBody[] = [{ id: 'river', kind: 'river', centerline: river, widthM: RIVER.widthM, levelM: RIVER.levelM }, castle.moat];
@@ -397,6 +410,27 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     focus: { x: (villageCenter.x + castleCenter.x) / 2, z: (villageCenter.z + castleCenter.z) / 2 },
   };
   return { layout, castle, forestCoverage: forestCells / ((hi - lo) * (hi - lo)) };
+}
+
+/** Nearest cell centre to `target` on open ground (plain, road, field; gentle slope), not taken. */
+function nearestOpenCell(t: ReturnType<typeof createTerrainData>, target: Vec2, taken: ReadonlySet<string>): Vec2 | null {
+  const cx0 = Math.floor(target.x);
+  const cz0 = Math.floor(target.z);
+  for (let r = 0; r <= OUTPOST.searchCells; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const cx = cx0 + dx;
+        const cz = cz0 + dz;
+        if (cx < 0 || cz < 0 || cx >= t.width || cz >= t.depth) continue;
+        const layer = t.layers[cz * t.width + cx] as number;
+        if (!(OPEN_LAYERS as readonly number[]).includes(layer) || cellGrade(t, cx, cz) > OUTPOST.maxGrade) continue;
+        const spot = { x: cx + 0.5, z: cz + 0.5 };
+        if (!taken.has(`${spot.x},${spot.z}`)) return spot;
+      }
+    }
+  }
+  return null;
 }
 
 /** True when a point lies inside a polygon list (helper for validation and tests). */
