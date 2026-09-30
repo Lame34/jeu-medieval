@@ -55,7 +55,7 @@ function pennantGeometry(faction: Faction): BufferGeometry {
 export interface Pennants {
   readonly mesh: InstancedMesh;
   /** Places every pennant above its anchor, facing the camera, scaled for the distance. */
-  update(anchors: readonly Vector3[], cameraPosition: Vector3, cameraDistance: number, sizeScale: number): void;
+  update(anchors: readonly Vector3[], cameraPosition: Vector3, cameraDistance: number, sizeScale: number, visible?: ArrayLike<number>): void;
   dispose(): void;
 }
 
@@ -73,19 +73,21 @@ export function createPennants(faction: Faction, capacity: number, heightM: numb
   const up = new Vector3(0, 1, 0);
   return {
     mesh,
-    update(anchors, cameraPosition, cameraDistance, sizeScale) {
+    update(anchors, cameraPosition, cameraDistance, sizeScale, visible) {
       const [a, b] = PENNANT_FADE_IN_M;
       const fade = Math.min(1, Math.max(0, (cameraDistance - a) / (b - a)));
       mesh.visible = fade > 0;
       if (!mesh.visible) return;
-      mesh.count = anchors.length;
+      let count = 0;
       for (let i = 0; i < anchors.length; i++) {
+        if (visible && !visible[i]) continue;
         const anchor = anchors[i] as Vector3;
         p.set(anchor.x, anchor.y + heightM, anchor.z);
         q.setFromAxisAngle(up, Math.atan2(cameraPosition.x - p.x, cameraPosition.z - p.z));
         s.setScalar(fade * sizeScale);
-        mesh.setMatrixAt(i, m.compose(p, q, s));
+        mesh.setMatrixAt(count++, m.compose(p, q, s));
       }
+      mesh.count = count;
       mesh.instanceMatrix.needsUpdate = true;
     },
     dispose() {

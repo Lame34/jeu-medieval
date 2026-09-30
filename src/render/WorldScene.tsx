@@ -5,7 +5,7 @@
 import { useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo } from 'react';
 import { Vector2 } from 'three';
-import type { WorldLayout } from '../core/worldgen/types.ts';
+import type { UnitMarker, WorldLayout } from '../core/worldgen/types.ts';
 import { Atmosphere } from './atmosphere/Atmosphere.tsx';
 import { Buildings } from './buildings/Buildings.tsx';
 import { Castle } from './castle/Castle.tsx';
@@ -22,7 +22,7 @@ import { paintedGlobals } from './materials/painted-globals.ts';
 import { assignShadowDepthMaterials } from './materials/shadow-depth.ts';
 import { QUALITY_PRESETS } from './quality/presets.ts';
 import { buildHeightTexture, buildSplatTexture } from './terrain/terrain-textures.ts';
-import { Units } from './units/Units.tsx';
+import { Units, type UnitHandle } from './units/Units.tsx';
 import { Grass } from './vegetation/Grass.tsx';
 import { Vegetation } from './vegetation/Vegetation.tsx';
 import { Water } from './water/Water.tsx';
@@ -54,7 +54,18 @@ function SceneReady() {
   return null;
 }
 
-export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLayout; readonly postfx?: boolean }) {
+export function WorldScene({
+  layout,
+  postfx = true,
+  units,
+  onUnitHandles,
+}: {
+  readonly layout: WorldLayout;
+  readonly postfx?: boolean;
+  /** Units to show instead of the map's markers (a battle in progress). */
+  readonly units?: readonly UnitMarker[];
+  readonly onUnitHandles?: (handles: ReadonlyMap<string, UnitHandle> | null) => void;
+}) {
   const t = layout.terrain;
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const heights = useMemo(() => buildHeightTexture(t), [t]);
@@ -87,7 +98,7 @@ export function WorldScene({ layout, postfx = true }: { readonly layout: WorldLa
       <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} terrain={t} />
-        <Units units={layout.units} terrain={t} />
+        <Units units={units ?? layout.units} terrain={t} onHandles={onUnitHandles} />
         <SceneReady />
       </Suspense>
       {postfx && <PostFX />}

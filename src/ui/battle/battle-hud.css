@@ -1,0 +1,284 @@
+/* HUD de bataille (J3) : plaques de parchemin cerclées de fer, sur le thème bois, parchemin et fer. */
+.battle-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  font-family: var(--font-body);
+  color: var(--ink);
+}
+
+.battle-hud > * {
+  pointer-events: auto;
+}
+
+.hud-card {
+  background: linear-gradient(180deg, var(--parchment), var(--parchment-shade));
+  border: 2px solid var(--iron);
+  border-radius: var(--radius-plaque);
+  box-shadow: var(--shadow-deep), inset 0 0 0 1px rgb(255 255 255 / 25%);
+  padding: 10px 14px;
+}
+
+.hud-card p {
+  margin: 4px 0;
+}
+
+.hud-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 22px;
+  font-family: var(--font-title);
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  color: var(--parchment);
+  background: rgb(43 30 20 / 88%);
+  border: 1px solid var(--iron-light);
+  border-bottom: 3px solid var(--attacker);
+  border-radius: var(--radius-plaque);
+  pointer-events: none;
+}
+
+.hud-banner[data-faction='defender'] {
+  border-bottom-color: var(--defender);
+}
+
+.hud-banner em {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--parchment-shade);
+}
+
+.hud-end-turn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  padding: 8px 16px;
+  font-family: var(--font-title);
+  font-size: 15px;
+  color: var(--parchment);
+  background: var(--wood-mid);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-plaque);
+  cursor: pointer;
+}
+
+.hud-end-turn:hover:not(:disabled) {
+  background: var(--wood-light);
+}
+
+.hud-end-turn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hud-end-turn:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+}
+
+kbd {
+  font-family: var(--font-body);
+  font-size: 0.8em;
+  padding: 0 5px;
+  border: 1px solid currentcolor;
+  border-radius: 3px;
+  opacity: 0.8;
+}
+
+.hud-unit {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 250px;
+}
+
+.hud-unit h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.hud-bar {
+  position: relative;
+  height: 18px;
+  background: rgb(58 42 26 / 25%);
+  border: 1px solid var(--ink-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hud-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg, #8f2b1f, #6d1d15);
+}
+
+.hud-bar em {
+  position: relative;
+  display: block;
+  font-style: normal;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+  color: var(--parchment);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-pips {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.hud-pips span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-soft);
+}
+
+.hud-pips span.on {
+  background: var(--gold);
+  border-color: var(--wood-mid);
+}
+
+.hud-tag {
+  margin-left: 8px;
+  padding: 0 6px;
+  font-size: 13px;
+  color: var(--parchment);
+  background: var(--attacker);
+  border-radius: 3px;
+}
+
+[data-standing='shaken'] {
+  color: #8a5a10;
+  font-weight: 700;
+}
+
+[data-standing='fleeing'] {
+  color: #8f2b1f;
+  font-weight: 700;
+}
+
+.hud-preview {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100% - 600px));
+  min-width: 320px;
+}
+
+.hud-hint,
+.hud-detail {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.hud-hint-only {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  margin: 0;
+}
+
+.hud-warn {
+  color: #8f2b1f;
+}
+
+.hud-blocked {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.hud-log {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 300px;
+  margin: 0;
+  padding-left: 30px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.hud-log:empty {
+  display: none;
+}
+
+.hud-end {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 40px;
+  text-align: center;
+  color: var(--parchment);
+  background: rgb(43 30 20 / 92%);
+  border: 2px solid var(--gold);
+  border-radius: var(--radius-plaque);
+}
+
+.hud-end h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-size: 32px;
+  color: var(--gold-bright);
+}
+
+/* Textes flottants (dégâts, ratés, gardes), positionnés par le BattleDirector. */
+.battle-floats {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.battle-float {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: var(--font-title);
+  font-size: 20px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--parchment);
+  text-shadow:
+    0 1px 0 var(--ink),
+    0 0 6px rgb(0 0 0 / 60%);
+}
+
+.battle-float[data-tone='hit'] {
+  color: #f0d7c4;
+}
+
+.battle-float[data-tone='crit'] {
+  font-size: 24px;
+  color: var(--gold-bright);
+}
+
+.battle-float[data-tone='miss'] {
+  color: var(--parchment-shade);
+  font-style: italic;
+}
+
+.battle-float[data-tone='guard'] {
+  color: #c8d4f5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-float {
+    transition: none;
+  }
+}

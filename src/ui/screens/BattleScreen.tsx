@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { WorldLayout } from '../../core/worldgen/types.ts';
-import { battleLimits, battleViews } from '../../render/battle/views.ts';
+import type { BattleState } from '../../core/battle/types.ts';
+import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
+import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
+import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
 import { TacticalCamera, type CameraHandle } from '../../render/camera/TacticalCamera.tsx';
 import { isBenchMode } from '../../render/debug/PerfProbe.tsx';
 import { GameCanvas } from '../../render/GameCanvas.tsx';
 import { WorldScene } from '../../render/WorldScene.tsx';
+import type { UnitHandle } from '../../render/units/Units.tsx';
+import { useBattleUi } from '../../state/battle-ui.ts';
 import { useSettings } from '../../state/settings.ts';
+import { BattleHud } from '../battle/BattleHud.tsx';
+import { BattleSession, PLAYER_FACTION } from '../battle/session.ts';
 import { navigate, ROUTES } from '../router.ts';
 import type { WorldgenRequest, WorldgenResponse } from '../workers/worldgen.worker.ts';
 import { LoadingScreen } from './LoadingScreen.tsx';
@@ -19,6 +25,11 @@ function mapParams(): WorldgenRequest {
   const query = new URLSearchParams(window.location.search);
   const castle = Number(query.get('castle') ?? '1');
   return { seed: query.get('seed') ?? DEFAULT_SEED, castleIndex: castle === 2 || castle === 3 || castle === 4 ? castle : 1 };
+}
+
+/** Markers of a battle's units, for the unit renderer. */
+function markersOf(state: BattleState): UnitMarker[] {
+  return state.units.map((u) => ({ id: u.id, faction: u.faction, typeKey: u.typeKey, position: u.position, facingTurns: Math.atan2(u.facing.x, u.facing.z) / (2 * Math.PI) }));
 }
 
 /** Generates the 500 m battle map in a worker (the page stays responsive), then shows it. */
@@ -48,6 +59,11 @@ export default function BattleScreen() {
   const camera = useRef<CameraHandle | null>(null);
   const setHour = useSettings((s) => s.setHour);
   const bench = isBenchMode();
+  // The battle itself (not in bench mode: measurements keep the map's fixed markers).
+  const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed) : null), [layout, bench]);
+  const units = useMemo(() => (session ? markersOf(session.state) : undefined), [session]);
+  const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
+  useEffect(() => () => useBattleUi.getState().reset(), []);
 
   // Hooks for capture/bench scripts: window.__perf.control.setView(i) / setHour(h).
   useEffect(() => {
@@ -71,15 +87,29 @@ export default function BattleScreen() {
     return () => window.clearInterval(timer);
   }, [views, setHour]);
 
-  const initial = views[OPENING_VIEW] ?? views[0];
+  const playerUnits = session ? session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position) : [];
+  const initial = session && layout ? openingView(layout, playerUnits) : (views[OPENING_VIEW] ?? views[0]);
+  const focusOn = (p: { x: number; z: number }) => {
+    const view = camera.current?.getView();
+    if (view) camera.current?.setView({ ...view, focus: { x: p.x, z: p.z } });
+  };
   if (error) return <LoadingScreen label={`Échec de la génération : ${error}`} />;
   if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" />;
   return (
     <main className="scene-screen">
       <GameCanvas>
-        <WorldScene layout={layout} />
+        <WorldScene layout={layout} units={units} onUnitHandles={setHandles} />
+        {session && <BattleDirector session={session} handles={handles} terrain={layout.terrain} focusOn={focusOn} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
+      {session && (
+        <BattleHud
+          onEndTurn={() => {
+            useBattleUi.getState().select(null);
+            session.issue({ type: 'endTurn' });
+          }}
+        />
+      )}
       {!bench && (
         <button type="button" className="scene-back" onClick={() => navigate(ROUTES.title)}>
           ← Retour

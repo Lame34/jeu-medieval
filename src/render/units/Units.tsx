@@ -7,7 +7,7 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AnimationMixer, Group, SkinnedMesh, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
+import { AnimationMixer, Group, LoopOnce, LoopRepeat, SkinnedMesh, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -46,6 +46,27 @@ interface Loadout {
   readonly idle: string;
 }
 
+export type UnitClip = 'idle' | 'walk' | 'run' | 'attack' | 'hit' | 'death';
+
+/** Clip names per body (Quaternius RPG library, see scripts/process-assets.ts). */
+const CLIPS: Readonly<Record<Body, Readonly<Record<Exclude<UnitClip, 'idle'>, string>>>> = {
+  warrior: { walk: 'Walk', run: 'Run_Weapon', attack: 'Sword_Attack', hit: 'RecieveHit', death: 'Death' },
+  ranger: { walk: 'Walk', run: 'Run', attack: 'Bow_Attack_Shoot', hit: 'RecieveHit', death: 'Death' },
+  rogue: { walk: 'Walk', run: 'Run_Weapon', attack: 'Dagger_Attack', hit: 'RecieveHit', death: 'Death' },
+};
+/** Crossfade between clips (s). */
+const CLIP_FADE_S = 0.2;
+
+/** Drives one unit on screen (battle animation queue). */
+export interface UnitHandle {
+  readonly id: string;
+  readonly root: Group;
+  /** Crossfades to `clip`; a clip played once holds its last frame. Returns its duration (s). */
+  play(clip: UnitClip, once?: boolean): number;
+  /** A dead unit loses its allegiance ring and pennant. */
+  setAlive(alive: boolean): void;
+}
+
 const LOADOUTS: Readonly<Record<string, Loadout>> = {
   knight: { body: 'warrior', idle: 'Idle' },
   soldier: { body: 'rogue', idle: 'Idle' },
@@ -72,7 +93,16 @@ function atlasOf(scene: Object3D): Texture | null {
   return map;
 }
 
-export function Units({ units, terrain }: { readonly units: readonly UnitMarker[]; readonly terrain: TerrainData }) {
+export function Units({
+  units,
+  terrain,
+  onHandles,
+}: {
+  readonly units: readonly UnitMarker[];
+  readonly terrain: TerrainData;
+  /** Receives the unit handles once built (null on teardown). */
+  readonly onHandles?: (handles: ReadonlyMap<string, UnitHandle> | null) => void;
+}) {
   const anims = useGLTF(ANIMATIONS_URL, false, true);
   const bodies = useGLTF(BODIES.map(bodyUrl), false, true);
 
@@ -110,6 +140,9 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     const starts: (() => void)[] = [];
     const roots: Group[] = [];
     const rings: Object3D[] = [];
+    const handles = new Map<string, UnitHandle>();
+    const factionOf: UnitMarker['faction'][] = [];
+    const alive: boolean[] = [];
     units.forEach((unit, index) => {
       const loadout = loadoutFor(unit.typeKey);
       const source = bodies[BODIES.indexOf(loadout.body)]?.scene;
@@ -134,27 +167,70 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
       const mixer = new AnimationMixer(body);
       const idle = clips.get(loadout.idle) ?? clips.get('Idle');
       mixers.push(mixer);
+      const actions = new Map<UnitClip, AnimationAction>();
+      const actionFor = (clip: UnitClip): AnimationAction | null => {
+        const cached = actions.get(clip);
+        if (cached) return cached;
+        const source = clip === 'idle' ? idle : clips.get(CLIPS[loadout.body][clip]);
+        if (!source) return null;
+        const action = mixer.clipAction(source);
+        actions.set(clip, action);
+        return action;
+      };
+      let current: AnimationAction | null = null;
       starts.push(() => {
-        if (!idle) return;
-        const action = mixer.clipAction(idle);
-        action.reset().play();
-        action.time = (index * 0.37) % idle.duration;
+        current = actionFor('idle');
+        if (!current || !idle) return;
+        current.reset().play();
+        current.time = (index * 0.37) % idle.duration;
+      });
+      const slot = roots.length;
+      factionOf.push(unit.faction);
+      alive.push(true);
+      handles.set(unit.id, {
+        id: unit.id,
+        root,
+        play(clip, once = false) {
+          const next = actionFor(clip);
+          if (!next) return 0;
+          next.reset();
+          next.setLoop(once ? LoopOnce : LoopRepeat, once ? 1 : Infinity);
+          next.clampWhenFinished = once;
+          next.enabled = true;
+          next.play();
+          if (current && current !== next) current.crossFadeTo(next, CLIP_FADE_S, false);
+          current = next;
+          return next.getClip().duration;
+        },
+        setAlive(on) {
+          alive[slot] = on;
+          ring.visible = on;
+        },
       });
       roots.push(root);
     });
     // Allegiance pennants above the heads, one instanced batch per side.
-    const pennants = (['attacker', 'defender'] as const).map((faction) => ({
-      pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
-      anchors: roots.filter((_, i) => units[i]?.faction === faction).map((root) => root.position),
-    }));
-    return { roots, rings, mixers, starts, materials, textures, pennants, animElapsed: new Float32Array(mixers.length) };
+    const pennants = (['attacker', 'defender'] as const).map((faction) => {
+      const slots = roots.map((_, i) => i).filter((i) => factionOf[i] === faction);
+      return {
+        pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
+        anchors: slots.map((i) => (roots[i] as Group).position),
+        slots,
+        visible: new Uint8Array(slots.length).fill(1),
+      };
+    });
+    return { roots, rings, mixers, starts, materials, textures, pennants, handles, alive, animElapsed: new Float32Array(mixers.length) };
   }, [anims, bodies, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
   useEffect(() => {
     built.starts.forEach((start) => start());
-    return () => built.mixers.forEach((m) => m.stopAllAction());
-  }, [built]);
+    onHandles?.(built.handles);
+    return () => {
+      onHandles?.(null);
+      built.mixers.forEach((m) => m.stopAllAction());
+    };
+  }, [built, onHandles]);
 
   const frame = useRef(0);
   useFrame(({ camera }, delta) => {
@@ -170,7 +246,10 @@ export function Units({ units, terrain }: { readonly units: readonly UnitMarker[
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale);
-    for (const { pennants, anchors } of built.pennants) pennants.update(anchors, camera.position, distance, scale);
+    for (const p of built.pennants) {
+      for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] ? 1 : 0;
+      p.pennants.update(p.anchors, camera.position, distance, scale, p.visible);
+    }
   });
 
   useEffect(
