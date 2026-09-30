@@ -106,3 +106,140 @@ describe('validateRules: terrain.layers.*.flatDeck', () => {
     expect((err as Error).message).toContain('terrain.layers.Bridge.flatDeck');
   });
 });
+
+describe('validateRules: J3 combat fields (damage.*)', () => {
+  it('accepts the shipped attackApCost/actionsPerTurn (integers) and exposes them', () => {
+    expect(Number.isInteger(DEFAULT_RULES.damage.attackApCost)).toBe(true);
+    expect(Number.isInteger(DEFAULT_RULES.damage.actionsPerTurn)).toBe(true);
+  });
+
+  it('rejects a non-integer attackApCost, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { attackApCost: number }).attackApCost = 1.5;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.attackApCost');
+  });
+
+  it('rejects a non-integer actionsPerTurn, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { actionsPerTurn: number }).actionsPerTurn = 1.5;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.actionsPerTurn');
+  });
+
+  it.each([
+    ['riposteAccuracyFactor', -0.1],
+    ['riposteAccuracyFactor', 1.1],
+    ['obscurancePenalty', -0.1],
+    ['obscurancePenalty', 1.1],
+  ] as const)('rejects %s outside [0, 1] (got %d)', (field, value) => {
+    const raw = rawFiles();
+    (raw.damage as Record<string, number>)[field] = value;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain(`damage.${field}`);
+  });
+
+  it('accepts the boundary values 0 and 1 for riposteAccuracyFactor and obscurancePenalty', () => {
+    const raw = rawFiles();
+    (raw.damage as { riposteAccuracyFactor: number; obscurancePenalty: number }).riposteAccuracyFactor = 0;
+    (raw.damage as { riposteAccuracyFactor: number; obscurancePenalty: number }).obscurancePenalty = 1;
+    expect(() => validateRules(raw)).not.toThrow();
+  });
+
+  it('rejects a negative directionalCoverReachM, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { directionalCoverReachM: number }).directionalCoverReachM = -0.1;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.directionalCoverReachM');
+  });
+
+  it('accepts directionalCoverReachM === 0 (no directional cover at all)', () => {
+    const raw = rawFiles();
+    (raw.damage as { directionalCoverReachM: number }).directionalCoverReachM = 0;
+    expect(() => validateRules(raw)).not.toThrow();
+  });
+
+  it('rejects a non-integer minDamageOnHit, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { minDamageOnHit: number }).minDamageOnHit = 0.5;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.minDamageOnHit');
+  });
+});
+
+describe('validateRules: overwatch fields (damage.*)', () => {
+  it.each([-0.1, 180.1])('rejects overwatchHalfAngleDeg outside [0, 180] (got %d)', (value) => {
+    const raw = rawFiles();
+    (raw.damage as { overwatchHalfAngleDeg: number }).overwatchHalfAngleDeg = value;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.overwatchHalfAngleDeg');
+  });
+
+  it('accepts the boundary values 0 and 180 for overwatchHalfAngleDeg', () => {
+    const raw = rawFiles();
+    (raw.damage as { overwatchHalfAngleDeg: number }).overwatchHalfAngleDeg = 0;
+    expect(() => validateRules(raw)).not.toThrow();
+    (raw.damage as { overwatchHalfAngleDeg: number }).overwatchHalfAngleDeg = 180;
+    expect(() => validateRules(raw)).not.toThrow();
+  });
+
+  it.each([-0.1, 1.1])('rejects overwatchAccuracyFactor outside [0, 1] (got %d)', (value) => {
+    const raw = rawFiles();
+    (raw.damage as { overwatchAccuracyFactor: number }).overwatchAccuracyFactor = value;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.overwatchAccuracyFactor');
+  });
+
+  it('rejects overwatchSampleM <= 0, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { overwatchSampleM: number }).overwatchSampleM = 0;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.overwatchSampleM');
+  });
+});
+
+describe('validateRules: damage.morale', () => {
+  it('loads the shipped morale section with shakenBelow >= fleeBelow', () => {
+    expect(DEFAULT_RULES.morale.shakenBelow).toBeGreaterThanOrEqual(DEFAULT_RULES.morale.fleeBelow);
+  });
+
+  it('rejects a non-integer shakenApPenalty, with the JSON path', () => {
+    const raw = rawFiles();
+    (raw.damage as { morale: { shakenApPenalty: number } }).morale.shakenApPenalty = 0.5;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.morale.shakenApPenalty');
+  });
+
+  it('rejects shakenBelow below fleeBelow (the bands would overlap incoherently)', () => {
+    const raw = rawFiles();
+    const morale = (raw.damage as { morale: { fleeBelow: number; shakenBelow: number } }).morale;
+    morale.shakenBelow = morale.fleeBelow - 1;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.morale.shakenBelow');
+  });
+
+  it('rejects fleeBelow above morale.max, with the JSON path', () => {
+    const raw = rawFiles();
+    const morale = (raw.damage as { morale: { max: number; fleeBelow: number } }).morale;
+    morale.fleeBelow = morale.max + 1;
+    const err = captureThrow(() => validateRules(raw));
+    expect(err).toBeInstanceOf(RulesValidationError);
+    expect((err as Error).message).toContain('damage.morale.fleeBelow');
+  });
+
+  it('rejects a missing morale section entirely', () => {
+    const raw = rawFiles();
+    delete (raw.damage as { morale?: unknown }).morale;
+    expect(() => validateRules(raw)).toThrow(RulesValidationError);
+  });
+});

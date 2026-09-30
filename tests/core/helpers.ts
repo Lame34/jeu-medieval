@@ -10,18 +10,28 @@ import {
   TerrainLayer,
   buildNavGrid,
   createTerrainData,
-  edgeCost,
   setHeightAtCorner,
   setLayer,
+  validateRules,
+  vec2,
+  edgeCost,
+  type ArmorClass,
   type BlockedPredicate,
+  type DamageType,
+  type GameRules,
   type MovementProfile,
   type NavGrid,
+  type RawRuleFiles,
   type Rng,
   type Seed,
   type TerrainData,
   type TerrainLayerId,
+  type Vec2,
 } from '@core/index.ts';
 import { DEFAULT_RULES } from '@data/index.ts';
+import damageJson from '@data/damage.json' with { type: 'json' };
+import terrainJson from '@data/terrain.json' with { type: 'json' };
+import unitsJson from '@data/units.json' with { type: 'json' };
 
 /** Flat terrain (all corners at `height`), single layer everywhere. */
 export function flatTerrain(width: number, depth: number, cellSize = 1, height = 0): TerrainData {
@@ -164,4 +174,45 @@ export const SEEDS = {
   reachableFuzz: 'test-reachable-fuzz',
   edgeCostFuzz: 'test-edge-cost-fuzz',
   determinism: 'test-determinism-e2e',
+  combat: 'test-combat-e2e',
+  combatStatistical: 'test-combat-statistical',
+  morale: 'test-morale-e2e',
+  overwatch: 'test-overwatch-e2e',
 } as const satisfies Record<string, Seed>;
+
+/** Centre of cell (cx, cz) on a cellSize=1 map, matching how createBattle snaps spawns. */
+export function centerOf(cx: number, cz: number): Vec2 {
+  return vec2(cx + 0.5, cz + 0.5);
+}
+
+/** Deep-clones the shipped rule JSON so a test can safely mutate its own copy. */
+export function rawRuleFiles(): RawRuleFiles {
+  return structuredClone({ terrain: terrainJson, units: unitsJson, damage: damageJson }) as RawRuleFiles;
+}
+
+/**
+ * GameRules built from the shipped JSON with a shallow override of top-level `damage.*` fields
+ * (e.g. `{ hitChanceMin: 1, hitChanceMax: 1 }` to force every roll to hit, or `{ critChance: 0 }`
+ * to forbid criticals). Terrain and units are untouched, so combat formula tests stay anchored to
+ * the real units/terrain data and only pin down the dice.
+ */
+export function rulesWithDamageOverrides(overrides: Record<string, unknown>): GameRules {
+  const raw = rawRuleFiles();
+  Object.assign(raw.damage as Record<string, unknown>, overrides);
+  return validateRules(raw);
+}
+
+/** GameRules with one cell of the damage-type × armor-class multiplier table replaced. */
+export function rulesWithMultiplier(type: DamageType, armor: ArmorClass, value: number): GameRules {
+  const raw = rawRuleFiles();
+  (raw.damage as { multipliers: Record<string, Record<string, number>> }).multipliers[type]![armor] = value;
+  return validateRules(raw);
+}
+
+/** GameRules built from the shipped JSON with a shallow override of `damage.morale.*` fields. */
+export function rulesWithMoraleOverrides(overrides: Record<string, unknown>): GameRules {
+  const raw = rawRuleFiles();
+  const damage = raw.damage as { morale: Record<string, unknown> };
+  Object.assign(damage.morale, overrides);
+  return validateRules(raw);
+}
