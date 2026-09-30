@@ -15,5 +15,11 @@
   "accuracyPerHeightStep": 0.10,
   "rangePerHeightStep": 0.10,
   "coverPenalty": { "none": 0, "light": 0.10, "partial": 0.25, "heavy": 0.40 },
-  "meleeReachM": 1.6
+  "meleeReachM": 1.6,
+  "attackApCost": 1,
+  "actionsPerTurn": 1,
+  "riposteAccuracyFactor": 0.75,
+  "obscurancePenalty": 0.25,
+  "directionalCoverReachM": 1.6,
+  "minDamageOnHit": 1
 }

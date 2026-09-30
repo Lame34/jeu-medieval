@@ -2,7 +2,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 
-export const BATTLE_STATE_VERSION = 1;
+/** 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 2;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -16,6 +17,8 @@ export interface UnitState {
   readonly facing: Vec2;
   readonly hp: number;
   readonly ap: number;
+  /** Attacks left this turn. */
+  readonly actions: number;
   readonly morale: number;
   readonly alive: boolean;
 }

@@ -45,6 +45,12 @@ function num(value: unknown, path: string, min = -Infinity, max = Infinity): num
   return value;
 }
 
+function integer(value: unknown, path: string, min = -Infinity, max = Infinity): number {
+  const n = num(value, path, min, max);
+  if (!Number.isInteger(n)) throw new RulesValidationError(path, `expected an integer, got ${n}`);
+  return n;
+}
+
 function bool(value: unknown, path: string): boolean {
   if (typeof value !== 'boolean') throw new RulesValidationError(path, 'expected a boolean');
   return value;
@@ -167,6 +173,12 @@ function readDamage(raw: unknown): DamageRules {
     rangePerHeightStep: num(d['rangePerHeightStep'], 'damage.rangePerHeightStep', 0, 1),
     coverPenalty: Object.freeze(record(d['coverPenalty'], COVER_LEVELS, 'damage.coverPenalty', (v, p) => num(v, p, 0, 1))),
     meleeReachM: num(d['meleeReachM'], 'damage.meleeReachM', 0),
+    attackApCost: integer(d['attackApCost'], 'damage.attackApCost', 0),
+    actionsPerTurn: integer(d['actionsPerTurn'], 'damage.actionsPerTurn', 1),
+    riposteAccuracyFactor: num(d['riposteAccuracyFactor'], 'damage.riposteAccuracyFactor', ...PROBABILITY),
+    obscurancePenalty: num(d['obscurancePenalty'], 'damage.obscurancePenalty', ...PROBABILITY),
+    directionalCoverReachM: num(d['directionalCoverReachM'], 'damage.directionalCoverReachM', 0),
+    minDamageOnHit: integer(d['minDamageOnHit'], 'damage.minDamageOnHit', 0),
   });
 }
 

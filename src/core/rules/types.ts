@@ -112,6 +112,18 @@ export interface DamageRules {
   readonly rangePerHeightStep: number;
   readonly coverPenalty: Readonly<Record<CoverLevel, number>>;
   readonly meleeReachM: number;
+  /** AP spent by an attack (the "move + action" contour reserves the same amount). */
+  readonly attackApCost: number;
+  /** Attacks a unit may make per turn. */
+  readonly actionsPerTurn: number;
+  /** Accuracy factor of the defender's melee riposte. */
+  readonly riposteAccuracyFactor: number;
+  /** Hit-chance penalty per unit of foliage obscurance along the line of fire. */
+  readonly obscurancePenalty: number;
+  /** A hedge or dry-stone wall this close to the target, on the shooter's side, covers it (m). */
+  readonly directionalCoverReachM: number;
+  /** Damage of a landed blow never falls below this. */
+  readonly minDamageOnHit: number;
 }
 
 export interface GameRules {

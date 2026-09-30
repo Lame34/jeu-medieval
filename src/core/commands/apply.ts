@@ -2,13 +2,14 @@
  * Pure command reducer: (state, command) → (new state, events). Invalid commands leave the
  * state untouched and emit a `commandRejected` event, so a recorded command log always replays.
  */
+import { previewAttack, resolveAttack } from '../battle/combat.ts';
 import type { BattleContext } from '../battle/context.ts';
 import { findUnit, planMove, unitType, type MovePlan } from '../battle/movement.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { normalize, sub, type Vec2 } from '../math/vec2.ts';
 import type { Faction } from '../rules/types.ts';
-import type { Command, CommandRejection, EndTurnCommand, MoveCommand } from './types.ts';
+import type { AttackCommand, Command, CommandRejection, EndTurnCommand, MoveCommand } from './types.ts';
 
 export interface CommandResult {
   readonly state: BattleState;
@@ -55,11 +56,18 @@ function applyMove(ctx: BattleContext, state: BattleState, command: MoveCommand)
   };
 }
 
+function applyAttack(ctx: BattleContext, state: BattleState, command: AttackCommand): CommandResult {
+  const result = previewAttack(ctx, state, command.unitId, command.targetId);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveAttack(state, result.preview);
+  return { state: next, events, rejection: null };
+}
+
 function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnCommand): CommandResult {
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
   const turn = next === FACTION_ORDER[0] ? state.turn + 1 : state.turn;
-  const units = state.units.map((u) => (u.faction === next && u.alive ? { ...u, ap: unitType(ctx, u).ap } : u));
+  const units = state.units.map((u) => (u.faction === next && u.alive ? { ...u, ap: unitType(ctx, u).ap, actions: ctx.rules.damage.actionsPerTurn } : u));
   return {
     state: { ...state, activeFaction: next, turn, units },
     events: [
@@ -75,6 +83,8 @@ export function applyCommand(ctx: BattleContext, state: BattleState, command: Co
   switch (command.type) {
     case 'move':
       return applyMove(ctx, state, command);
+    case 'attack':
+      return applyAttack(ctx, state, command);
     case 'endTurn':
       return applyEndTurn(ctx, state, command);
   }
