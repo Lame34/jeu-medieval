@@ -6,8 +6,9 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide, Mesh, MeshBasicMaterial, RingGeometry, Vector3, type Camera } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, RingGeometry, Vector3, type Camera } from 'three';
 import { findUnit, movementArea } from '../../core/battle/movement.ts';
+import type { BattleState } from '../../core/battle/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi } from '../../state/battle-ui.ts';
@@ -27,6 +28,13 @@ const GAP_M = 0.4;
 const DASH_WIDTH_M = 0.16;
 const LIFT_M = 0.07;
 const LABEL_HEIGHT_M = 0.9;
+/** Guard cones: washes on the ground, ours in blue, theirs in red. */
+const CONE_OWN_COLOR = '#4f79e0';
+const CONE_ENEMY_COLOR = '#d0463f';
+const CONE_OPACITY = 0.16;
+const CONE_RINGS = 6;
+const CONE_SEGMENTS = 16;
+const CONE_LIFT_M = 0.05;
 
 function flatRing(radii: readonly [number, number], color: string): Mesh {
   const g = new RingGeometry(radii[0], radii[1], RING_SEGMENTS);
@@ -77,6 +85,47 @@ function dashGeometry(path: readonly Vec2[], terrain: TerrainData): BufferGeomet
   return g;
 }
 
+/**
+ * Guard cones of every unit on overwatch (theirs in red: walking into one draws a reaction shot),
+ * as fans draped on the terrain, one merged geometry.
+ */
+function guardCones(session: BattleSession, terrain: TerrainData): BufferGeometry {
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const half = (session.ctx.rules.damage.overwatchHalfAngleDeg * Math.PI) / 180;
+  const own = new Color(CONE_OWN_COLOR);
+  const enemy = new Color(CONE_ENEMY_COLOR);
+  for (const unit of session.state.units) {
+    if (!unit.alive || !unit.overwatch) continue;
+    const range = session.ctx.rules.units[unit.typeKey]?.attack?.rangeM ?? 0;
+    if (range <= 0) continue;
+    const color = unit.faction === PLAYER_FACTION ? own : enemy;
+    const heading = Math.atan2(unit.overwatch.x, unit.overwatch.z);
+    const at = (r: number, a: number): readonly [number, number, number] => {
+      const x = unit.position.x + Math.sin(a) * r;
+      const z = unit.position.z + Math.cos(a) * r;
+      return [x, sampleHeight(terrain, x, z) + CONE_LIFT_M, z];
+    };
+    for (let ring = 0; ring < CONE_RINGS; ring++) {
+      const r0 = (range * ring) / CONE_RINGS;
+      const r1 = (range * (ring + 1)) / CONE_RINGS;
+      for (let k = 0; k < CONE_SEGMENTS; k++) {
+        const a0 = heading - half + (2 * half * k) / CONE_SEGMENTS;
+        const a1 = heading - half + (2 * half * (k + 1)) / CONE_SEGMENTS;
+        const quad = [at(r0, a0), at(r1, a0), at(r1, a1), at(r0, a1)];
+        for (const i of [0, 1, 2, 0, 2, 3]) {
+          positions.push(...(quad[i] as readonly number[]));
+          colors.push(color.r, color.g, color.b);
+        }
+      }
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  g.setAttribute('color', new BufferAttribute(new Float32Array(colors), 3));
+  return g;
+}
+
 export function BattleOverlays({ session, handles, terrain }: { readonly session: BattleSession; readonly handles: ReadonlyMap<string, UnitHandle> | null; readonly terrain: TerrainData }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as Camera;
@@ -89,8 +138,13 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
     path.renderOrder = 2;
     path.visible = false;
     path.frustumCulled = false;
-    return { selectRing, targetRing, destRing, path, pathMaterial };
+    const coneMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: CONE_OPACITY, depthWrite: false, side: DoubleSide, fog: false });
+    const cones = new Mesh(new BufferGeometry(), coneMaterial);
+    cones.renderOrder = 1;
+    cones.frustumCulled = false;
+    return { selectRing, targetRing, destRing, path, pathMaterial, cones, coneMaterial };
   }, []);
+  const lastBattle = useRef<BattleState | null>(null);
   const follow = useRef<{ select: UnitHandle | null; target: UnitHandle | null }>({ select: null, target: null });
   const label = useRef<{ el: HTMLSpanElement | null; at: Vector3; on: boolean }>({ el: null, at: new Vector3(), on: false });
   const scratch = useRef(new Vector3());
@@ -139,6 +193,11 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
         label.current.on = false;
       }
       if (label.current.el) label.current.el.hidden = !label.current.on;
+      if (lastBattle.current !== state) {
+        lastBattle.current = state;
+        parts.cones.geometry.dispose();
+        parts.cones.geometry = guardCones(session, terrain);
+      }
     };
     refresh();
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
@@ -158,6 +217,8 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       }
       parts.path.geometry.dispose();
       parts.pathMaterial.dispose();
+      parts.cones.geometry.dispose();
+      parts.coneMaterial.dispose();
     },
     [parts],
   );
@@ -180,6 +241,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       <primitive object={parts.targetRing} />
       <primitive object={parts.destRing} />
       <primitive object={parts.path} />
+      <primitive object={parts.cones} />
     </>
   );
 }
