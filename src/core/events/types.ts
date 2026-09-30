@@ -7,7 +7,15 @@ import type { Faction } from '../rules/types.ts';
  * Facts emitted by the core. The renderer plays them through its sequenced animation queue;
  * the core never waits for the renderer.
  */
-export type GameEvent = UnitMovedEvent | UnitAttackedEvent | UnitDiedEvent | BattleEndedEvent | TurnEndedEvent | TurnStartedEvent | CommandRejectedEvent;
+export type GameEvent =
+  | UnitMovedEvent
+  | UnitAttackedEvent
+  | UnitDiedEvent
+  | MoraleChangedEvent
+  | BattleEndedEvent
+  | TurnEndedEvent
+  | TurnStartedEvent
+  | CommandRejectedEvent;
 
 export interface UnitMovedEvent {
   readonly type: 'unitMoved';
@@ -18,6 +26,8 @@ export interface UnitMovedEvent {
   readonly apCost: number;
   /** Whole AP deducted (ceil of the cost). */
   readonly apSpent: number;
+  /** A routed unit running from the enemy on its own (morale below fleeBelow). */
+  readonly fleeing?: boolean;
 }
 
 /** One blow: an attack, or the riposte it drew. */
@@ -38,6 +48,17 @@ export interface UnitDiedEvent {
   readonly type: 'unitDied';
   readonly unitId: string;
   readonly byId: string;
+}
+
+export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery';
+
+export interface MoraleChangedEvent {
+  readonly type: 'moraleChanged';
+  readonly unitId: string;
+  /** Morale after the change. */
+  readonly morale: number;
+  readonly delta: number;
+  readonly reason: MoraleReason;
 }
 
 export interface BattleEndedEvent {

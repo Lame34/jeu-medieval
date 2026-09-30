@@ -126,10 +126,31 @@ export interface DamageRules {
   readonly minDamageOnHit: number;
 }
 
+/** Morale (brief §9.7), 0 to max. */
+export interface MoraleRules {
+  readonly max: number;
+  /** Below this a unit is shaken: it loses shakenApPenalty AP at the start of its turn. */
+  readonly shakenBelow: number;
+  readonly shakenApPenalty: number;
+  /** Below this a unit flees: at the start of its turn it runs from the enemy on its own. */
+  readonly fleeBelow: number;
+  /** An ally dying within this radius (m) costs allyDeathLoss. */
+  readonly allyDeathRadiusM: number;
+  readonly allyDeathLoss: number;
+  /** Falling below this fraction of max HP costs woundedLoss (once per crossing). */
+  readonly woundedHpFraction: number;
+  readonly woundedLoss: number;
+  /** Morale gained for a kill. */
+  readonly killGain: number;
+  /** Morale regained at the start of each of the unit's turns. */
+  readonly recoveryPerTurn: number;
+}
+
 export interface GameRules {
   /** Indexed by TerrainLayerId. */
   readonly terrainLayers: readonly TerrainLayerRule[];
   readonly movement: MovementRules;
   readonly units: Readonly<Record<string, UnitTypeRule>>;
   readonly damage: DamageRules;
+  readonly morale: MoraleRules;
 }

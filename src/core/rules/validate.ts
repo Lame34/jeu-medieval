@@ -17,6 +17,7 @@ import {
   type DamageType,
   type GameRules,
   type MovementProfile,
+  type MoraleRules,
   type MovementRules,
   type TerrainLayerRule,
   type UnitAttackRule,
@@ -182,6 +183,24 @@ function readDamage(raw: unknown): DamageRules {
   });
 }
 
+function readMorale(raw: unknown): MoraleRules {
+  const m = obj(raw, 'damage.morale');
+  const max = num(m['max'], 'damage.morale.max', 1);
+  const fleeBelow = num(m['fleeBelow'], 'damage.morale.fleeBelow', 0, max);
+  return Object.freeze({
+    max,
+    shakenBelow: num(m['shakenBelow'], 'damage.morale.shakenBelow', fleeBelow, max),
+    shakenApPenalty: integer(m['shakenApPenalty'], 'damage.morale.shakenApPenalty', 0),
+    fleeBelow,
+    allyDeathRadiusM: num(m['allyDeathRadiusM'], 'damage.morale.allyDeathRadiusM', 0),
+    allyDeathLoss: num(m['allyDeathLoss'], 'damage.morale.allyDeathLoss', 0, max),
+    woundedHpFraction: num(m['woundedHpFraction'], 'damage.morale.woundedHpFraction', ...PROBABILITY),
+    woundedLoss: num(m['woundedLoss'], 'damage.morale.woundedLoss', 0, max),
+    killGain: num(m['killGain'], 'damage.morale.killGain', 0, max),
+    recoveryPerTurn: num(m['recoveryPerTurn'], 'damage.morale.recoveryPerTurn', 0, max),
+  });
+}
+
 export interface RawRuleFiles {
   readonly terrain: unknown;
   readonly units: unknown;
@@ -195,5 +214,6 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     movement: readMovement(terrain['movement']),
     units: Object.freeze(readUnits(raw.units)),
     damage: readDamage(raw.damage),
+    morale: readMorale(obj(raw.damage, 'damage')['morale']),
   });
 }

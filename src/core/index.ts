@@ -21,3 +21,4 @@ export * from './battle/create.ts';
 export * from './battle/movement.ts';
 export * from './battle/combat.ts';
 export * from './battle/replay.ts';
+export * from './battle/morale.ts';

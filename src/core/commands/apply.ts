@@ -3,8 +3,9 @@
  * state untouched and emit a `commandRejected` event, so a recorded command log always replays.
  */
 import { previewAttack, resolveAttack } from '../battle/combat.ts';
+import { moraleStanding, startTurn } from '../battle/morale.ts';
 import type { BattleContext } from '../battle/context.ts';
-import { findUnit, planMove, unitType, type MovePlan } from '../battle/movement.ts';
+import { findUnit, planMove, type MovePlan } from '../battle/movement.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { normalize, sub, type Vec2 } from '../math/vec2.ts';
@@ -40,6 +41,7 @@ function applyMove(ctx: BattleContext, state: BattleState, command: MoveCommand)
   if (!unit) return reject(state, command, 'unknownUnit');
   if (!unit.alive) return reject(state, command, 'unitDead');
   if (unit.faction !== state.activeFaction) return reject(state, command, 'notYourTurn');
+  if (moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
   const result = planMove(ctx, state, command.unitId, command.to);
   if (!result.ok) return reject(state, command, result.reason);
   const plan: MovePlan = result.plan;
@@ -57,9 +59,13 @@ function applyMove(ctx: BattleContext, state: BattleState, command: MoveCommand)
 }
 
 function applyAttack(ctx: BattleContext, state: BattleState, command: AttackCommand): CommandResult {
+  const attacker = findUnit(state, command.unitId);
+  if (attacker?.alive && attacker.faction === state.activeFaction && moraleStanding(ctx.rules.morale, attacker.morale) === 'fleeing') {
+    return reject(state, command, 'unitFleeing');
+  }
   const result = previewAttack(ctx, state, command.unitId, command.targetId);
   if (!result.ok) return reject(state, command, result.reason);
-  const { state: next, events } = resolveAttack(state, result.preview);
+  const { state: next, events } = resolveAttack(ctx, state, result.preview);
   return { state: next, events, rejection: null };
 }
 
@@ -67,15 +73,13 @@ function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnC
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
   const turn = next === FACTION_ORDER[0] ? state.turn + 1 : state.turn;
-  const units = state.units.map((u) => (u.faction === next && u.alive ? { ...u, ap: unitType(ctx, u).ap, actions: ctx.rules.damage.actionsPerTurn } : u));
-  return {
-    state: { ...state, activeFaction: next, turn, units },
-    events: [
-      { type: 'turnEnded', faction: state.activeFaction, turn: state.turn },
-      { type: 'turnStarted', faction: next, turn },
-    ],
-    rejection: null,
-  };
+  const events: GameEvent[] = [
+    { type: 'turnEnded', faction: state.activeFaction, turn: state.turn },
+    { type: 'turnStarted', faction: next, turn },
+  ];
+  // Recovery, AP and attacks restored (shaken penalty), routed units run.
+  const started = startTurn(ctx, { ...state, activeFaction: next, turn }, next, events);
+  return { state: started, events, rejection: null };
 }
 
 export function applyCommand(ctx: BattleContext, state: BattleState, command: Command): CommandResult {

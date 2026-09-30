@@ -21,5 +21,18 @@
   "riposteAccuracyFactor": 0.75,
   "obscurancePenalty": 0.25,
   "directionalCoverReachM": 1.6,
-  "minDamageOnHit": 1
+  "minDamageOnHit": 1,
+  "morale": {
+    "$comment": "Brief §9.7 : sous 30 ébranlée (−1 PA), sous 15 en fuite. Pertes et gains : valeurs de départ (J7 : équilibrage).",
+    "max": 100,
+    "shakenBelow": 30,
+    "shakenApPenalty": 1,
+    "fleeBelow": 15,
+    "allyDeathRadiusM": 12,
+    "allyDeathLoss": 15,
+    "woundedHpFraction": 0.5,
+    "woundedLoss": 10,
+    "killGain": 5,
+    "recoveryPerTurn": 5
+  }
 }

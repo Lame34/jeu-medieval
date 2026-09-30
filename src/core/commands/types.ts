@@ -37,6 +37,7 @@ export const COMMAND_REJECTIONS = [
   'noActionLeft',
   'outOfRange',
   'noLineOfSight',
+  'unitFleeing',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

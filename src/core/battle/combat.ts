@@ -21,6 +21,7 @@ import { Rng } from '../rng.ts';
 import { COVER_LEVELS, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
 import type { BattleContext } from './context.ts';
+import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { findUnit, unitType } from './movement.ts';
 import type { BattleState, BattleStatus, UnitState } from './types.ts';
 
@@ -190,16 +191,18 @@ function statusOf(units: readonly UnitState[]): BattleStatus {
 }
 
 /** Rolls a previewed attack (and its riposte) against the battle's RNG stream. */
-export function resolveAttack(state: BattleState, preview: AttackPreview): AttackResolution {
+export function resolveAttack(ctx: BattleContext, state: BattleState, preview: AttackPreview): AttackResolution {
   const rng = Rng.fromState(state.rng);
   const attacker = findUnit(state, preview.attackerId) as UnitState;
   const target = findUnit(state, preview.targetId) as UnitState;
   const events: GameEvent[] = [];
+  const blows: BlowOutcome[] = [];
 
   const blow = roll(rng, preview.blow);
   const targetHp = Math.max(0, target.hp - blow.damage);
   events.push({ type: 'unitAttacked', attackerId: attacker.id, targetId: target.id, riposte: false, hitChance: preview.blow.hitChance, hit: blow.hit, crit: blow.crit, damage: blow.damage, hpAfter: targetHp });
   if (targetHp === 0) events.push({ type: 'unitDied', unitId: target.id, byId: attacker.id });
+  blows.push({ attackerId: attacker.id, targetId: target.id, hpBefore: target.hp, hpAfter: targetHp });
 
   let attackerHp = attacker.hp;
   if (targetHp > 0 && preview.riposte) {
@@ -207,6 +210,7 @@ export function resolveAttack(state: BattleState, preview: AttackPreview): Attac
     attackerHp = Math.max(0, attacker.hp - answer.damage);
     events.push({ type: 'unitAttacked', attackerId: target.id, targetId: attacker.id, riposte: true, hitChance: preview.riposte.hitChance, hit: answer.hit, crit: answer.crit, damage: answer.damage, hpAfter: attackerHp });
     if (attackerHp === 0) events.push({ type: 'unitDied', unitId: attacker.id, byId: target.id });
+    blows.push({ attackerId: target.id, targetId: attacker.id, hpBefore: attacker.hp, hpAfter: attackerHp });
   }
 
   const updatedAttacker: UnitState = {
@@ -223,7 +227,8 @@ export function resolveAttack(state: BattleState, preview: AttackPreview): Attac
     alive: targetHp > 0,
     facing: preview.melee ? faceTowards(target.position, attacker.position, target.facing) : target.facing,
   };
-  const units = state.units.map((u) => (u.id === attacker.id ? updatedAttacker : u.id === target.id ? updatedTarget : u));
+  const struck = state.units.map((u) => (u.id === attacker.id ? updatedAttacker : u.id === target.id ? updatedTarget : u));
+  const units = moraleAfterBlows(ctx, struck, blows, events);
   const status = statusOf(units);
   if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
   return { state: { ...state, units, status, rng: rng.getState() }, events };
