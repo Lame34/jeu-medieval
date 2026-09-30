@@ -11,6 +11,7 @@ import { Rng, type Seed } from '../rng.ts';
 import { TerrainLayer } from '../rules/types.ts';
 import { cellGrade, createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
 import { planCastle, turnsFacing, type CastlePlan } from './castle.ts';
+import { stampCastleDecks } from './decks.ts';
 import { buildParcels } from './fields.ts';
 import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
 import { CellMask } from './raster.ts';
@@ -24,7 +25,6 @@ import {
   flattenPolygon,
   paintAlongPolyline,
   paintCells,
-  paintDisc,
   paintPolygon,
   smoothAlong,
 } from './stamps.ts';
@@ -54,6 +54,8 @@ const MOAT_BED_BELOW_M = 1.6;
 /** Houses are not built across more than this height difference (diagonal of the plot). */
 const MAX_HOUSE_SLOPE_DROP_M = 2.2;
 const TREES = { minDistM: 4.6, underDistM: 2.4, hedgeTreeEveryM: 11 };
+/** Castle garrison (J4): on the wall-walk (spread along the curtain), and in the courtyard. */
+const GARRISON = { wall: ['crossbowman', 'wallGuard', 'crossbowman', 'wallGuard'], courtyard: ['officer', 'militia'], searchCells: 3 } as const;
 /** J3 village outpost: defenders placed on open ground on a circle around the village centre. */
 const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], radiusM: 13, angleOffset: 0.4, searchCells: 12, maxGrade: 0.6 } as const;
 const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
@@ -319,8 +321,8 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
   // Castle: moat, courtyard, walls, towers, keep; the gate stays closed (a wall) in J2.
   paintAlongPolyline(t, castle.moat.centerline, moatWidth / 2, TerrainLayer.Moat);
   paintPolygon(t, castle.ring, TerrainLayer.Plain);
-  for (const w of castle.walls) paintAlongPolyline(t, w.points, w.thicknessM / 2, TerrainLayer.Wall);
-  for (const tower of castle.towers) paintDisc(t, tower.center, tower.radiusM, TerrainLayer.Wall);
+  // Wall-walks and tower tops (walkable decks) and their stairs; the keep and the gate stay solid.
+  const decks = stampCastleDecks(t, castle, castleCenter);
   if (castle.keep) paintPolygon(t, orientedRect(castle.keep.center, castle.keep.widthM, castle.keep.depthM, castle.keep.rotationTurns), TerrainLayer.Wall);
   const gateOut = { x: Math.sin(castle.gate.rotationTurns * 2 * Math.PI), z: Math.cos(castle.gate.rotationTurns * 2 * Math.PI) };
   const gateLine = [
@@ -365,10 +367,25 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const z = deployment.minZ + 18 + Math.floor(i / 4) * 10 + 0.5;
     units.push({ id: `att-${i}`, faction: 'attacker', typeKey, position: { x: Math.floor(x) + 0.5, z: Math.floor(z) + 0.5 }, facingTurns: 0.5 });
   });
-  const defendTypes = ['wallGuard', 'crossbowman', 'wallGuard', 'officer', 'crossbowman', 'militia'];
-  defendTypes.forEach((typeKey, i) => {
-    const a = (i / defendTypes.length) * 2 * Math.PI;
-    const p = { x: castleCenter.x + Math.cos(a) * castleRadius * 0.45, z: castleCenter.z + Math.sin(a) * castleRadius * 0.45 };
+  // Garrison: shooters and guards on the wall-walk, tower archers above the gate, an officer and
+  // the militia in the courtyard.
+  const mainWall = castle.walls[0];
+  const walkTop = mainWall ? mainWall.baseHeightM + mainWall.heightM : plateauH;
+  const onRampart = (p: Vec2): Vec2 | null => nearestLayerCell(t, p, TerrainLayer.Rampart, GARRISON.searchCells);
+  if (mainWall) {
+    const runLength = polylineLength(mainWall.points);
+    GARRISON.wall.forEach((typeKey, i) => {
+      const spot = onRampart(pointAlong(mainWall.points, ((i + 1) / (GARRISON.wall.length + 1)) * runLength));
+      if (spot) units.push({ id: `def-wall-${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: spot.x - castleCenter.x, z: spot.z - castleCenter.z }), elevationM: walkTop });
+    });
+  }
+  castle.towers.filter((tw) => tw.id.includes('gate-tower')).forEach((tower, i) => {
+    const spot = onRampart(tower.center);
+    if (spot) units.push({ id: `def-tower-${i}`, faction: 'defender', typeKey: 'towerArcher', position: spot, facingTurns: turnsFacing(gateOut), elevationM: walkTop });
+  });
+  GARRISON.courtyard.forEach((typeKey, i) => {
+    const a = (i / GARRISON.courtyard.length) * 2 * Math.PI;
+    const p = { x: castleCenter.x + Math.cos(a) * castleRadius * 0.3, z: castleCenter.z + Math.sin(a) * castleRadius * 0.3 };
     units.push({ id: `def-${i}`, faction: 'defender', typeKey, position: { x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 }, facingTurns: turnsFacing(gateOut) });
   });
   // J3: a village outpost fights in the open (the castle garrison waits for the siege, J4).
@@ -408,8 +425,27 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     units,
     deployment,
     focus: { x: (villageCenter.x + castleCenter.x) / 2, z: (villageCenter.z + castleCenter.z) / 2 },
+    deck: decks.deck,
+    stairs: decks.stairs,
   };
   return { layout, castle, forestCoverage: forestCells / ((hi - lo) * (hi - lo)) };
+}
+
+/** Nearest cell centre of `layer` to `target`, within `searchCells`. */
+function nearestLayerCell(t: ReturnType<typeof createTerrainData>, target: Vec2, layer: number, searchCells: number): Vec2 | null {
+  const cx0 = Math.floor(target.x);
+  const cz0 = Math.floor(target.z);
+  for (let r = 0; r <= searchCells; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const cx = cx0 + dx;
+        const cz = cz0 + dz;
+        if (cx >= 0 && cz >= 0 && cx < t.width && cz < t.depth && t.layers[cz * t.width + cx] === layer) return { x: cx + 0.5, z: cz + 0.5 };
+      }
+    }
+  }
+  return null;
 }
 
 /** Nearest cell centre to `target` on open ground (plain, road, field; gentle slope), not taken. */

@@ -324,7 +324,7 @@ describe('stamps: layer painting', () => {
   });
 
   it('STRUCTURAL_LAYERS lists the layers nothing else may overwrite', () => {
-    expect(STRUCTURAL_LAYERS).toEqual([TerrainLayer.River, TerrainLayer.Moat, TerrainLayer.Wall, TerrainLayer.Building]);
+    expect(STRUCTURAL_LAYERS).toEqual([TerrainLayer.River, TerrainLayer.Moat, TerrainLayer.Wall, TerrainLayer.Building, TerrainLayer.Rampart, TerrainLayer.Stair]);
   });
 });
 

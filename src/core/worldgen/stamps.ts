@@ -158,4 +158,4 @@ export function paintDisc(t: TerrainData, center: Vec2, radiusM: number, layer: 
 }
 
 /** Layers that nothing else may overwrite once placed (structures and water). */
-export const STRUCTURAL_LAYERS: readonly TerrainLayerId[] = [TerrainLayer.River, TerrainLayer.Moat, TerrainLayer.Wall, TerrainLayer.Building];
+export const STRUCTURAL_LAYERS: readonly TerrainLayerId[] = [TerrainLayer.River, TerrainLayer.Moat, TerrainLayer.Wall, TerrainLayer.Building, TerrainLayer.Rampart, TerrainLayer.Stair];

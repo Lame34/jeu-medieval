@@ -26,6 +26,19 @@ export interface WorldLayout {
   readonly deployment?: { readonly minX: number; readonly minZ: number; readonly maxX: number; readonly maxZ: number };
   /** Suggested camera focus for the opening shot. */
   readonly focus: Vec2;
+  /** Deck elevation per cell (wall-walks, tower tops, stairs), for NavGrid.deck; none when absent. */
+  readonly deck?: Float32Array;
+  readonly stairs?: readonly StairSite[];
+}
+
+/** Stairs up to a wall-walk: a straight run from `bottom` (courtyard) to `top` (wall-walk height). */
+export interface StairSite {
+  readonly id: string;
+  readonly bottom: Vec2;
+  readonly top: Vec2;
+  readonly widthM: number;
+  readonly bottomHeightM: number;
+  readonly topHeightM: number;
 }
 
 export interface GateSite {
