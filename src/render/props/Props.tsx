@@ -182,7 +182,8 @@ function paint(g: BufferGeometry, site: PropSite, rng: Rng): void {
       }
     } else if (site.kind === 'postern') {
       // Stone surround behind, plank door in front (alternate planks a shade apart).
-      const inDoor = d.z > POSTERN.frameDepth / 2 - 0.01;
+      // Only the door leaf proud of the surround (its front face), not the surround front itself.
+      const inDoor = d.z > POSTERN.frameDepth / 2 + POSTERN.depth * 0.25;
       const plank = Math.floor((d.x / POSTERN.width + 0.5) * POSTERN_PLANKS);
       c.copy(inDoor ? wood : stone).multiplyScalar(inDoor ? 0.85 + 0.1 * (plank % 2) : 0.8);
     } else {
