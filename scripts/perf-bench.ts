@@ -7,10 +7,11 @@
  * Usage: node scripts/perf-bench.ts [--preset portable] [--scene lookdev] [--cpu-throttle 4] [--fixedres]
  *                                   [--seconds 5] [--no-build] [--log]
  */
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { baseUrl, gpuString, isIntelArc, launch, openScene } from './browser.ts';
+import { withPreview } from './preview-server.ts';
 
 const args = process.argv.slice(2);
 const arg = (name: string, fallback: string): string => {
@@ -24,8 +25,6 @@ const SCENE = arg('scene', 'lookdev');
 const CPU_THROTTLE = Number(arg('cpu-throttle', '1'));
 const SECONDS = Number(arg('seconds', '5'));
 const WARMUP_MS = 2500;
-const PREVIEW_PORT = 4188;
-const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}`;
 const LOW_PERCENTILE = 0.99;
 /** A frame this long at 60 Hz has missed at least one vsync (uncapped medians are meaningless: rAF bursts). */
 const HITCH_MS = 25;
@@ -47,20 +46,6 @@ interface ViewResult {
 
 function percentile(sorted: number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
-}
-
-async function waitForServer(url: string, timeoutMs: number): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error(`server ${url} did not start`);
 }
 
 interface Pass {
@@ -103,23 +88,8 @@ async function measurePass(uncapped: boolean): Promise<Pass> {
   }
 }
 
-/** A stale preview left on the port would be measured instead of this build (strictPort fails silently). */
-async function assertPortFree(url: string): Promise<void> {
-  try {
-    await fetch(url);
-  } catch {
-    return;
-  }
-  throw new Error(`${url} already answers: stop the stale preview server before benching`);
-}
-
 async function main(): Promise<void> {
-  await assertPortFree(PREVIEW_URL);
-  if (!flag('no-build')) execSync('npx vite build --logLevel warn', { stdio: 'inherit' });
-  const preview: ChildProcess = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { shell: true, stdio: 'ignore' });
-  try {
-    await waitForServer(PREVIEW_URL, 30_000);
-    process.env['SIEGE_URL'] = PREVIEW_URL;
+  await withPreview({ build: !flag('no-build') }, async () => {
     const throughput = await measurePass(true);
     const pacing = await measurePass(false);
     console.log(`GPU: ${throughput.gpu}`);
@@ -139,17 +109,7 @@ async function main(): Promise<void> {
       };
     });
     report(throughput.gpu, results, throughput.heapBytes, throughput.textures, [...throughput.errors, ...pacing.errors]);
-  } finally {
-    // Tree first: killing the shell first orphans the vite preview it started (port left busy).
-    if (process.platform === 'win32' && preview.pid) {
-      try {
-        execSync(`taskkill /pid ${preview.pid} /T /F`, { stdio: 'ignore' });
-      } catch {
-        /* already gone */
-      }
-    }
-    preview.kill();
-  }
+  });
 }
 
 function report(gpu: string, results: ViewResult[], heapBytes: number, textures: number, errors: string[]): void {

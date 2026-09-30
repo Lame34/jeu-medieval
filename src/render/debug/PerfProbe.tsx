@@ -47,6 +47,11 @@ export function readGpuString(gl: WebGLRenderingContext | WebGL2RenderingContext
   return String(raw);
 }
 
+/** Object family: the name prefix before ':' (the grouping of the triangle breakdown). */
+function family(o: Object3D): string {
+  return (o.name || o.type).split(':')[0] as string;
+}
+
 /**
  * Triangles per object family (name prefix before ':'), main pass, before frustum culling
  * (batched meshes: what they drew last). Shadow casters are listed apart. Debug aid for budgets.
@@ -65,7 +70,7 @@ function triangleBreakdown(scene: Object3D): Record<string, { triangles: number;
         triangles = 0;
         for (let i = 0; i < internals._multiDrawCount; i++) triangles += (internals._multiDrawCounts[i] ?? 0) / 3;
       }
-      const key = (o.name || o.type).split(':')[0] as string;
+      const key = family(o);
       const entry = out[key] ?? { triangles: 0, shadow: false };
       entry.triangles += Math.round(triangles);
       entry.shadow ||= o.castShadow;
@@ -111,9 +116,29 @@ export function PerfProbe() {
       control: window.__perf?.control ?? {},
     };
     api.control['breakdown'] = () => triangleBreakdown(scene);
+    // Cost breakdown (scripts/frame-breakdown.ts): families hidden by name, and the shadow pass
+    // frozen (no re-render, no shader recompile).
+    const hidden: Object3D[] = [];
+    api.control['hide'] = (families: readonly string[]) => {
+      scene.traverse((o) => {
+        if (o.visible && o !== scene && families.includes(family(o))) {
+          o.visible = false;
+          hidden.push(o);
+        }
+      });
+    };
+    api.control['showAll'] = () => {
+      for (const o of hidden.splice(0)) o.visible = true;
+    };
+    api.control['shadowPass'] = (on: boolean) => {
+      gl.shadowMap.autoUpdate = on;
+      gl.shadowMap.needsUpdate = true;
+    };
     window.__perf = api;
     return () => {
       gl.info.autoReset = true;
+      gl.shadowMap.autoUpdate = true;
+      for (const o of hidden.splice(0)) o.visible = true;
       if (window.__perf === api) delete window.__perf;
     };
   }, [gl, scene]);
