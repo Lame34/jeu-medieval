@@ -178,6 +178,21 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Parc de siège** : deux rangs de deux le long de la route, bélier et catapulte devant, sapeur et tour derrière.
 - **À reprendre (J5/J7)** : à 2 PA par tour, la tour met environ 17 tours à aller du parc à un segment éloigné de la porte (capture `capture-works.ts --tower`). Il faudra régler la vitesse des engins ou leurs positions de départ. La plate-forme est à 10,4 m : juste pour les courtines de 10 m du premier château, trop basse pour les suivants.
 
+## ADR-028 — Feu (J4)
+**Décision** :
+- **Ce qui brûle et combien de temps.** Les couches inflammables : champs et haies (végétation, 2 rounds), ponts, fascines et maisons (bois, 3 rounds). S'y ajoutent les ouvrages de bois intacts, porte et pont-levis, quelle que soit la couche sous eux. Une cellule brûlée ne reprend plus. L'état (version 6) porte le vent (tiré de la graine), les foyers (cellule, rounds restants) et les cellules brûlées.
+- **Un round de feu** (`fireRound`) à chaque nouveau round, avant le tour des assaillants :
+  - chaque foyer brûle les unités sur sa cellule (5) et à 1,6 m ou moins (2), multiplié par la table du brief pour le feu (le bois des engins ×2,5), avec −6 de moral ;
+  - il ronge la porte (12 PV par round) ;
+  - il peut gagner chaque voisin inflammable, sur le flux de la bataille, avec une chance de 0,3 relevée sous le vent (+0,5 × force), plafonnée à 0,85 et divisée par √2 en diagonale ;
+  - puis il perd un round de combustible.
+- **« Incendier le pont »** (brief §9.8). Quand le feu s'éteint sur ses madriers, le pont-levis brûlé tombe sur la douve, comme à la mort du treuilliste.
+- **Commandes.**
+  - **B** : flèche enflammée sous le pointeur. Archers (`fireArrows`), +1 PA, à portée et en vue. La flèche vise le haut de ce qui doit brûler (épis, haie, toit) : visée au ras du sol, les épis eux-mêmes masquaient la cible. Chance de prendre : précision ± hauteur − feuillage.
+  - **E** : une unité éteint le foyer sous le pointeur et ses voisins, depuis 1,6 m (son action).
+- **Rendu peint, sans lumière dynamique.** Les flammes sont des quads face à la caméra, dessinés en procédural dans le shader (bruit montant, rampe du rouge au jaune, bord déchiré). Une lueur additive au sol, des colonnes de fumée (réserve de 256 sprites) et des brûlures au sol complètent : trois appels au plus, aucun au repos, programmes compilés au chargement. Le brief borne les lumières dynamiques à quatre et prévoit la lueur peinte en repli. On garde ce repli : chaque lumière ajouterait une variante de programme et un coût par fragment sur toute la scène.
+- **À reprendre (J5/J7)** : la pluie (J5, météo) ; l'IA qui éteint les feux et incendie les champs (J5) ; les épis encore debout sur les cellules brûlées (les brûlures passent dessous) ; des flammes plus nombreuses au plan large.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

@@ -42,6 +42,22 @@
     "towerClimbAp": 2,
     "towerCapacity": 4
   },
+  "fire": {
+    "$comment": "Brief §9.9 : le feu dure plusieurs tours, se propage selon le vent, blesse les unités proches ; on l'éteint ; flèches enflammées +1 PA (§9.4). Valeurs de départ (J7 : équilibrage).",
+    "woodTurns": 3,
+    "vegetationTurns": 2,
+    "arrowExtraAp": 1,
+    "targetHeightM": 0.5,
+    "extinguishReachM": 1.6,
+    "burnDamage": 5,
+    "nearDamage": 2,
+    "nearRadiusM": 1.6,
+    "moraleLoss": 6,
+    "structureDamage": 12,
+    "spreadChance": 0.3,
+    "windSpread": 0.5,
+    "spreadMax": 0.85
+  },
   "morale": {
     "$comment": "Brief §9.7 : sous 30 ébranlée (−1 PA), sous 15 en fuite. Pertes et gains : valeurs de départ (J7 : équilibrage).",
     "max": 100,

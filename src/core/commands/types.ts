@@ -9,6 +9,8 @@ export type Command =
   | UndermineCommand
   | DockTowerCommand
   | ClimbTowerCommand
+  | FireArrowCommand
+  | ExtinguishCommand
   | OverwatchCommand
   | EndTurnCommand;
 
@@ -60,6 +62,20 @@ export interface ClimbTowerCommand {
   readonly towerId: string;
 }
 
+/** An archer shoots a fire arrow at the point `at` (+1 AP). */
+export interface FireArrowCommand {
+  readonly type: 'fireArrow';
+  readonly unitId: string;
+  readonly at: Vec2;
+}
+
+/** A unit beside a fire puts it out (and the fires around it). */
+export interface ExtinguishCommand {
+  readonly type: 'extinguish';
+  readonly unitId: string;
+  readonly at: Vec2;
+}
+
 /** Gives up the unit's action (and remaining AP) to watch a cone until its next turn. */
 export interface OverwatchCommand {
   readonly type: 'overwatch';
@@ -109,6 +125,10 @@ export const COMMAND_REJECTIONS = [
   'cannotClimb',
   'noRoomOnWall',
   'towerDocked',
+  'noFireArrows',
+  'alreadyBurning',
+  'notFlammable',
+  'notBurning',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

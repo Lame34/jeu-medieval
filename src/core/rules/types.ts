@@ -163,6 +163,29 @@ export interface MoraleRules {
   readonly recoveryPerTurn: number;
 }
 
+/** Fire (J4, brief §9.9). */
+export interface FireRules {
+  /** Rounds a cell burns: timber (bridges, fascines, gates), vegetation (fields, hedges). */
+  readonly woodTurns: number;
+  readonly vegetationTurns: number;
+  /** Extra AP of a fire arrow; height (m) aimed at on the target cell. */
+  readonly arrowExtraAp: number;
+  readonly targetHeightM: number;
+  /** A unit puts out a fire from this close (m). */
+  readonly extinguishReachM: number;
+  /** Damage a round on a burning cell, and within nearRadiusM of one (before the fire multiplier). */
+  readonly burnDamage: number;
+  readonly nearDamage: number;
+  readonly nearRadiusM: number;
+  readonly moraleLoss: number;
+  /** Damage a round to a wooden gate under fire. */
+  readonly structureDamage: number;
+  /** Chance a round to catch a flammable neighbour, raised downwind (× wind strength), capped. */
+  readonly spreadChance: number;
+  readonly windSpread: number;
+  readonly spreadMax: number;
+}
+
 /** Castle structures (J4, brief §9.8). */
 export interface StructureRules {
   readonly wallHp: number;
@@ -195,4 +218,5 @@ export interface GameRules {
   readonly damage: DamageRules;
   readonly morale: MoraleRules;
   readonly structures: StructureRules;
+  readonly fire: FireRules;
 }

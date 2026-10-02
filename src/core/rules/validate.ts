@@ -19,6 +19,7 @@ import {
   type MovementProfile,
   type MoraleRules,
   type StructureRules,
+  type FireRules,
   type MovementRules,
   type TerrainLayerRule,
   type UnitAttackRule,
@@ -226,6 +227,26 @@ function readStructures(raw: unknown): StructureRules {
   });
 }
 
+function readFire(raw: unknown): FireRules {
+  const f = obj(raw, 'damage.fire');
+  const n = (k: string, min?: number, max?: number) => num(f[k], `damage.fire.${k}`, min, max);
+  return Object.freeze({
+    woodTurns: n('woodTurns', 1),
+    vegetationTurns: n('vegetationTurns', 1),
+    arrowExtraAp: n('arrowExtraAp', 0),
+    targetHeightM: n('targetHeightM', 0),
+    extinguishReachM: n('extinguishReachM', 0),
+    burnDamage: n('burnDamage', 0),
+    nearDamage: n('nearDamage', 0),
+    nearRadiusM: n('nearRadiusM', 0),
+    moraleLoss: n('moraleLoss', 0),
+    structureDamage: n('structureDamage', 0),
+    spreadChance: n('spreadChance', 0, 1),
+    windSpread: n('windSpread', 0, 1),
+    spreadMax: n('spreadMax', 0, 1),
+  });
+}
+
 export interface RawRuleFiles {
   readonly terrain: unknown;
   readonly units: unknown;
@@ -241,5 +262,6 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     damage: readDamage(raw.damage),
     morale: readMorale(obj(raw.damage, 'damage')['morale']),
     structures: readStructures(obj(raw.damage, 'damage')['structures']),
+    fire: readFire(obj(raw.damage, 'damage')['fire']),
   });
 }

@@ -21,6 +21,11 @@ export type GameEvent =
   | TowerDockedEvent
   | TowerUndockedEvent
   | UnitClimbedEvent
+  | FireArrowShotEvent
+  | FireStartedEvent
+  | FireOutEvent
+  | UnitBurnedEvent
+  | StructureBurnedEvent
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
@@ -129,13 +134,50 @@ export interface UnitClimbedEvent {
   readonly to: Vec2;
 }
 
+/** A fire arrow: whether it caught (rolled at `hitChance`). */
+export interface FireArrowShotEvent {
+  readonly type: 'fireArrowShot';
+  readonly unitId: string;
+  readonly at: Vec2;
+  readonly hitChance: number;
+  readonly caught: boolean;
+}
+
+/** Cells catching fire (an arrow, or the fire spreading). */
+export interface FireStartedEvent {
+  readonly type: 'fireStarted';
+  readonly cells: readonly number[];
+}
+
+/** Fires going out: put out by a unit, or burnt out (`byId` null). */
+export interface FireOutEvent {
+  readonly type: 'fireOut';
+  readonly cells: readonly number[];
+  readonly byId: string | null;
+}
+
+export interface UnitBurnedEvent {
+  readonly type: 'unitBurned';
+  readonly unitId: string;
+  readonly damage: number;
+  readonly hpAfter: number;
+}
+
+/** A wooden gate eaten by fire. */
+export interface StructureBurnedEvent {
+  readonly type: 'structureBurned';
+  readonly structureId: string;
+  readonly damage: number;
+  readonly hpAfter: number;
+}
+
 export interface OverwatchSetEvent {
   readonly type: 'overwatchSet';
   readonly unitId: string;
   readonly direction: Vec2;
 }
 
-export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery' | 'wallCollapsed';
+export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery' | 'wallCollapsed' | 'fire';
 
 export interface MoraleChangedEvent {
   readonly type: 'moraleChanged';

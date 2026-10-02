@@ -12,6 +12,7 @@ import { findUnit, planMove, type MovePlan } from '../battle/movement.ts';
 import { lowerDrawbridges, previewStructureAttack, resolveStructureAttack } from '../battle/siege.ts';
 import { previewFill, previewUndermine, resolveWork, type WorkPreviewResult } from '../battle/siege-works.ts';
 import { previewClimb, previewDock, refillDocks, releaseDocks, resolveClimb, resolveDock } from '../battle/siege-tower.ts';
+import { fireRound, previewExtinguish, previewFireArrow, resolveExtinguish, resolveFireArrow } from '../battle/fire.ts';
 import { syncNav } from '../battle/structures.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
@@ -25,7 +26,9 @@ import type {
   CommandRejection,
   DockTowerCommand,
   EndTurnCommand,
+  ExtinguishCommand,
   FillMoatCommand,
+  FireArrowCommand,
   MoveCommand,
   OverwatchCommand,
   UndermineCommand,
@@ -123,6 +126,24 @@ function applyClimb(ctx: BattleContext, state: BattleState, command: ClimbTowerC
   return { state: next, events, rejection: null };
 }
 
+function applyFireArrow(ctx: BattleContext, state: BattleState, command: FireArrowCommand): CommandResult {
+  const unit = findUnit(state, command.unitId);
+  if (unit?.alive && unit.faction === state.activeFaction && moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
+  const result = previewFireArrow(ctx, state, command.unitId, command.at);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveFireArrow(ctx, state, result.preview);
+  return { state: next, events, rejection: null };
+}
+
+function applyExtinguish(ctx: BattleContext, state: BattleState, command: ExtinguishCommand): CommandResult {
+  const unit = findUnit(state, command.unitId);
+  if (unit?.alive && unit.faction === state.activeFaction && moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
+  const result = previewExtinguish(ctx, state, command.unitId, command.at);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveExtinguish(ctx, state, command.unitId, result.cells);
+  return { state: next, events, rejection: null };
+}
+
 function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnCommand): CommandResult {
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
@@ -132,7 +153,10 @@ function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnC
     { type: 'turnStarted', faction: next, turn },
   ];
   // Recovery, AP and attacks restored (shaken penalty), routed units run.
-  const started = startTurn(ctx, refillDocks({ ...state, activeFaction: next, turn }), next, events);
+  // A new round: the fires burn and spread before the attackers move again.
+  const burnt = next === FACTION_ORDER[0] ? fireRound(ctx, { ...state, activeFaction: next, turn }, events) : { ...state, activeFaction: next, turn };
+  if (burnt.status !== 'ongoing') return { state: burnt, events, rejection: null };
+  const started = startTurn(ctx, refillDocks(burnt), next, events);
   return { state: started, events, rejection: null };
 }
 
@@ -149,6 +173,10 @@ function dispatch(ctx: BattleContext, state: BattleState, command: Command): Com
       return applyWork(ctx, state, command);
     case 'dockTower':
       return applyDock(ctx, state, command);
+    case 'fireArrow':
+      return applyFireArrow(ctx, state, command);
+    case 'extinguish':
+      return applyExtinguish(ctx, state, command);
     case 'climbTower':
       return applyClimb(ctx, state, command);
     case 'overwatch':

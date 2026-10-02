@@ -9,6 +9,9 @@ import { BATTLE_STATE_VERSION, type BattleState, type Scenario, type UnitState }
 export const DEFAULT_MORALE = 70;
 const DEFAULT_FACING: Vec2 = { x: 0, z: -1 };
 const BATTLE_RNG_LABEL = 'battle';
+const WIND_RNG_LABEL = 'wind';
+/** Strength range of the drawn wind (0–1). */
+const WIND_STRENGTH: readonly [number, number] = [0.3, 1];
 
 export class ScenarioError extends Error {
   constructor(message: string) {
@@ -68,6 +71,10 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
 
   units.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const root = Rng.create(seed);
+  // The wind blows from a direction drawn from the seed (weather changes it from J5).
+  const windRng = root.fork(WIND_RNG_LABEL);
+  const windAngle = windRng.next() * 2 * Math.PI;
+  const wind = { x: Math.sin(windAngle), z: Math.cos(windAngle), strength: WIND_STRENGTH[0] + windRng.next() * (WIND_STRENGTH[1] - WIND_STRENGTH[0]) };
   return {
     version: BATTLE_STATE_VERSION,
     seedKey: root.seedKey,
@@ -78,6 +85,9 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     structures,
     works: NO_WORKS,
     docks: [],
+    wind,
+    fires: [],
+    burnt: [],
     rng: root.fork(BATTLE_RNG_LABEL).getState(),
   };
 }

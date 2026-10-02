@@ -43,6 +43,10 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   cannotClimb: 'Ni les engins ni les cavaliers ne montent dans la tour.',
   noRoomOnWall: 'Plus de place sur ce chemin de ronde.',
   towerDocked: 'Amarrée au mur, la tour ne bouge plus.',
+  noFireArrows: 'Seuls les archers tirent des flèches enflammées.',
+  alreadyBurning: 'Cela brûle déjà.',
+  notFlammable: 'Rien ne brûle là.',
+  notBurning: 'Pas de feu à éteindre ici.',
 };
 
 /** What a structure is called in the journal and the HUD. */
@@ -93,6 +97,16 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       return 'La tour de siège a perdu son mur.';
     case 'unitClimbed':
       return `${unitLabel(state, event.unitId)} monte à l'assaut par la tour.`;
+    case 'fireArrowShot':
+      return `${unitLabel(state, event.unitId)} tire une flèche enflammée (${Math.round(event.hitChance * 100)} %) : ${event.caught ? 'ça prend !' : 'elle s’éteint.'}`;
+    case 'fireStarted':
+      return event.cells.length > 1 ? `Le feu gagne (${event.cells.length} foyers).` : null;
+    case 'fireOut':
+      return event.byId ? `${unitLabel(state, event.byId)} étouffe le feu.` : null;
+    case 'unitBurned':
+      return `${unitLabel(state, event.unitId)} brûle : ${event.damage} dégâts.`;
+    case 'structureBurned':
+      return `Le feu ronge ${structureObject(event.structureId)} (${event.hpAfter} PV).`;
     case 'unitDied':
       return `${unitLabel(state, event.unitId)} tombe.`;
     case 'overwatchSet':

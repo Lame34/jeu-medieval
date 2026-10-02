@@ -2,8 +2,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 
-/** 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 5;
+/** 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 6;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -48,6 +48,19 @@ export interface DockState {
   readonly climbs: number;
 }
 
+/** A burning cell and the rounds of fuel it has left. */
+export interface FireState {
+  readonly cell: number;
+  readonly turnsLeft: number;
+}
+
+/** The battle's wind: a unit direction on the ground and its strength (0–1). */
+export interface WindState {
+  readonly x: number;
+  readonly z: number;
+  readonly strength: number;
+}
+
 /** Fully serialisable battle state. A battle is `seed + scenario + commands`. */
 export interface BattleState {
   readonly version: typeof BATTLE_STATE_VERSION;
@@ -63,6 +76,11 @@ export interface BattleState {
   readonly works: readonly WorkState[];
   /** Sorted by tower id. */
   readonly docks: readonly DockState[];
+  readonly wind: WindState;
+  /** Sorted by cell. */
+  readonly fires: readonly FireState[];
+  /** Cells that burnt out (they never catch again), sorted. */
+  readonly burnt: readonly number[];
   readonly rng: RngState;
 }
 
