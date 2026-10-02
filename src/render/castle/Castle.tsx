@@ -18,6 +18,8 @@ import { assignShadowDepthMaterials } from '../materials/shadow-depth.ts';
 import { buildCrenelShadowProxy, buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
 import { buildGate, buildGatePieces, buildKeep, buildStairs, buildStoneBridge, gateYaw } from './castle-parts.ts';
 import { crackGeometry, DustPool, hash01, planCollapse, Rubble, segmentFrame } from './siege-fx.ts';
+import { bundleCapacity, createBundleMesh, mineGeometry, placeBundles } from './siege-works-fx.ts';
+import type { Vec2 } from '../../core/math/vec2.ts';
 import { createStoneMaterial } from './stone-material.ts';
 
 const TOWER_ROOF_HEIGHT_M = 16;
@@ -46,8 +48,26 @@ export interface CastleSiegeState {
   readonly broken: boolean;
 }
 
+/** A sappers' work as the castle shows it (built by the director from the core's sites). */
+export type CastleWork =
+  | {
+      readonly kind: 'fill';
+      readonly id: string;
+      /** Work done over work needed. */
+      readonly fraction: number;
+      /** Centres of the slot's cells. */
+      readonly cells: readonly Vec2[];
+      /** The moat's direction at the slot (the bundles lie along it). */
+      readonly tangent: Vec2;
+      readonly surfaceM: number;
+      readonly bedM: number;
+    }
+  | { readonly kind: 'mine'; readonly id: string; readonly fraction: number; readonly at: Vec2; readonly out: Vec2; readonly groundM: number };
+
 /** What the battle director drives (BattleDirector, structure events). */
 export interface CastleHandle {
+  /** A sappers' work progresses (fascines pile up, the spoil heap grows). */
+  setWork(work: CastleWork): void;
   /** A blow lands: cracks follow the remaining HP, dust flies where it struck. */
   hit(structureId: string, hpFraction: number): void;
   /** Plays a structure coming down; returns the duration (s). */
@@ -258,6 +278,16 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     rubbleGroup.add(warmUp.mesh);
     rubble.push(warmUp);
     for (const id of breached) addRubble(id, true);
+    // Sappers' works: fascine piles (instanced timber, warmed up empty) and the mines' sheds.
+    const worksGroup = new Group();
+    worksGroup.name = 'Castle:works';
+    const bundleWarmUp = createBundleMesh(wood, 1, 'Castle:fascines:warm-up');
+    bundleWarmUp.geometry.setDrawRange(0, 0);
+    assignShadowDepthMaterials(bundleWarmUp);
+    worksGroup.add(bundleWarmUp);
+    root.add(worksGroup);
+    const fills = new Map<string, ReturnType<typeof createBundleMesh>>();
+    const mines = new Map<string, Mesh>();
     for (const s of siege ?? []) if (!s.broken && s.hpFraction < 1) damage.set(s.id, 1 - s.hpFraction);
     rebuildCracks();
 
@@ -276,6 +306,35 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     };
 
     const handle: CastleHandle = {
+      setWork(work) {
+        if (work.kind === 'fill') {
+          let mesh = fills.get(work.id);
+          if (!mesh) {
+            mesh = createBundleMesh(wood, bundleCapacity(work.cells.length), `Castle:fascines:${work.id}`);
+            assignShadowDepthMaterials(mesh);
+            worksGroup.add(mesh);
+            fills.set(work.id, mesh);
+          }
+          placeBundles(mesh, work.cells, work.tangent, work.surfaceM, work.bedM, work.fraction, seedOf(work.id));
+          const c = work.cells[Math.floor(work.cells.length / 2)];
+          if (c) dust.emit(c.x, work.surfaceM - 0.5, c.z, HIT_PUFFS - 3, 1.5, HIT_PUFF_M * 0.7);
+          return;
+        }
+        const previous = mines.get(work.id);
+        if (previous) previous.geometry.dispose();
+        const geometry = mineGeometry(work.at, work.groundM, work.out, work.fraction);
+        const mesh = previous ?? new Mesh(geometry, wood);
+        mesh.geometry = geometry;
+        if (!previous) {
+          mesh.name = `Castle:mine:${work.id}`;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          assignShadowDepthMaterials(mesh);
+          worksGroup.add(mesh);
+          mines.set(work.id, mesh);
+        }
+        dust.emit(work.at.x, work.groundM + 0.5, work.at.z, HIT_PUFFS - 3, 1.2, HIT_PUFF_M * 0.6);
+      },
       hit(id, hpFraction) {
         const seg = segmentOf(id);
         if (seg) {
@@ -302,6 +361,13 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
         if (seg) {
           breached.add(id);
           damage.delete(id);
+          // The sappers' shed goes down with the wall it undermined.
+          const mine = mines.get(`mine:${id}`);
+          if (mine) {
+            worksGroup.remove(mine);
+            mine.geometry.dispose();
+            mines.delete(`mine:${id}`);
+          }
           rebuildCracks();
           const nextMasonry = masonryGeometry();
           if (stoneMesh && nextMasonry) {

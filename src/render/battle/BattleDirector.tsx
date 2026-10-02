@@ -21,8 +21,12 @@ import { previewAttack } from '../../core/battle/combat.ts';
 import type { BattleContext } from '../../core/battle/context.ts';
 import { distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
 import { isBroken, structureDef, type StructureDef } from '../../core/battle/structures.ts';
+import { fillCells, fillSiteAt, fillSurfaceM } from '../../core/battle/moat.ts';
+import { FILL_MOAT_TAG, MINE_SITE_PREFIX, UNDERMINE_TAG } from '../../core/battle/siege-works.ts';
+import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
+import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
-import type { CastleHandle } from '../castle/Castle.tsx';
+import type { CastleHandle, CastleWork } from '../castle/Castle.tsx';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
@@ -102,6 +106,42 @@ function structureAt(ctx: BattleContext, state: BattleState, p: Vec2): Structure
     best = gate && !isBroken(state.structures, gate.id) ? gate : (portcullis ?? best);
   }
   return best;
+}
+
+function hasTag(typeKey: string, tag: string): boolean {
+  return DEFAULT_RULES.units[typeKey]?.tags.includes(tag) ?? false;
+}
+
+/** How the castle should show a sappers' work at `fraction` of its turns. */
+function castleWork(session: BattleSession, workId: string, kind: 'fill' | 'mine', fraction: number, sapper: Vec2): CastleWork | null {
+  const ctx = session.ctx;
+  if (kind === 'fill') {
+    const cells = fillCells(ctx, workId).map((i) => ({ x: (i % ctx.nav.width) + 0.5, z: Math.floor(i / ctx.nav.width) + 0.5 }));
+    const moat = ctx.moats.find((m) => workId.includes(`:${m.id}:`));
+    if (!moat || cells.length === 0) return null;
+    const mid = cells.reduce((a, c) => ({ x: a.x + c.x / cells.length, z: a.z + c.z / cells.length }), { x: 0, z: 0 });
+    // The moat's direction at the slot: its centreline segment nearest to the slot's middle.
+    let best = Number.POSITIVE_INFINITY;
+    let tangent = { x: 1, z: 0 };
+    for (let i = 0; i < moat.centerline.length - 1; i++) {
+      const sa = moat.centerline[i] as Vec2;
+      const sb = moat.centerline[i + 1] as Vec2;
+      const d = projectOnPolyline(mid, [sa, sb]).distance;
+      const len = Math.hypot(sb.x - sa.x, sb.z - sa.z);
+      if (d < best && len > 0) {
+        best = d;
+        tangent = { x: (sb.x - sa.x) / len, z: (sb.z - sa.z) / len };
+      }
+    }
+    const bed = cells.reduce((m, c) => Math.min(m, sampleHeight(ctx.terrain, c.x, c.z)), Number.POSITIVE_INFINITY);
+    return { kind: 'fill', id: workId, fraction, cells, tangent, surfaceM: fillSurfaceM(ctx, workId), bedM: bed };
+  }
+  const def = structureDef(ctx, workId.slice(MINE_SITE_PREFIX.length));
+  if (!def) return null;
+  const dx = sapper.x - def.center.x;
+  const dz = sapper.z - def.center.z;
+  const len = Math.hypot(dx, dz) || 1;
+  return { kind: 'mine', id: workId, fraction, at: sapper, out: { x: dx / len, z: dz / len }, groundM: session.standHeight(sapper.x, sapper.z) };
 }
 
 function isSiegeEngine(typeKey: string): boolean {
@@ -331,6 +371,26 @@ export function BattleDirector({
           },
         };
       }
+      case 'siegeWorkProgressed': {
+        const h = handleOf(event.unitId);
+        const unit = findUnit(session.state, event.unitId);
+        const duration = h ? Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], h.play('attack', true))) : ATTACK_DURATION_S[0];
+        let done = false;
+        return {
+          duration,
+          update(t) {
+            if (done || t < duration * IMPACT_AT || !unit) return;
+            done = true;
+            const work = castleWork(session, event.workId, event.kind, event.progress / event.required, unit.position);
+            if (work) castle?.setWork(work);
+            const p = h?.root.position;
+            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Sape'} ${event.progress}/${event.required}`, 'guard', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+          },
+          finish() {
+            h?.play('idle');
+          },
+        };
+      }
       case 'unitDied': {
         const h = handleOf(event.unitId);
         if (!h) return null;
@@ -496,6 +556,14 @@ export function BattleDirector({
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         ui.select(null);
         session.issue({ type: 'endTurn' });
+      } else if (e.code === 'KeyF' && ui.selectedId) {
+        // Sappers: fill the moat slot, or undermine the curtain, under the pointer.
+        const selected = findUnit(state, ui.selectedId);
+        const { ground } = aim();
+        if (!selected || !ground) return;
+        const def = structureAt(session.ctx, state, ground);
+        if (hasTag(selected.typeKey, UNDERMINE_TAG) && def?.kind === 'wall') session.issue({ type: 'undermine', unitId: selected.id, structureId: def.id });
+        else if (hasTag(selected.typeKey, FILL_MOAT_TAG) && fillSiteAt(session.ctx, ground)) session.issue({ type: 'fillMoat', unitId: selected.id, at: ground });
       } else if (e.code === 'KeyG' && ui.selectedId) {
         const selected = findUnit(state, ui.selectedId);
         const { ground } = aim();
