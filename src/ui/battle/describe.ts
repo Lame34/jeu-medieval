@@ -37,7 +37,7 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
 /** What a structure is called in the journal and the HUD. */
 export const STRUCTURE_LABEL = { wall: 'Courtine', gate: 'Porte', portcullis: 'Herse', drawbridge: 'Pont-levis' } as const;
 
-const STRUCTURE_OBJECT = { wall: 'la courtine', gate: 'la porte', portcullis: 'la herse', drawbridge: 'le pont-levis' } as const;
+export const STRUCTURE_OBJECT = { wall: 'la courtine', gate: 'la porte', portcullis: 'la herse', drawbridge: 'le pont-levis' } as const;
 
 /** "la porte" for "gate:castle-gate" (structure ids start with their kind). */
 function structureObject(id: string): string {

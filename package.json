@@ -21,6 +21,7 @@
     "bench:core": "node scripts/core-bench.ts",
     "capture:lookdev": "node scripts/capture-lookdev.ts",
     "assets:characters": "blender -b --factory-startup --python scripts/blender/convert_rpg_characters.py -- \"assets-src/raw/lowpoly-rpg-characters/RPG Characters - Nov 2020\" assets-src/work/rpg",
+    "assets:engines": "blender -b --factory-startup --python scripts/blender/build_siege_engines.py -- assets-src/work/engines",
     "assets:process": "node scripts/process-assets.ts"
   },
   "dependencies": {

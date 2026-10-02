@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { structureDef } from '../../core/battle/structures.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
+import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
 import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
 import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
-import { TacticalCamera, type CameraHandle } from '../../render/camera/TacticalCamera.tsx';
+import { TacticalCamera, type CameraHandle, type CameraView } from '../../render/camera/TacticalCamera.tsx';
 import { isBenchMode } from '../../render/debug/PerfProbe.tsx';
 import { GameCanvas } from '../../render/GameCanvas.tsx';
 import { WorldScene } from '../../render/WorldScene.tsx';
@@ -39,6 +41,14 @@ function markersOf(session: BattleSession): UnitMarker[] {
   }));
 }
 
+/** The castle structures' condition, for the castle renderer (raised drawbridges, breaches, cracks). */
+function siegeOf(session: BattleSession): CastleSiegeState[] {
+  return session.state.structures.map((s) => {
+    const def = structureDef(session.ctx, s.id);
+    return { id: s.id, hpFraction: def && def.maxHp > 0 ? s.hp / def.maxHp : 1, broken: s.broken };
+  });
+}
+
 /** Generates the 500 m battle map in a worker (the page stays responsive), then shows it. */
 function useBattleMap(): { layout: WorldLayout | null; error: string | null } {
   const [state, setState] = useState<{ layout: WorldLayout | null; error: string | null }>({ layout: null, error: null });
@@ -69,7 +79,9 @@ export default function BattleScreen() {
   // The battle itself (not in bench mode: measurements keep the map's fixed markers).
   const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed) : null), [layout, bench]);
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
+  const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
+  const [castle, setCastle] = useState<CastleHandle | null>(null);
   useEffect(() => () => useBattleUi.getState().reset(), []);
 
   // Hooks for capture/bench scripts: window.__perf.control.setView(i) / setHour(h).
@@ -94,6 +106,22 @@ export default function BattleScreen() {
     return () => window.clearInterval(timer);
   }, [views, setHour]);
 
+  // Test hook (?e2e): frame the camera from Playwright (captures of the siege, J4).
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('e2e') || views.length === 0) return undefined;
+    window.__battleCamera = {
+      viewIds: () => views.map((v) => v.id),
+      setView: (id) => {
+        const v = views.find((x) => x.id === id);
+        if (v) camera.current?.setView(v, true);
+      },
+      look: (view) => camera.current?.setView(view, true),
+    };
+    return () => {
+      delete window.__battleCamera;
+    };
+  }, [views]);
+
   const playerUnits = session ? session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position) : [];
   const initial = session && layout ? openingView(layout, playerUnits) : (views[OPENING_VIEW] ?? views[0]);
   const focusOn = (p: { x: number; z: number }) => {
@@ -105,8 +133,8 @@ export default function BattleScreen() {
   return (
     <main className="scene-screen">
       <GameCanvas>
-        <WorldScene layout={layout} units={units} onUnitHandles={setHandles} />
-        {session && <BattleDirector session={session} handles={handles} terrain={layout.terrain} focusOn={focusOn} />}
+        <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
+        {session && <BattleDirector session={session} handles={handles} castle={castle} terrain={layout.terrain} focusOn={focusOn} />}
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
@@ -125,4 +153,17 @@ export default function BattleScreen() {
       )}
     </main>
   );
+}
+
+/** Camera hook installed with `?e2e`. */
+export interface BattleCameraHook {
+  viewIds(): string[];
+  setView(id: string): void;
+  look(view: CameraView): void;
+}
+
+declare global {
+  interface Window {
+    __battleCamera?: BattleCameraHook;
+  }
 }

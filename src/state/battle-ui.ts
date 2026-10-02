@@ -8,11 +8,14 @@ import type { MovePlan } from '../core/battle/movement.ts';
 import type { BattleState } from '../core/battle/types.ts';
 import type { CommandRejection } from '../core/commands/types.ts';
 import type { Threat } from '../core/battle/overwatch.ts';
+import type { StructureAttackPreview } from '../core/battle/siege.ts';
+import type { StructureKind } from '../core/battle/structures.ts';
 
 export type HoverPreview =
   | { readonly kind: 'none' }
   | { readonly kind: 'move'; readonly plan: MovePlan; readonly apLeft: number; readonly threats: readonly Threat[] }
   | { readonly kind: 'attack'; readonly preview: AttackPreview }
+  | { readonly kind: 'structure'; readonly preview: StructureAttackPreview; readonly structure: StructureKind; readonly hp: number; readonly maxHp: number }
   | { readonly kind: 'blocked'; readonly reason: CommandRejection };
 
 export interface BattleUiState {

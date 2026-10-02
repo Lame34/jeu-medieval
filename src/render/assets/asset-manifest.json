@@ -111,6 +111,20 @@
       "clips": []
     },
     {
+      "id": "engine.ram",
+      "kind": "engine",
+      "url": "/assets/engines/ram.glb",
+      "bytes": 64264,
+      "clips": []
+    },
+    {
+      "id": "engine.catapult",
+      "kind": "engine",
+      "url": "/assets/engines/catapult.glb",
+      "bytes": 37272,
+      "clips": []
+    },
+    {
       "id": "kit.village",
       "kind": "kit",
       "url": "/assets/kits/village-kit.glb",

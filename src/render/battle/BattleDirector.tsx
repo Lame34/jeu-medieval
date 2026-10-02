@@ -6,6 +6,11 @@
  * it), clicking selects, moves or attacks; G sets a guard towards the pointer, Enter ends the
  * turn, Escape deselects. When the player's turn ends, the AI plays its turn.
  *
+ * Siege (J4): a selected engine aims at the castle structure under the pointer (the ground hit
+ * marches over the wall-walks, so a wall face resolves to its segment); blows crack and dust the
+ * castle through its handle, and a structure coming down plays its fall (collapse, smashed gate,
+ * dropped drawbridge) while the units on a collapsing wall-walk fall with it.
+ *
  * Nothing here allocates per frame or calls setState per frame: the store changes on events and
  * on hover changes only.
  */
@@ -13,6 +18,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { Raycaster, Vector2, Vector3, type Camera } from 'three';
 import { previewAttack } from '../../core/battle/combat.ts';
+import type { BattleContext } from '../../core/battle/context.ts';
+import { distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
+import { isBroken, structureDef, type StructureDef } from '../../core/battle/structures.ts';
+import { DEFAULT_RULES } from '../../data/index.ts';
+import type { CastleHandle } from '../castle/Castle.tsx';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
@@ -23,6 +33,7 @@ import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
+import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
 
 /** Walking and running speeds (m/s); paths longer than RUN_FROM_M are run. */
@@ -44,6 +55,10 @@ const RAY_MAX_M = 900;
 /** A unit is under the pointer when the ray passes this close to its axis (m). */
 const PICK_RADIUS_M = 0.8;
 const UNIT_PICK_HEIGHT_M = 2.2;
+/** A structure is under the pointer when the ground hit lies this close to its cells (m). */
+const STRUCTURE_PICK_M = 1.6;
+/** Units thrown down by a collapsing wall-walk land over this fraction of the collapse. */
+const FALL_FRACTION = 0.45;
 /** Floating texts (damage, misses, guards). */
 const FLOAT_POOL = 16;
 const FLOAT_LIFE_S = 1.4;
@@ -62,6 +77,36 @@ interface FloatText {
   readonly el: HTMLSpanElement;
   readonly at: Vector3;
   age: number;
+}
+
+/**
+ * The structure an engine would strike at `p`: the nearest within reach, the drawbridge last (it
+ * spans the ground in front of the gate), the portcullis once the gate in front of it is down.
+ */
+function structureAt(ctx: BattleContext, state: BattleState, p: Vec2): StructureDef | null {
+  let best: StructureDef | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const def of ctx.structures) {
+    if (isBroken(state.structures, def.id)) continue;
+    const d = distanceToStructure(ctx, def, p);
+    if (d > STRUCTURE_PICK_M) continue;
+    const score = d + (def.kind === 'drawbridge' ? STRUCTURE_PICK_M * 2 : 0);
+    if (score < bestScore) {
+      best = def;
+      bestScore = score;
+    }
+  }
+  if (best?.kind === 'gate' || best?.kind === 'portcullis') {
+    const gate = ctx.structures.find((d) => d.kind === 'gate' && d.gateId === best?.gateId);
+    const portcullis = ctx.structures.find((d) => d.kind === 'portcullis' && d.gateId === best?.gateId);
+    best = gate && !isBroken(state.structures, gate.id) ? gate : (portcullis ?? best);
+  }
+  return best;
+}
+
+function isSiegeEngine(typeKey: string): boolean {
+  const type = DEFAULT_RULES.units[typeKey];
+  return Boolean(type?.attack && type.tags.includes(SIEGE_ENGINE_TAG));
 }
 
 function yawOf(dx: number, dz: number): number {
@@ -107,11 +152,14 @@ function groundHit(ray: Raycaster['ray'], terrain: TerrainData, heightAt: (x: nu
 export function BattleDirector({
   session,
   handles,
+  castle = null,
   terrain,
   focusOn,
 }: {
   readonly session: BattleSession;
   readonly handles: ReadonlyMap<string, UnitHandle> | null;
+  /** The castle's siege handle (structures), once the castle is built. */
+  readonly castle?: CastleHandle | null;
   readonly terrain: TerrainData;
   /** Recentres the camera (Tab, double-click on a unit of ours). */
   readonly focusOn?: (p: Vec2) => void;
@@ -181,8 +229,10 @@ export function BattleDirector({
         const lengths = [0];
         for (let i = 1; i < path.length; i++) lengths.push((lengths[i - 1] as number) + Math.hypot((path[i] as Vec2).x - (path[i - 1] as Vec2).x, (path[i] as Vec2).z - (path[i - 1] as Vec2).z));
         const total = lengths[lengths.length - 1] as number;
-        const run = total > RUN_FROM_M;
-        const speed = run ? RUN_SPEED : WALK_SPEED;
+        // Engines roll at their own pace; soldiers run longer moves.
+        const engine = engineKindOf(findUnit(session.state, event.unitId)?.typeKey ?? '') !== null;
+        const run = !engine && total > RUN_FROM_M;
+        const speed = engine ? ENGINE_SPEED_MS : run ? RUN_SPEED : WALK_SPEED;
         h.play(run ? 'run' : 'walk');
         let segment = 0;
         return {
@@ -233,6 +283,54 @@ export function BattleDirector({
           },
         };
       }
+      case 'structureDamaged': {
+        const attacker = handleOf(event.attackerId);
+        const def = structureDef(session.ctx, event.structureId);
+        if (!def) return null;
+        const clip = attacker ? attacker.play('attack', true) : ATTACK_DURATION_S[0];
+        const duration = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip));
+        const facing = attacker ? yawOf(def.center.x - attacker.root.position.x, def.center.z - attacker.root.position.z) : 0;
+        let landed = false;
+        return {
+          duration,
+          update(t, dt) {
+            if (attacker) attacker.root.rotation.y = approachAngle(attacker.root.rotation.y, facing, TURN_RATE * dt);
+            if (!landed && t >= duration * IMPACT_AT) {
+              landed = true;
+              if (event.hit) castle?.hit(event.structureId, def.maxHp > 0 ? event.hpAfter / def.maxHp : 1);
+              const p = scratch.current.p;
+              if (castle?.anchorOf(event.structureId, p)) showFloat(event.hit ? `${event.crit ? 'Critique ! ' : ''}−${event.damage}` : 'Raté', event.hit ? (event.crit ? 'crit' : 'hit') : 'miss', p.x, p.y, p.z);
+            }
+          },
+          finish() {
+            attacker?.play('idle');
+          },
+        };
+      }
+      case 'structureBroken': {
+        const duration = castle?.bringDown(event.structureId) ?? 0;
+        // Units on a collapsing wall-walk come down with it (their deaths follow as events).
+        const falling = event.fallen
+          .map((f) => ({ f, h: handleOf(f.unitId) }))
+          .filter((x): x is { f: (typeof event.fallen)[number]; h: UnitHandle } => x.h !== null)
+          .map(({ f, h }) => ({ f, h, from: h.root.position.y, to: session.standHeight(h.root.position.x, h.root.position.z) }));
+        for (const { f, h } of falling) if (f.hpAfter > 0) h.play('hit', true);
+        return {
+          duration: Math.max(duration, TURN_BANNER_S),
+          update(t) {
+            const k = Math.min(1, t / Math.max(0.01, duration * FALL_FRACTION));
+            for (const x of falling) x.h.root.position.y = x.from + (x.to - x.from) * k * k;
+          },
+          finish() {
+            for (const x of falling) {
+              x.h.root.position.y = x.to;
+              if (x.f.hpAfter > 0) x.h.play('idle');
+              const p = x.h.root.position;
+              showFloat(`−${x.f.damage}`, 'hit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+            }
+          },
+        };
+      }
       case 'unitDied': {
         const h = handleOf(event.unitId);
         if (!h) return null;
@@ -257,6 +355,19 @@ export function BattleDirector({
   // --- Pointer: hover preview and clicks --------------------------------------------------
   useEffect(() => {
     const el = gl.domElement;
+    /** The structure an engine aims at under the pointer, with its preview. */
+    const structureHover = (selectedId: string, typeKey: string, ground: Vec2 | null): { key: string; hover: HoverPreview } | null => {
+      if (!ground || !isSiegeEngine(typeKey)) return null;
+      const state = session.state;
+      const def = structureAt(session.ctx, state, ground);
+      if (!def) return null;
+      const st = state.structures.find((s) => s.id === def.id);
+      const result = previewStructureAttack(session.ctx, state, selectedId, def.id);
+      return {
+        key: `structure:${def.id}`,
+        hover: result.ok ? { kind: 'structure', preview: result.preview, structure: def.kind, hp: st?.hp ?? 0, maxHp: def.maxHp } : { kind: 'blocked', reason: result.reason },
+      };
+    };
     const aim = (): { ground: Vec2 | null; unitId: string | null } => {
       const s = scratch.current;
       const r = el.getBoundingClientRect();
@@ -300,6 +411,11 @@ export function BattleDirector({
         if (key === hoverKey.current) return;
         const result = previewAttack(session.ctx, state, selected.id, target.id);
         hover = result.ok ? { kind: 'attack', preview: result.preview } : { kind: 'blocked', reason: result.reason };
+      } else if (!target && structureHover(selected.id, selected.typeKey, ground)) {
+        const aimed = structureHover(selected.id, selected.typeKey, ground) as { key: string; hover: HoverPreview };
+        key = aimed.key;
+        if (key === hoverKey.current) return;
+        hover = aimed.hover;
       } else if (ground && !target) {
         const cellKey = `move:${Math.floor(ground.x)},${Math.floor(ground.z)}`;
         key = cellKey;
@@ -352,7 +468,9 @@ export function BattleDirector({
       if (!selected?.alive) return;
       hoverKey.current = '';
       if (clicked) session.issue({ type: 'attack', unitId: selected.id, targetId: clicked.id });
-      else if (ground) session.issue({ type: 'move', unitId: selected.id, to: ground });
+      else if (ground && isSiegeEngine(selected.typeKey) && structureAt(session.ctx, state, ground)) {
+        session.issue({ type: 'attackStructure', unitId: selected.id, structureId: (structureAt(session.ctx, state, ground) as StructureDef).id });
+      } else if (ground) session.issue({ type: 'move', unitId: selected.id, to: ground });
     };
     const onKey = (e: KeyboardEvent) => {
       const ui = useBattleUi.getState();

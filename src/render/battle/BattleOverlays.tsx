@@ -10,6 +10,7 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, MeshBasicMate
 import { findUnit, movementArea } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
+import { deckAt } from '../../core/battle/context.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
@@ -32,7 +33,7 @@ const LABEL_HEIGHT_M = 0.9;
 const CONE_OWN_COLOR = '#4f79e0';
 const CONE_ENEMY_COLOR = '#d0463f';
 const CONE_OPACITY = 0.16;
-const CONE_RINGS = 6;
+const CONE_RINGS = 14;
 const CONE_SEGMENTS = 16;
 const CONE_LIFT_M = 0.05;
 
@@ -87,7 +88,8 @@ function dashGeometry(path: readonly Vec2[], heightAt: (x: number, z: number) =>
 
 /**
  * Guard cones of every unit on overwatch (theirs in red: walking into one draws a reaction shot),
- * as fans draped on the terrain, one merged geometry.
+ * as fans draped on the terrain, one merged geometry. Pieces straddling a deck edge (a wall-walk
+ * above the ground it watches) are left out: no sheet hangs down the wall.
  */
 function guardCones(session: BattleSession): BufferGeometry {
   const positions: number[] = [];
@@ -101,10 +103,10 @@ function guardCones(session: BattleSession): BufferGeometry {
     if (range <= 0) continue;
     const color = unit.faction === PLAYER_FACTION ? own : enemy;
     const heading = Math.atan2(unit.overwatch.x, unit.overwatch.z);
-    const at = (r: number, a: number): readonly [number, number, number] => {
+    const at = (r: number, a: number): readonly [number, number, number, number] => {
       const x = unit.position.x + Math.sin(a) * r;
       const z = unit.position.z + Math.cos(a) * r;
-      return [x, session.standHeight(x, z) + CONE_LIFT_M, z];
+      return [x, session.standHeight(x, z) + CONE_LIFT_M, z, deckAt(session.ctx, { x, z })];
     };
     for (let ring = 0; ring < CONE_RINGS; ring++) {
       const r0 = (range * ring) / CONE_RINGS;
@@ -113,8 +115,11 @@ function guardCones(session: BattleSession): BufferGeometry {
         const a0 = heading - half + (2 * half * k) / CONE_SEGMENTS;
         const a1 = heading - half + (2 * half * (k + 1)) / CONE_SEGMENTS;
         const quad = [at(r0, a0), at(r1, a0), at(r1, a1), at(r0, a1)];
+        const decks = quad.map((q) => q[3]);
+        if (Math.max(...decks) - Math.min(...decks) > session.ctx.nav.maxDeckStepM) continue;
         for (const i of [0, 1, 2, 0, 2, 3]) {
-          positions.push(...(quad[i] as readonly number[]));
+          const q = quad[i] as readonly number[];
+          positions.push(q[0] as number, q[1] as number, q[2] as number);
           colors.push(color.r, color.g, color.b);
         }
       }

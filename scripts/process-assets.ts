@@ -47,7 +47,7 @@ const CHARACTER_CLIPS = [
 
 interface AssetJob {
   readonly id: string;
-  readonly kind: 'character' | 'weapon' | 'animations';
+  readonly kind: 'character' | 'weapon' | 'animations' | 'engine';
   readonly source: string;
   readonly out: string;
   readonly textureSize: number;
@@ -84,6 +84,16 @@ const JOBS: readonly AssetJob[] = [
     source: `${KAYKIT}/Assets/gltf/${name}.gltf`,
     out: `weapons/${name}.glb`,
     textureSize: 256,
+  })),
+  // Siege engines built by scripts/blender/build_siege_engines.py (npm run assets:engines):
+  // vertex-coloured, no texture.
+  ...['ram', 'catapult'].map((name) => ({
+    id: `engine.${name}`,
+    kind: 'engine' as const,
+    source: `assets-src/work/engines/${name}.glb`,
+    out: `engines/${name}.glb`,
+    textureSize: 0,
+    keepClips: [],
   })),
 ];
 

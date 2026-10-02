@@ -8,7 +8,7 @@ import { Vector2 } from 'three';
 import type { UnitMarker, WorldLayout } from '../core/worldgen/types.ts';
 import { Atmosphere } from './atmosphere/Atmosphere.tsx';
 import { Buildings } from './buildings/Buildings.tsx';
-import { Castle } from './castle/Castle.tsx';
+import { Castle, type CastleHandle, type CastleSiegeState } from './castle/Castle.tsx';
 import { Hedges } from './fields/Hedges.tsx';
 import { Fields } from './fields/WheatField.tsx';
 import { PostFX } from './postfx/PostFX.tsx';
@@ -59,12 +59,17 @@ export function WorldScene({
   postfx = true,
   units,
   onUnitHandles,
+  siege,
+  onCastleHandle,
 }: {
   readonly layout: WorldLayout;
   readonly postfx?: boolean;
   /** Units to show instead of the map's markers (a battle in progress). */
   readonly units?: readonly UnitMarker[];
   readonly onUnitHandles?: (handles: ReadonlyMap<string, UnitHandle> | null) => void;
+  /** Battle: the castle structures' condition when the scene mounts, and the handle that plays the siege. */
+  readonly siege?: readonly CastleSiegeState[];
+  readonly onCastleHandle?: (handle: CastleHandle | null) => void;
 }) {
   const t = layout.terrain;
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
@@ -95,7 +100,7 @@ export function WorldScene({
       <Fields fields={layout.fields} terrain={t} />
       <Hedges hedges={layout.hedges} terrain={t} />
       {layout.props && layout.props.length > 0 && <Props props={layout.props} terrain={t} />}
-      <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} stairs={layout.stairs} />
+      <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} stairs={layout.stairs} {...(siege ? { siege } : {})} {...(onCastleHandle ? { onHandle: onCastleHandle } : {})} />
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} terrain={t} />
         <Units units={units ?? layout.units} terrain={t} onHandles={onUnitHandles} />

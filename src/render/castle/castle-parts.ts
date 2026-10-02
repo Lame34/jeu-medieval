@@ -5,9 +5,11 @@
  * bridge over the river. Stone parts share the procedural masonry; timber parts are painted
  * with vertex colours. Same attribute layout as castle-geometry.ts (merge-compatible).
  */
-import { Color, ConeGeometry, Vector3, type BufferGeometry } from 'three';
+import { Color, ConeGeometry, Matrix4, Vector3, type BufferGeometry } from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import { GATEHOUSE, liftHingeM, liftTipM } from '../../core/worldgen/gatehouse.ts';
 import type { BridgeSite, GateSite, KeepSite, StairSite } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { boxGeometry, buildWallGeometry, BURY_M, finish, ROOF_COLOR, ROOF_SHINGLE_ROWS, type AlongFn } from './castle-geometry.ts';
@@ -23,11 +25,17 @@ const KEEP_WALL_THICKNESS_M = 2.4;
 const KEEP_ROOF_RATIO = 0.55;
 const GATE_OPENING_HEIGHT_M = 5;
 const GATE_LINTEL_OVERHANG_M = 1.4;
-const GATE_WALL_THICKNESS_M = 3;
 const DOOR_PLANKS = 7;
 const DOOR_THICKNESS_M = 0.22;
+/** Doors stand this far inside the gatehouse face; the portcullis this far inside the centre. */
+const DOOR_INSET_M = 0.35;
+const PORTCULLIS_INSET_M = 0.6;
+const PORTCULLIS_BAR_STEP_M = 0.42;
+const PORTCULLIS_RAIL_STEP_M = 0.7;
+const PORTCULLIS_BAR_M = 0.09;
+const IRON_COLOR = '#3e3f44';
+const TRESTLE_EVERY_M = 3.5;
 /** The timber bridge spans the moat: from the berm to beyond the outer bank (m from the gate). */
-const MOAT_BRIDGE_FROM_M = 5;
 const MOAT_BRIDGE_TO_M = 17.5;
 const PLANK_M = 0.45;
 const PLANK_GAP_M = 0.06;
@@ -95,8 +103,13 @@ export function buildKeep(keep: KeepSite): CastleParts {
   return { stone, roof: [shingledRoof(cone, keep.baseHeightM, top, roofH)], wood: [] };
 }
 
+/**
+ * The gatehouse's fixed parts: the crenellated lintel over the opening and, in front of a
+ * drawbridge, the fixed timber bridge from the lifting span's tip to the outer bank. The doors,
+ * the portcullis and the lifting span move (buildGatePieces).
+ */
 export function buildGate(gate: GateSite, terrain: TerrainData): CastleParts {
-  const { fwd, right } = frame(gate.rotationTurns);
+  const { fwd } = frame(gate.rotationTurns);
   const base = gate.baseHeightM;
   const span = gate.openingM + 2 * GATE_LINTEL_OVERHANG_M;
   // Lintel: a short crenellated wall above the opening, merlons facing out.
@@ -106,66 +119,122 @@ export function buildGate(gate: GateSite, terrain: TerrainData): CastleParts {
       id: `${gate.id}-lintel`,
       points: [at(gate.center, travel, -span / 2, fwd, 0), at(gate.center, travel, span / 2, fwd, 0)],
       heightM: gate.heightM - GATE_OPENING_HEIGHT_M - BURY_M,
-      thicknessM: GATE_WALL_THICKNESS_M,
+      thicknessM: GATEHOUSE.depthM,
       baseHeightM: base + GATE_OPENING_HEIGHT_M + BURY_M,
     },
     base,
     false,
   );
-
-  const wood: BufferGeometry[] = [];
-  const woodLit = new Color(PALETTE.woodWarm.lit);
-  const woodBase = new Color(PALETTE.woodWarm.base);
-  const iron = new Color('#3e3f44');
-  const doorYaw = yawOf(right);
-  const doorCenter = at(gate.center, fwd, 0.2, right, 0);
-  const plankW = gate.openingM / DOOR_PLANKS;
-  for (let k = 0; k < DOOR_PLANKS; k++) {
-    const c = at(doorCenter, right, -gate.openingM / 2 + plankW * (k + 0.5), fwd, 0);
-    const tone = woodBase.clone().lerp(woodLit, 0.25 + 0.3 * ((k * 5) % 3) / 2);
-    wood.push(finish(boxGeometry({ center: new Vector3(c.x, base + GATE_OPENING_HEIGHT_M / 2 - 0.3, c.z), size: new Vector3(plankW * 0.96, GATE_OPENING_HEIGHT_M + 0.6, DOOR_THICKNESS_M), yaw: doorYaw }), base, tone));
-  }
-  for (const h of [1.1, GATE_OPENING_HEIGHT_M - 1.2]) {
-    const c = at(doorCenter, fwd, DOOR_THICKNESS_M / 2 + 0.03, right, 0);
-    wood.push(finish(boxGeometry({ center: new Vector3(c.x, base + h, c.z), size: new Vector3(gate.openingM, 0.16, 0.06), yaw: doorYaw }), base, iron));
-  }
-
-  if (gate.drawbridge) wood.push(...timberBridge(gate, fwd, right, terrain));
+  const wood = gate.drawbridge ? fixedBridge(gate, terrain) : [];
   return { stone: [lintel], roof: [], wood };
 }
 
-/** Plank deck on two stringers from the berm to beyond the outer bank of the moat. */
-function timberBridge(gate: GateSite, fwd: Vec2, right: Vec2, terrain: TerrainData): BufferGeometry[] {
+/** Moving parts of a gatehouse, in its local frame: origin at the gate centre on the sill, +x across, +z outwards. */
+export interface GatePieces {
+  /** Door leaves standing in the opening; pivot (their foot) at `doorPivotZ`. */
+  readonly doors: BufferGeometry;
+  readonly doorPivotZ: number;
+  /** Iron grid behind the doors; pivot at `portcullisPivotZ`. */
+  readonly portcullis: BufferGeometry;
+  readonly portcullisPivotZ: number;
+  /** Lifting span, laid along +z from its hinge (at `liftHingeZ` on the sill), deck top at y = 0. */
+  readonly lift: BufferGeometry | null;
+  readonly liftHingeZ: number;
+}
+
+/** Local frame of a gate: `group.position.set(x, sill, z)` and `group.rotation.y` = this yaw. */
+export function gateYaw(gate: GateSite): number {
+  return gate.rotationTurns * 2 * Math.PI;
+}
+
+export function buildGatePieces(gate: GateSite): GatePieces {
+  const woodLit = new Color(PALETTE.woodWarm.lit);
+  const woodBase = new Color(PALETTE.woodWarm.base);
+  const iron = new Color(IRON_COLOR);
+  // Doors: planks with two iron straps, standing just inside the gatehouse face.
+  const doorZ = GATEHOUSE.depthM / 2 - DOOR_INSET_M;
+  const plankW = gate.openingM / DOOR_PLANKS;
+  const doorParts: BufferGeometry[] = [];
+  for (let k = 0; k < DOOR_PLANKS; k++) {
+    const tone = woodBase.clone().lerp(woodLit, 0.25 + 0.3 * ((k * 5) % 3) / 2);
+    const x = -gate.openingM / 2 + plankW * (k + 0.5);
+    doorParts.push(finish(boxGeometry({ center: new Vector3(x, GATE_OPENING_HEIGHT_M / 2 - 0.3, -DOOR_THICKNESS_M / 2), size: new Vector3(plankW * 0.96, GATE_OPENING_HEIGHT_M + 0.6, DOOR_THICKNESS_M), yaw: 0 }), 0, tone));
+  }
+  for (const h of [1.1, GATE_OPENING_HEIGHT_M - 1.2]) {
+    doorParts.push(finish(boxGeometry({ center: new Vector3(0, h, 0.03), size: new Vector3(gate.openingM, 0.16, 0.06), yaw: 0 }), 0, iron));
+  }
+  // Portcullis: an iron grid with spiked feet, further in.
+  const grille: BufferGeometry[] = [];
+  const width = gate.openingM - 0.1;
+  const bars = Math.floor(width / PORTCULLIS_BAR_STEP_M);
+  for (let k = 0; k <= bars; k++) {
+    const x = -width / 2 + (k * width) / bars;
+    grille.push(finish(boxGeometry({ center: new Vector3(x, GATE_OPENING_HEIGHT_M / 2 + 0.2, 0), size: new Vector3(PORTCULLIS_BAR_M, GATE_OPENING_HEIGHT_M + 0.4, PORTCULLIS_BAR_M), yaw: 0 }), 0, iron));
+  }
+  for (let y = PORTCULLIS_RAIL_STEP_M; y < GATE_OPENING_HEIGHT_M; y += PORTCULLIS_RAIL_STEP_M) {
+    grille.push(finish(boxGeometry({ center: new Vector3(0, y, 0), size: new Vector3(width, PORTCULLIS_BAR_M * 0.8, PORTCULLIS_BAR_M * 1.3), yaw: 0 }), 0, iron));
+  }
+  const lift = gate.drawbridge ? liftSpan(gate) : null;
+  const doors = mergeOrThrow(doorParts, 'doors');
+  const portcullis = mergeOrThrow(grille, 'portcullis');
+  return { doors, doorPivotZ: doorZ, portcullis, portcullisPivotZ: -PORTCULLIS_INSET_M, lift, liftHingeZ: liftHingeM() };
+}
+
+function mergeOrThrow(parts: BufferGeometry[], name: string): BufferGeometry {
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  if (!merged) throw new Error(`gate ${name}: merge failed`);
+  return merged;
+}
+
+/** Timber deck (planks across, two stringers under), from z = 0 to `length`, top at y = 0. */
+function timberDeck(width: number, length: number, paintBase: number): BufferGeometry[] {
   const out: BufferGeometry[] = [];
-  const width = gate.openingM + 0.6;
-  const start = at(gate.center, fwd, MOAT_BRIDGE_FROM_M, right, 0);
-  const end = at(gate.center, fwd, MOAT_BRIDGE_TO_M, right, 0);
-  const y0 = Math.max(sampleHeight(terrain, start.x, start.z), gate.baseHeightM - 0.6) + 0.2;
-  const y1 = sampleHeight(terrain, end.x, end.z) + 0.2;
-  const length = MOAT_BRIDGE_TO_M - MOAT_BRIDGE_FROM_M;
-  const pitch = Math.atan2(y1 - y0, length);
-  const plankYaw = yawOf(right);
   const lit = new Color(PALETTE.woodLight.lit);
   const dark = new Color(PALETTE.woodLight.base);
-  const count = Math.floor(length / (PLANK_M + PLANK_GAP_M));
+  const count = Math.max(1, Math.floor(length / (PLANK_M + PLANK_GAP_M)));
   for (let k = 0; k < count; k++) {
-    const t = (k + 0.5) / count;
-    const c = at(start, fwd, t * length, right, 0);
     const tone = dark.clone().lerp(lit, 0.35 + 0.45 * (((k * 37) % 11) / 10));
-    out.push(finish(boxGeometry({ center: new Vector3(c.x, y0 + (y1 - y0) * t, c.z), size: new Vector3(width, DECK_THICKNESS_M, PLANK_M), yaw: plankYaw }), gate.baseHeightM, tone));
+    out.push(finish(boxGeometry({ center: new Vector3(0, -DECK_THICKNESS_M / 2, ((k + 0.5) / count) * length), size: new Vector3(width, DECK_THICKNESS_M, (length / count) * 0.88), yaw: 0 }), paintBase, tone));
   }
-  // Stringers and hand posts (the slope is small: the boxes are laid in steps of the deck).
-  const stringerTone = dark.clone().multiplyScalar(0.8);
-  const steps = 4;
+  const stringer = dark.clone().multiplyScalar(0.8);
   for (const side of [-1, 1]) {
-    for (let k = 0; k < steps; k++) {
-      const t = (k + 0.5) / steps;
-      const c = at(start, fwd, t * length, right, side * (width / 2 - 0.15));
-      out.push(finish(boxGeometry({ center: new Vector3(c.x, y0 + (y1 - y0) * t - 0.25, c.z), size: new Vector3(0.3, 0.4, length / steps + 0.1 / Math.cos(pitch)), yaw: plankYaw }), gate.baseHeightM, stringerTone));
-    }
-    for (const t of [0, 1]) {
-      const c = at(start, fwd, t * length, right, side * (width / 2 + 0.1));
-      out.push(finish(boxGeometry({ center: new Vector3(c.x, (t === 0 ? y0 : y1) + 0.6, c.z), size: new Vector3(0.3, 1.6, 0.3), yaw: plankYaw }), gate.baseHeightM, stringerTone));
+    out.push(finish(boxGeometry({ center: new Vector3(side * (width / 2 - 0.15), -DECK_THICKNESS_M - 0.2, length / 2), size: new Vector3(0.3, 0.4, length), yaw: 0 }), paintBase, stringer));
+  }
+  return out;
+}
+
+/** The lifting span, in its hinge frame (see GatePieces.lift). */
+function liftSpan(gate: GateSite): BufferGeometry {
+  const parts = timberDeck(gate.openingM + 0.6, GATEHOUSE.liftSpanM, 0);
+  // Iron-shod edge at the tip, rings for the chains.
+  const iron = new Color(IRON_COLOR);
+  parts.push(finish(boxGeometry({ center: new Vector3(0, -DECK_THICKNESS_M / 2, GATEHOUSE.liftSpanM - 0.08), size: new Vector3(gate.openingM + 0.7, DECK_THICKNESS_M + 0.06, 0.16), yaw: 0 }), 0, iron));
+  return mergeOrThrow(parts, 'lift');
+}
+
+/** Fixed bridge from the lifting span's tip to the outer bank (world space), on trestles in the moat. */
+function fixedBridge(gate: GateSite, terrain: TerrainData): BufferGeometry[] {
+  const { fwd, right } = frame(gate.rotationTurns);
+  const from = liftTipM();
+  const to = gate.crossingEndM ?? MOAT_BRIDGE_TO_M;
+  if (to <= from) return [];
+  const width = gate.openingM + 0.6;
+  const yaw = gateYaw(gate);
+  const place = (g: BufferGeometry, along: number) => {
+    g.applyMatrix4(new Matrix4().makeRotationY(yaw).setPosition(gate.center.x + fwd.x * along, gate.baseHeightM, gate.center.z + fwd.z * along));
+    return g;
+  };
+  const out = timberDeck(width, to - from, 0).map((g) => place(g, from));
+  // Trestle posts down to the moat bed at the span's tip and every few metres.
+  const post = new Color(PALETTE.woodWarm.base);
+  for (let along = from + 0.2; along < to - 0.5; along += TRESTLE_EVERY_M) {
+    for (const side of [-1, 1]) {
+      const c = at(gate.center, fwd, along, right, side * (width / 2 - 0.2));
+      const ground = sampleHeight(terrain, c.x, c.z);
+      const h = gate.baseHeightM - ground + 0.6;
+      if (h < 0.6) continue;
+      out.push(finish(boxGeometry({ center: new Vector3(c.x, ground - 0.6 + h / 2 - DECK_THICKNESS_M, c.z), size: new Vector3(0.32, h, 0.32), yaw }), gate.baseHeightM, post));
     }
   }
   return out;

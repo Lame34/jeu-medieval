@@ -8,7 +8,7 @@ import { moraleStanding } from '../../core/battle/morale.ts';
 import type { UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
-import { FACTION_LABEL, REJECTION_LABEL } from './describe.ts';
+import { FACTION_LABEL, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import './battle-hud.css';
 
@@ -72,6 +72,23 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
         </>
       );
     }
+    case 'structure': {
+      const p = hover.preview;
+      const blows = p.blow.damage.min > 0 ? Math.ceil(hover.hp / p.blow.damage.min) : 0;
+      return (
+        <>
+          <p>
+            <strong>{p.melee ? 'Coup de bélier' : 'Tir de siège'}</strong> sur {STRUCTURE_OBJECT[hover.structure]} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
+          </p>
+          <p>
+            Dégâts {p.blow.damage.min}–{p.blow.damage.max} (critique {pct(p.blow.critChance)}) · {p.apCost} PA
+          </p>
+          <p className="hud-detail">
+            {hover.hp} / {hover.maxHp} PV · encore {blows} coup{blows > 1 ? 's' : ''} au moins · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
+          </p>
+        </>
+      );
+    }
     case 'attack': {
       const p = hover.preview;
       const target = battleUnits.find((u) => u.id === p.targetId);
@@ -126,7 +143,7 @@ export function BattleHud({ onEndTurn }: { readonly onEndTurn: () => void }) {
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           <p className="hud-hint">
-            Clic : déplacer ou attaquer · <kbd>G</kbd> garde vers le pointeur · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
           </p>
         </section>
       )}

@@ -15,6 +15,9 @@ const TALUS_HEIGHT_M = 0.9;
 const TALUS_SPREAD_M = 0.35;
 /** The slope continues under the wall base so uneven ground never shows its underside. */
 const TALUS_FOOT_DEPTH_M = 1.2;
+/** Ragged ends left either side of a breach: steps (m into the gap) and their heights (× wall). */
+const BREACH_STEP_M = 0.7;
+const BREACH_STEPS = [0.72, 0.46, 0.22] as const;
 /** Pier capping a free wall end (m). */
 const END_PIER_LENGTH_M = 1.4;
 const END_PIER_EXTRA_M = 1.2;
@@ -91,9 +94,10 @@ function segmentYaw(a: Vec2, b: Vec2): number {
  * `paintBaseM`: height the masonry treatment counts from (moss, streaks); defaults to the wall
  * base. A gate lintel starts above the opening but belongs to the wall below it.
  * `footing`: battered talus along the outer foot and end piers on an open run (curtain walls;
- * not lintels or keep walls).
+ * not lintels or keep walls). `breached`: segments (index k, from points[k]) brought down by the
+ * siege, drawn as ragged stumps at both ends of the gap.
  */
-export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, footing = true): BufferGeometry {
+export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, footing = true, breached: ReadonlySet<number> = NO_BREACH): BufferGeometry {
   const stone = new Color('#ffffff');
   const parts: BufferGeometry[] = [];
   const alongs: AlongFn[] = [];
@@ -112,6 +116,22 @@ export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, 
     // Along the wall plus across it: courses continue round the end faces (no vertical smear).
     const along: AlongFn = (x, z) => segmentStart + (x - a.x) * dir.x + (z - a.z) * dir.z + (x - a.x) * outwardDir.x + (z - a.z) * outwardDir.z;
     const before = parts.length;
+    if (breached.has(i)) {
+      // Breached: only ragged stumps stepping down into the gap from each end.
+      for (const [end, sign] of [
+        [a, 1],
+        [b, -1],
+      ] as const) {
+        BREACH_STEPS.forEach((ratio, k) => {
+          const h = wall.heightM * ratio + BURY_M;
+          const c = new Vector3(end.x, base - BURY_M + h / 2, end.z).addScaledVector(dir, sign * (wall.thicknessM / 2 + BREACH_STEP_M * (k + 0.5)));
+          parts.push(boxGeometry({ center: c, size: new Vector3(BREACH_STEP_M, h, wall.thicknessM * (1 - 0.08 * k)), yaw }));
+        });
+      }
+      for (let k = before; k < parts.length; k++) alongs.push(along);
+      travelled += len;
+      continue;
+    }
     // Body, extended by half the thickness so consecutive segments overlap at the joints.
     parts.push(boxGeometry({ center: mid.clone().setY(base - BURY_M + bodyH / 2), size: new Vector3(len + wall.thicknessM, bodyH, wall.thicknessM), yaw }));
     // Outer merlons and inner parapet along the wall-walk.
@@ -156,15 +176,18 @@ export function buildWallGeometry(wall: WallRun, paintBaseM = wall.baseHeightM, 
   return merged;
 }
 
+const NO_BREACH: ReadonlySet<number> = new Set();
+
 /**
  * Solid bands standing in for the merlons in the shadow pass (drawn invisible in the view): the merlons themselves cast a
  * comb of 0.6 m slits that the shadow map renders as crawling 1–3 px streaks; a painter would
  * lay the parapet's shadow as one band.
  */
-export function buildCrenelShadowProxy(walls: readonly WallRun[], towers: readonly TowerSite[]): BufferGeometry | null {
+export function buildCrenelShadowProxy(walls: readonly WallRun[], towers: readonly TowerSite[], breached: (wallId: string, k: number) => boolean = () => false): BufferGeometry | null {
   const parts: BufferGeometry[] = [];
   for (const wall of walls) {
     for (let i = 0; i < wall.points.length - 1; i++) {
+      if (breached(wall.id, i)) continue;
       const a = wall.points[i] as Vec2;
       const b = wall.points[i + 1] as Vec2;
       const len = Math.hypot(b.x - a.x, b.z - a.z);

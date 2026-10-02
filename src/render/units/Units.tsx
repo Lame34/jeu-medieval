@@ -3,11 +3,13 @@
  * library, body and weapon in one skinned mesh with one atlas), so one draw call per unit.
  * Allegiance colours are painted into a recoloured copy of each body's atlas, one per faction;
  * every unit uses a painted material with rim light and stands on a faction ground ring.
+ * Siege engines (J4) are rigid vertex-coloured models animated in code (engines.ts), behind the
+ * same handle.
  */
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
+import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, Vector3, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -17,9 +19,15 @@ import { paintedGlobals } from '../materials/painted-globals.ts';
 import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
 import { createPennants } from './Pennants.ts';
 import { PALETTE } from '../materials/palette.ts';
+import { createEngineRig, ENGINE_HEIGHT_M, ENGINE_MODELS, engineKindOf, type EngineKind, type EngineRig } from './engines.ts';
 import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
 
 const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
+const ENGINE_KINDS = Object.keys(ENGINE_MODELS) as EngineKind[];
+/** Engines stand on a wider allegiance ring than a soldier. */
+const ENGINE_RING_SCALE = 2.4;
+/** Tests (`?fast`) play the battle animations this much faster (same switch as BattleDirector). */
+const TIME_SCALE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fast') ? 8 : 1;
 const BODIES = ['warrior', 'ranger', 'rogue'] as const;
 type Body = (typeof BODIES)[number];
 const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
@@ -114,6 +122,7 @@ export function Units({
 }) {
   const anims = useGLTF(ANIMATIONS_URL, false, true);
   const bodies = useGLTF(BODIES.map(bodyUrl), false, true);
+  const engineModels = useGLTF(ENGINE_KINDS.map((k) => ENGINE_MODELS[k]), false, true);
 
   const built = useMemo(() => {
     // One material per (body, faction): same shader program, only the atlas differs.
@@ -156,6 +165,23 @@ export function Units({
       }
       return m;
     };
+    const engineMaterial = createPaintedMaterial({
+      name: 'Unit:engine',
+      vertexColors: true,
+      heightM: ENGINE_HEIGHT_M.ram,
+      gradientBase: 0.82,
+      gradientSaturation: 0.08,
+      valueNoiseAmp: 0.04,
+      groundAO: 0.2,
+      groundAOHeightM: 0.5,
+      rim: RIM,
+    });
+    materials.set('engine', engineMaterial);
+    const engines: EngineRig[] = [];
+    /** Pennant anchors: a unit's root position, or a point lifted to an engine's top. */
+    const anchors: Vector3[] = [];
+    const lifted: { anchor: Vector3; root: Group; lift: number }[] = [];
+    const animated: { mixer: AnimationMixer; root: Group }[] = [];
     const mixers: AnimationMixer[] = [];
     const starts: (() => void)[] = [];
     const roots: Group[] = [];
@@ -164,6 +190,39 @@ export function Units({
     const factionOf: UnitMarker['faction'][] = [];
     const alive: boolean[] = [];
     units.forEach((unit, index) => {
+      const engineKind = engineKindOf(unit.typeKey);
+      if (engineKind) {
+        const model = engineModels[ENGINE_KINDS.indexOf(engineKind)]?.scene;
+        if (!model) return;
+        const rig = createEngineRig(model, engineKind, engineMaterial, silhouetteMaterialFor(unit.faction), SILHOUETTE_ORDER);
+        const root = new Group();
+        root.name = `Unit:${unit.id}`;
+        const ring = createFactionRing(unit.faction);
+        ring.userData['engine'] = true;
+        rings.push(ring);
+        root.add(rig.pose, ring);
+        root.position.set(unit.position.x, unit.elevationM ?? sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
+        root.rotation.y = unit.facingTurns * 2 * Math.PI;
+        const slot = roots.length;
+        factionOf.push(unit.faction);
+        alive.push(true);
+        engines.push(rig);
+        const anchor = new Vector3();
+        anchors.push(anchor);
+        lifted.push({ anchor, root, lift: ENGINE_HEIGHT_M[engineKind] - UNIT_HEIGHT_M });
+        handles.set(unit.id, {
+          id: unit.id,
+          root,
+          play: (clip, once = false) => rig.play(clip, once),
+          setAlive(on) {
+            alive[slot] = on;
+            ring.visible = on;
+          },
+          setSilhouette: (on) => rig.setSilhouette(on),
+        });
+        roots.push(root);
+        return;
+      }
       const loadout = loadoutFor(unit.typeKey);
       const source = bodies[BODIES.indexOf(loadout.body)]?.scene;
       if (!source) return;
@@ -187,6 +246,8 @@ export function Units({
       const mixer = new AnimationMixer(body);
       const idle = clips.get(loadout.idle) ?? clips.get('Idle');
       mixers.push(mixer);
+      animated.push({ mixer, root });
+      anchors.push(root.position);
       const actions = new Map<UnitClip, AnimationAction>();
       const actionFor = (clip: UnitClip): AnimationAction | null => {
         const cached = actions.get(clip);
@@ -255,13 +316,13 @@ export function Units({
       const slots = roots.map((_, i) => i).filter((i) => factionOf[i] === faction);
       return {
         pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
-        anchors: slots.map((i) => (roots[i] as Group).position),
+        anchors: slots.map((i) => anchors[i] as Vector3),
         slots,
         visible: new Uint8Array(slots.length).fill(1),
       };
     });
-    return { roots, rings, mixers, starts, materials, textures, pennants, handles, alive, animElapsed: new Float32Array(mixers.length) };
-  }, [anims, bodies, units, terrain]);
+    return { roots, rings, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, animElapsed: new Float32Array(mixers.length) };
+  }, [anims, bodies, engineModels, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
   useEffect(() => {
@@ -276,17 +337,19 @@ export function Units({
   const frame = useRef(0);
   useFrame(({ camera }, delta) => {
     const f = frame.current++;
-    for (let i = 0; i < built.mixers.length; i++) {
+    for (let i = 0; i < built.animated.length; i++) {
       built.animElapsed[i] = (built.animElapsed[i] as number) + delta;
-      const d = camera.position.distanceTo((built.roots[i] as Group).position);
+      const d = camera.position.distanceTo((built.animated[i] as { root: Group }).root.position);
       const stride = d < ANIM_LOD_M[0] ? ANIM_LOD_STRIDE[0] : d < ANIM_LOD_M[1] ? ANIM_LOD_STRIDE[1] : ANIM_LOD_STRIDE[2];
       if ((f + i) % stride !== 0) continue;
-      (built.mixers[i] as AnimationMixer).update(built.animElapsed[i] as number);
+      (built.animated[i] as { mixer: AnimationMixer }).mixer.update(built.animElapsed[i] as number);
       built.animElapsed[i] = 0;
     }
+    for (const rig of built.engines) rig.update(delta * TIME_SCALE);
+    for (const l of built.lifted) l.anchor.copy(l.root.position).setY(l.root.position.y + l.lift);
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
-    for (const ring of built.rings) ring.scale.setScalar(scale);
+    for (const ring of built.rings) ring.scale.setScalar(scale * (ring.userData['engine'] ? ENGINE_RING_SCALE : 1));
     for (const p of built.pennants) {
       for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] ? 1 : 0;
       p.pennants.update(p.anchors, camera.position, distance, scale, p.visible);
@@ -315,3 +378,4 @@ export function Units({
 }
 
 useGLTF.preload(ANIMATIONS_URL, false, true);
+for (const k of ENGINE_KINDS) useGLTF.preload(ENGINE_MODELS[k], false, true);
