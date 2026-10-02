@@ -143,7 +143,7 @@ export function BattleHud({ onEndTurn }: { readonly onEndTurn: () => void }) {
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           <p className="hud-hint">
-            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>F</kbd> ouvrage : combler, saper, amarrer la tour, y monter · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>F</kbd> ouvrage : combler, saper, amarrer la tour, y monter · <kbd>B</kbd> flèche enflammée · <kbd>E</kbd> éteindre · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
           </p>
         </section>
       )}

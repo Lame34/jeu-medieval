@@ -28,6 +28,8 @@ import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
 import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import type { CastleHandle, CastleWork } from '../castle/Castle.tsx';
+import type { FireHandle } from '../vfx/Fire.tsx';
+import { FIRE_ARROWS_TAG } from '../../core/battle/fire.ts';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
@@ -200,6 +202,7 @@ export function BattleDirector({
   session,
   handles,
   castle = null,
+  fire = null,
   terrain,
   focusOn,
 }: {
@@ -207,6 +210,8 @@ export function BattleDirector({
   readonly handles: ReadonlyMap<string, UnitHandle> | null;
   /** The castle's siege handle (structures), once the castle is built. */
   readonly castle?: CastleHandle | null;
+  /** The fires' handle. */
+  readonly fire?: FireHandle | null;
   readonly terrain: TerrainData;
   /** Recentres the camera (Tab, double-click on a unit of ours). */
   readonly focusOn?: (p: Vec2) => void;
@@ -434,6 +439,44 @@ export function BattleDirector({
           },
         };
       }
+      case 'fireArrowShot': {
+        const h = handleOf(event.unitId);
+        const duration = h ? Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], h.play('attack', true))) : ATTACK_DURATION_S[0];
+        const facing = h ? yawOf(event.at.x - h.root.position.x, event.at.z - h.root.position.z) : 0;
+        let landed = false;
+        return {
+          duration,
+          update(t, dt) {
+            if (h) h.root.rotation.y = approachAngle(h.root.rotation.y, facing, TURN_RATE * dt);
+            if (landed || t < duration * IMPACT_AT) return;
+            landed = true;
+            if (event.caught) fire?.syncFrom(session.state);
+            showFloat(event.caught ? 'Ça prend !' : 'Éteinte', event.caught ? 'crit' : 'miss', event.at.x, session.standHeight(event.at.x, event.at.z) + 1.2, event.at.z);
+          },
+          finish() {
+            h?.play('idle');
+          },
+        };
+      }
+      case 'fireStarted':
+      case 'fireOut':
+        fire?.syncFrom(session.state);
+        return null;
+      case 'unitBurned': {
+        const h = handleOf(event.unitId);
+        if (!h) return null;
+        if (event.hpAfter > 0) h.play('hit', true);
+        const p = h.root.position;
+        showFloat(`−${event.damage}`, 'crit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+        return { duration: GUARD_PAUSE_S, update() {}, finish: () => (event.hpAfter > 0 ? h.play('idle') : undefined) };
+      }
+      case 'structureBurned': {
+        const def = structureDef(session.ctx, event.structureId);
+        castle?.hit(event.structureId, def && def.maxHp > 0 ? event.hpAfter / def.maxHp : 1);
+        const p = scratch.current.p;
+        if (castle?.anchorOf(event.structureId, p)) showFloat(`−${event.damage}`, 'crit', p.x, p.y, p.z);
+        return { duration: GUARD_PAUSE_S, update() {}, finish() {} };
+      }
       case 'unitDied': {
         const h = handleOf(event.unitId);
         if (!h) return null;
@@ -599,6 +642,15 @@ export function BattleDirector({
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         ui.select(null);
         session.issue({ type: 'endTurn' });
+      } else if (e.code === 'KeyB' && ui.selectedId) {
+        // Archers: a fire arrow at the pointer.
+        const selected = findUnit(state, ui.selectedId);
+        const { ground } = aim();
+        if (selected && ground && hasTag(selected.typeKey, FIRE_ARROWS_TAG)) session.issue({ type: 'fireArrow', unitId: selected.id, at: ground });
+      } else if (e.code === 'KeyE' && ui.selectedId) {
+        // Anyone beside a fire: put it out.
+        const { ground } = aim();
+        if (ground) session.issue({ type: 'extinguish', unitId: ui.selectedId, at: ground });
       } else if (e.code === 'KeyF' && ui.selectedId) {
         // Sappers: fill the moat slot, or undermine the curtain, under the pointer.
         const selected = findUnit(state, ui.selectedId);

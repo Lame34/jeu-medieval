@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { structureDef } from '../../core/battle/structures.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
+import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
 import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
 import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
@@ -84,6 +85,8 @@ export default function BattleScreen() {
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   const [castle, setCastle] = useState<CastleHandle | null>(null);
+  const [fire, setFire] = useState<FireHandle | null>(null);
+  const heightAt = useCallback((x: number, z: number) => session?.standHeight(x, z) ?? 0, [session]);
   const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
 
@@ -137,7 +140,8 @@ export default function BattleScreen() {
     <main className="scene-screen">
       <GameCanvas>
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
-        {session && <BattleDirector session={session} handles={handles} castle={castle} terrain={layout.terrain} focusOn={focusOn} />}
+        {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
+        {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} terrain={layout.terrain} focusOn={focusOn} />}
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
