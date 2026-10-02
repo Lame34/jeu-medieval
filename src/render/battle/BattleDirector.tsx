@@ -23,6 +23,7 @@ import { distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '.
 import { isBroken, structureDef, type StructureDef } from '../../core/battle/structures.ts';
 import { fillCells, fillSiteAt, fillSurfaceM } from '../../core/battle/moat.ts';
 import { FILL_MOAT_TAG, MINE_SITE_PREFIX, UNDERMINE_TAG } from '../../core/battle/siege-works.ts';
+import { TOWER_TAG } from '../../core/battle/siege-tower.ts';
 import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
 import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -61,6 +62,12 @@ const PICK_RADIUS_M = 0.8;
 const UNIT_PICK_HEIGHT_M = 2.2;
 /** A structure is under the pointer when the ground hit lies this close to its cells (m). */
 const STRUCTURE_PICK_M = 1.6;
+/** Climbing a docked tower: walk to its foot, rise inside it, step onto the wall-walk (s). */
+const CLIMB_WALK_S = 0.6;
+const CLIMB_RISE_S = 1.1;
+const CLIMB_STEP_S = 0.5;
+/** A unit can climb a tower from this close (m, as the core's reach). */
+const CLIMB_PICK_M = 2.2;
 /** Units thrown down by a collapsing wall-walk land over this fraction of the collapse. */
 const FALL_FRACTION = 0.45;
 /** Floating texts (damage, misses, guards). */
@@ -391,6 +398,42 @@ export function BattleDirector({
           },
         };
       }
+      case 'towerDocked': {
+        const h = handleOf(event.towerId);
+        const duration = h ? h.play('attack', true) : 0;
+        return { duration: Math.max(duration, GUARD_PAUSE_S), update() {}, finish() {} };
+      }
+      case 'unitClimbed': {
+        const h = handleOf(event.unitId);
+        const tower = handleOf(event.towerId);
+        if (!h) return null;
+        const base = tower ? { x: tower.root.position.x, z: tower.root.position.z } : event.from;
+        const y0 = h.root.position.y;
+        const yTop = session.standHeight(event.to.x, event.to.z);
+        const fromX = h.root.position.x;
+        const fromZ = h.root.position.z;
+        h.play('walk');
+        return {
+          duration: CLIMB_WALK_S + CLIMB_RISE_S + CLIMB_STEP_S,
+          update(t) {
+            if (t < CLIMB_WALK_S) {
+              const k = t / CLIMB_WALK_S;
+              h.root.position.set(fromX + (base.x - fromX) * k, y0, fromZ + (base.z - fromZ) * k);
+            } else if (t < CLIMB_WALK_S + CLIMB_RISE_S) {
+              const k = (t - CLIMB_WALK_S) / CLIMB_RISE_S;
+              h.root.position.set(base.x, y0 + (yTop - y0) * k, base.z);
+            } else {
+              const k = Math.min(1, (t - CLIMB_WALK_S - CLIMB_RISE_S) / CLIMB_STEP_S);
+              h.root.position.set(base.x + (event.to.x - base.x) * k, yTop, base.z + (event.to.z - base.z) * k);
+              h.root.rotation.y = yawOf(event.to.x - base.x, event.to.z - base.z);
+            }
+          },
+          finish() {
+            h.root.position.set(event.to.x, yTop, event.to.z);
+            h.play('idle');
+          },
+        };
+      }
       case 'unitDied': {
         const h = handleOf(event.unitId);
         if (!h) return null;
@@ -562,7 +605,13 @@ export function BattleDirector({
         const { ground } = aim();
         if (!selected || !ground) return;
         const def = structureAt(session.ctx, state, ground);
-        if (hasTag(selected.typeKey, UNDERMINE_TAG) && def?.kind === 'wall') session.issue({ type: 'undermine', unitId: selected.id, structureId: def.id });
+        // A docked tower close by: climb it onto the wall-walk.
+        const tower = state.docks
+          .map((d) => findUnit(state, d.towerId))
+          .find((t) => t?.alive && Math.hypot(t.position.x - selected.position.x, t.position.z - selected.position.z) <= CLIMB_PICK_M);
+        if (hasTag(selected.typeKey, TOWER_TAG) && def?.kind === 'wall') session.issue({ type: 'dockTower', unitId: selected.id, structureId: def.id });
+        else if (tower && !hasTag(selected.typeKey, TOWER_TAG)) session.issue({ type: 'climbTower', unitId: selected.id, towerId: tower.id });
+        else if (hasTag(selected.typeKey, UNDERMINE_TAG) && def?.kind === 'wall') session.issue({ type: 'undermine', unitId: selected.id, structureId: def.id });
         else if (hasTag(selected.typeKey, FILL_MOAT_TAG) && fillSiteAt(session.ctx, ground)) session.issue({ type: 'fillMoat', unitId: selected.id, at: ground });
       } else if (e.code === 'KeyG' && ui.selectedId) {
         const selected = findUnit(state, ui.selectedId);

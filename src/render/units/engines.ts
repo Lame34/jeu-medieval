@@ -3,18 +3,19 @@
  * scripts/blender/build_siege_engines.py — one skinned mesh per engine (one draw call), each part
  * rigidly bound to a bone whose head is its pivot and whose rest frame is the model's — animated in
  * code — wheels roll while the engine moves, the catapult's arm swings up to its stop and is
- * wound back, the ram's log is drawn back and driven forward, a hit shakes the frame and a
- * destroyed engine slumps on its side. Same handle contract as the characters (UnitHandle).
+ * wound back, the ram's log is drawn back and driven forward, the siege tower's gangway drops
+ * onto the wall when it docks ('attack'), a hit shakes the frame and a destroyed engine slumps on
+ * its side. Same handle contract as the characters (UnitHandle).
  */
 import { Bone, Group, SkinnedMesh, type Material, type Object3D } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { UnitClip } from './Units.tsx';
 
-export const ENGINE_MODELS = { ram: '/assets/engines/ram.glb', catapult: '/assets/engines/catapult.glb' } as const;
+export const ENGINE_MODELS = { ram: '/assets/engines/ram.glb', catapult: '/assets/engines/catapult.glb', siegeTower: '/assets/engines/siegeTower.glb' } as const;
 export type EngineKind = keyof typeof ENGINE_MODELS;
 
 /** Height (m) of each engine's top: pennants fly above it. */
-export const ENGINE_HEIGHT_M: Readonly<Record<EngineKind, number>> = { ram: 3.4, catapult: 2.8 };
+export const ENGINE_HEIGHT_M: Readonly<Record<EngineKind, number>> = { ram: 3.4, catapult: 2.8, siegeTower: 11.6 };
 
 export function engineKindOf(typeKey: string): EngineKind | null {
   return typeKey in ENGINE_MODELS ? (typeKey as EngineKind) : null;
@@ -22,7 +23,10 @@ export function engineKindOf(typeKey: string): EngineKind | null {
 
 /** Rolling speed (m/s) the director moves engines at; the wheels turn to match. */
 export const ENGINE_SPEED_MS = 1.4;
-const WHEEL_RADIUS_M: Readonly<Record<EngineKind, number>> = { ram: 0.55, catapult: 0.5 };
+const WHEEL_RADIUS_M: Readonly<Record<EngineKind, number>> = { ram: 0.55, catapult: 0.5, siegeTower: 0.62 };
+/** Siege tower: the gangway travels raised against the tower's front, drops onto the wall when it docks. */
+const GANGWAY_RAISED_RAD = -1.5;
+const GANGWAY_LOWER_S = 1.3;
 /** Catapult: the arm swings up to its stop (rad about the axle), then is wound back down. */
 const ARM_FIRED_RAD = 1.85;
 const ARM_RELEASE_S = 0.22;
@@ -67,6 +71,8 @@ export function createEngineRig(source: Object3D, kind: EngineKind, material: Ma
   const wheels = [...bones.values()].filter((b) => b.name.startsWith('Wheel'));
   const arm = bones.get('Arm') ?? null;
   const log = bones.get('Log') ?? null;
+  const gangway = bones.get('Gangway') ?? null;
+  if (gangway) gangway.rotation.x = GANGWAY_RAISED_RAD;
   const logRest = log ? log.position.z : 0;
   const pose = new Group();
   pose.add(model);
@@ -78,7 +84,7 @@ export function createEngineRig(source: Object3D, kind: EngineKind, material: Ma
   let ghosts: SkinnedMesh[] | null = null;
 
   const actionDuration = (clip: UnitClip): number => {
-    if (clip === 'attack') return kind === 'catapult' ? ARM_RELEASE_S + ARM_HOLD_S + ARM_REWIND_S : LOG_DRAW_S + LOG_DRIVE_S + LOG_SETTLE_S;
+    if (clip === 'attack') return kind === 'catapult' ? ARM_RELEASE_S + ARM_HOLD_S + ARM_REWIND_S : kind === 'siegeTower' ? GANGWAY_LOWER_S : LOG_DRAW_S + LOG_DRIVE_S + LOG_SETTLE_S;
     if (clip === 'hit') return SHAKE_S;
     if (clip === 'death') return WRECK_S;
     return 0;
@@ -102,6 +108,10 @@ export function createEngineRig(source: Object3D, kind: EngineKind, material: Ma
         if (t < ARM_RELEASE_S) arm.rotation.x = ARM_FIRED_RAD * easeOut(t / ARM_RELEASE_S);
         else if (t < ARM_RELEASE_S + ARM_HOLD_S) arm.rotation.x = ARM_FIRED_RAD;
         else arm.rotation.x = ARM_FIRED_RAD * (1 - (t - ARM_RELEASE_S - ARM_HOLD_S) / ARM_REWIND_S);
+      } else if (action.clip === 'attack' && gangway) {
+        // Docking: the gangway falls forward onto the wall-walk (and stays there).
+        const k = t / GANGWAY_LOWER_S;
+        gangway.rotation.x = GANGWAY_RAISED_RAD * (1 - k * k);
       } else if (action.clip === 'attack' && log) {
         let z: number;
         if (t < LOG_DRAW_S) z = LOG_BACK_M * easeOut(t / LOG_DRAW_S);

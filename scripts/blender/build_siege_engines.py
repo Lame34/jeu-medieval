@@ -6,6 +6,7 @@ bones whose head is their pivot, animated procedurally at runtime:
   ram.glb       bones Body, Log (thrust along its axis), WheelFL/FR/BL/BR (axle along x)
   catapult.glb  bones Frame, Arm (pivot on the axle, cocked towards the back; fires about x),
                 WheelFL/FR/BL/BR
+  siegeTower.glb bones Body, Gangway (hinged at the top platform, modelled lowered), WheelFL/FR/BL/BR
 
 Each engine is one skinned mesh (one draw call) whose parts are rigidly weighted to their bone.
 
@@ -33,6 +34,8 @@ ROPE = '#b49a6a'
 STONE = '#8f8577'
 TONE_JITTER = 0.09
 BEVEL_M = 0.025
+# The siege tower's fighting platform, level with a 10 m curtain's wall-walk.
+TOWER_PLATFORM_M = 10.4
 
 rng = random.Random(SEED)
 
@@ -269,6 +272,68 @@ def build_catapult():
     return [frame, arm, *wheels]
 
 
+def build_siege_tower():
+    """A three-storey tower on four wheels, planked and hide-covered in front and on the sides,
+    open at the back on its ladders; the gangway (its own bone, hinged at the top platform's
+    front edge) is modelled lowered, pointing forward."""
+    parts = []
+    half = 1.75
+    top = TOWER_PLATFORM_M
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            parts.append(box('post', (0.32, 0.32, top + 1.1), (sx * half, sy * half, 0.9 + (top + 1.1) / 2 - 0.9), color=tone(WOOD_WARM, 0.45)))
+    for sx in (-1, 1):
+        parts.append(box('chassis', (0.34, half * 2 + 0.6, 0.34), (sx * half, 0, 0.9)))
+    for sy in (-1, 1):
+        parts.append(box('chassis', (half * 2 + 0.3, 0.34, 0.34), (0, sy * half, 0.9)))
+    # Floors (the top one is the fighting platform), with a hatch left open for the ladder.
+    for z in (1.1, 4.7, 8.1, top):
+        for k in range(6):
+            y = -half + (k + 0.5) * (half * 2 / 6)
+            if z != top and k == 5:
+                continue
+            parts.append(box('floor', (half * 2, half * 2 / 6 * 0.94, 0.1), (0, y, z), color=tone(WOOD_LIGHT), bevel=0.0))
+    # Cladding: vertical boards on the front and the sides, hides over the front.
+    boards = 7
+    for k in range(boards):
+        u = -half + (k + 0.5) * (half * 2 / boards)
+        parts.append(box('board', (half * 2 / boards * 0.95, 0.08, top - 1.0), (u, -half - 0.12, 1.0 + (top - 1.0) / 2), color=tone(WOOD_LIGHT), bevel=0.0))
+        for sx in (-1, 1):
+            parts.append(box('board', (0.08, half * 2 / boards * 0.95, top - 1.0), (sx * (half + 0.12), u, 1.0 + (top - 1.0) / 2), color=tone(WOOD_LIGHT), bevel=0.0))
+    for z in (3.0, 6.4):
+        parts.append(box('hide', (half * 2 + 0.2, 0.06, 2.9), (0, -half - 0.2, z), color=tone(HIDE), bevel=0.03))
+        for sx in (-1, 1):
+            parts.append(box('hide', (0.06, half * 2 + 0.2, 2.9), (sx * (half + 0.2), 0, z), color=tone(HIDE), bevel=0.03))
+    # Parapet round the top platform, open in front for the gangway.
+    for sx in (-1, 1):
+        parts.append(box('parapet', (0.1, half * 2, 1.0), (sx * half, 0, top + 0.5), color=tone(WOOD_LIGHT, 0.4), bevel=0.0))
+    parts.append(box('parapet', (half * 2, 0.1, 1.0), (0, half, top + 0.5), color=tone(WOOD_LIGHT, 0.4), bevel=0.0))
+    for sx in (-1, 1):
+        parts.append(box('parapet', (0.6, 0.1, 1.0), (sx * (half - 0.3), -half, top + 0.5), color=tone(WOOD_LIGHT, 0.4), bevel=0.0))
+    # Ladder up the open back.
+    for sx in (-0.35, 0.35):
+        parts.append(box('rail', (0.1, 0.1, top - 1.0), (sx, half - 0.25, 1.0 + (top - 1.0) / 2), color=tone(WOOD_WARM, 0.5), bevel=0.0))
+    for k in range(int((top - 1.2) / 0.45)):
+        parts.append(box('rung', (0.8, 0.07, 0.07), (0, half - 0.25, 1.4 + k * 0.45), color=tone(WOOD_WARM, 0.6), bevel=0.0))
+    body = join('Body', parts)
+
+    # The gangway, lowered: from the platform's front edge, forward (-y), level with the platform.
+    hinge = Vector((0, -half - 0.1, top))
+    gang = []
+    length = 3.0
+    for k in range(8):
+        y = hinge.y - (k + 0.5) * (length / 8)
+        gang.append(box('gangplank', (1.8, length / 8 * 0.92, 0.09), (0, y, top + 0.05), color=tone(WOOD_LIGHT), bevel=0.0))
+    for sx in (-1, 1):
+        gang.append(box('gangrail', (0.12, length, 0.16), (sx * 0.86, hinge.y - length / 2, top - 0.06), color=tone(WOOD_WARM, 0.5), bevel=0.0))
+    gang.append(box('gangedge', (1.85, 0.12, 0.12), (0, hinge.y - length + 0.06, top - 0.02), color=rgb(IRON), bevel=0.0))
+    gangway = join('Gangway', gang)
+    set_origin(gangway, hinge)
+
+    wheels = [wheel(f'Wheel{n}', 0.62, 0.3, (sx * (half + 0.3), y, 0.62)) for n, sx, y in (('FL', -1, -1.25), ('FR', 1, -1.25), ('BL', -1, 1.25), ('BR', 1, 1.25))]
+    return [body, gangway, *wheels]
+
+
 def export(name, objs, out_dir):
     """One skinned mesh per engine (one draw call): every part is weighted to its own bone, with
     its head on the part's pivot; the frame to the Body bone. Bones are siblings under the
@@ -322,6 +387,7 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     export('ram', build_ram(), out_dir)
     export('catapult', build_catapult(), out_dir)
+    export('siegeTower', build_siege_tower(), out_dir)
 
 
 main()

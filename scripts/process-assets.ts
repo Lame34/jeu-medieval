@@ -87,7 +87,7 @@ const JOBS: readonly AssetJob[] = [
   })),
   // Siege engines built by scripts/blender/build_siege_engines.py (npm run assets:engines):
   // vertex-coloured, no texture.
-  ...['ram', 'catapult'].map((name) => ({
+  ...['ram', 'catapult', 'siegeTower'].map((name) => ({
     id: `engine.${name}`,
     kind: 'engine' as const,
     source: `assets-src/work/engines/${name}.glb`,

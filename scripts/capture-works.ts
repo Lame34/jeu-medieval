@@ -1,10 +1,11 @@
 /**
  * Sappers' works captures (J4): the siege park's sapper walks to the moat, fills a slot with
  * fascines (two turns), crosses the causeway and undermines the curtain behind it (three turns)
- * until it collapses. Targets are computed here from the same seed as the page; the page plays
+ * until it collapses. With --tower, the siege tower rolls over the causeway instead, docks against
+ * that curtain and the sapper climbs it onto the wall-walk. Targets are computed here from the same seed as the page; the page plays
  * real commands through the `?e2e` hook. Requires the dev server (npm run dev).
  * The garrison passes its turns. Writes docs/captures/<date>-<tag>/works-*.png.
- * Usage: node scripts/capture-works.ts [tag] [--seed siege-1] [--headed]
+ * Usage: node scripts/capture-works.ts [tag] [--seed siege-1] [--tower] [--headed]
  */
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,7 +42,10 @@ const option = (name: string, fallback: string) => {
 const tag = args[0] && !args[0].startsWith('--') ? args[0] : 'works';
 const seed = option('seed', 'siege-1');
 const SAPPER = 'att-siege-2';
+const TOWER = 'att-siege-3';
 const MAX_TURNS = 12;
+/** The tower rolls 2 AP a turn: the walk from the park takes longer. */
+const TOWER_TURNS = 30;
 const date = new Date().toISOString().slice(0, 10);
 const outDir = join('docs', 'captures', `${date}-${tag}`);
 mkdirSync(outDir, { recursive: true });
@@ -68,6 +72,8 @@ const site = fillSiteAt(ctx, moatPoint);
 const snap = (p: Point) => ({ x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 });
 const bank = snap({ x: moatPoint.x + outward.x * 7.5, z: moatPoint.z + outward.z * 7.5 });
 const foot = snap({ x: wall.center.x + outward.x * 2.2, z: wall.center.z + outward.z * 2.2 });
+const towerDock = snap({ x: wall.center.x + outward.x * 3.2, z: wall.center.z + outward.z * 3.2 });
+const towerFoot = snap({ x: wall.center.x + outward.x * 4.6, z: wall.center.z + outward.z * 4.6 });
 // From outside the walls, looking in.
 const viewYaw = Math.atan2(-outward.x, -outward.z) / (2 * Math.PI) + 0.5;
 console.log(`wall ${wall.id} · fill site ${site} · bank ${bank.x},${bank.z} · foot ${foot.x},${foot.z}`);
@@ -106,23 +112,23 @@ const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: join(outDir, `works-${name}.png`) });
   console.log(`  ${name}`);
 };
-const sapperAt = async (page: Page) => (await state(page))?.units.find((u) => u.id === SAPPER)?.position ?? sapperStart;
-/** Cells of the sapper's path to `goal` (the map with the structures intact, works done so far). */
-const pathTo = (from: Point, goal: Point, works: readonly WorkState[]): Point[] => {
+const unitAt = async (page: Page, id: string) => (await state(page))?.units.find((u) => u.id === id)?.position ?? sapperStart;
+/** Cells of a unit's path to `goal` (the map with the structures intact, works done so far). */
+const pathTo = (from: Point, goal: Point, works: readonly WorkState[], profile: 'lightFoot' | 'engine'): Point[] => {
   syncNav(ctx, initialStructures(ctx.structures), works);
-  const found = findPath(ctx.paths, { profile: 'lightFoot', start: cellIndexOf(ctx, from), goal: cellIndexOf(ctx, goal) });
+  const found = findPath(ctx.paths, { profile, start: cellIndexOf(ctx, from), goal: cellIndexOf(ctx, goal) });
   return (found?.cells ?? []).map((i) => ({ x: (i % ctx.nav.width) + 0.5, z: Math.floor(i / ctx.nav.width) + 0.5 }));
 };
-/** Walks the sapper to `goal` over turns along its path: each turn, the farthest point of it within reach. */
-const walkTo = async (page: Page, goal: Point) => {
-  for (let turn = 0; turn < MAX_TURNS; turn++) {
-    const from = await sapperAt(page);
+/** Walks a unit to `goal` over turns along its path: each turn, the farthest point of it within reach. */
+const walkTo = async (page: Page, goal: Point, id = SAPPER, profile: 'lightFoot' | 'engine' = 'lightFoot', turns = MAX_TURNS) => {
+  for (let turn = 0; turn < turns; turn++) {
+    const from = await unitAt(page, id);
     if (Math.hypot(from.x - goal.x, from.z - goal.z) < 1) return true;
-    const path = pathTo(from, goal, (await state(page))?.works ?? []);
+    const path = pathTo(from, goal, (await state(page))?.works ?? [], profile);
     let moved = false;
-    for (let k = path.length - 1; k > 0 && !moved; k -= 2) moved = (await issue(page, { type: 'move', unitId: SAPPER, to: path[k] })) === null;
+    for (let k = path.length - 1; k > 0 && !moved; k -= 1) moved = (await issue(page, { type: 'move', unitId: id, to: path[k] })) === null;
     await idle(page);
-    const now = await sapperAt(page);
+    const now = await unitAt(page, id);
     if (Math.hypot(now.x - goal.x, now.z - goal.z) < 1) return true;
     if (!moved) console.log(`  turn ${(await state(page))?.turn}: no move (path of ${path.length} cells)`);
     await endTurn(page);
@@ -150,6 +156,29 @@ try {
     await idle(page);
     await endTurn(page);
     await look(moatPoint, 30);
+  }
+  if (args.includes('--tower')) {
+    console.log(`tower rolling to the wall: ${(await walkTo(page, towerDock, TOWER, 'engine', TOWER_TURNS)) ? 'there' : 'not there'}`);
+    await look(wall.center, 40);
+    await page.waitForTimeout(1500);
+    await shot(page, '10-tower-at-wall');
+    console.log(`dock: ${(await issue(page, { type: 'dockTower', unitId: TOWER, structureId: wall.id })) ?? 'ok'}`);
+    await page.waitForTimeout(1500);
+    await shot(page, '11-tower-docked');
+    await idle(page);
+    await endTurn(page);
+    console.log(`sapper to the tower's foot: ${(await walkTo(page, towerFoot)) ? 'there' : 'not there'}`);
+    await endTurn(page);
+    console.log(`climb: ${(await issue(page, { type: 'climbTower', unitId: SAPPER, towerId: TOWER })) ?? 'ok'}`);
+    await page.waitForTimeout(1100);
+    await shot(page, '12-climbing');
+    await idle(page);
+    await look(wall.center, 30);
+    await page.waitForTimeout(1200);
+    await shot(page, '13-on-the-wall');
+    console.log(`errors: ${errors.length}`);
+    for (const e of errors.slice(0, 5)) console.log(`  ${e}`);
+    process.exit(0);
   }
   console.log(`walking to the wall foot: ${(await walkTo(page, foot)) ? 'there' : 'not there'}`);
   await look(wall.center, 34);

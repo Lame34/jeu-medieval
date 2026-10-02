@@ -125,6 +125,13 @@
       "clips": []
     },
     {
+      "id": "engine.siegeTower",
+      "kind": "engine",
+      "url": "/assets/engines/siegeTower.glb",
+      "bytes": 48448,
+      "clips": []
+    },
+    {
       "id": "kit.village",
       "kind": "kit",
       "url": "/assets/kits/village-kit.glb",
