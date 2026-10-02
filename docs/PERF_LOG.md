@@ -52,6 +52,22 @@ Les requêtes de chronométrage WebGL ont été écartées : dans Chromium/ANGLE
 
 **Pistes.** Retirer le terrain des objets qui projettent une ombre (son auto-ombrage se voit peu) ; alléger les maisons en LOD (149 k triangles) ; résolution dynamique sans réallocation (J8), qui reste la réponse naturelle au bridage thermique.
 
+## Chargement de la bataille (J4, 02/10)
+Mesure sur le build de production, avec un navigateur neuf à chaque passe : profil vide, puis cache HTTP chaud sans cache disque des shaders, puis les deux caches chauds. Le temps court de la navigation jusqu'à `sceneReady`. Les jalons (`worldgenMs`, `layoutAtMs`, `compileMs`, `programs`, `readyAtMs`) sont lus dans `document.body.dataset`.
+
+| Étape | Avant | Après |
+|---|---|---|
+| Génération de la carte (worker) | 3,6 s | 1,2 s |
+| Programmes de shader | 52 | 27 |
+| Compilation, à froid | ~6 s, synchrones | 1,7 s |
+| Prêt, à froid | 13,2–13,6 s | **5,4–5,5 s** |
+| Prêt, à chaud | 13,1 s | **5,1–5,2 s** |
+
+Trois causes :
+- **Images dessinées pendant le chargement.** Chacune liait ses programmes de façon synchrone, un par un, sur le thread principal (5,5 s dans `getProgramParameter(LINK_STATUS)` d'après le profil CPU). Le canevas ne dessine plus rien avant `sceneReady` (`useSceneStatus`) et l'écran de chargement reste affiché.
+- **`compileAsync` compilait pour le canevas** (sortie sRGB), alors que la scène est dessinée dans la cible du post-traitement (sortie linéaire). La clé de cache différait : chaque programme était compilé deux fois, et la passe anticipée ne servait à rien. On compile désormais avec une cible liée. Une image est ensuite dessinée derrière l'écran de chargement pour les programmes de profondeur de la passe d'ombre, que `compile()` ne couvre pas.
+- **Tampons de lignes polygonales.** Routes, rivière, masques d'exclusion et lissages projetaient chaque cellule de la carte sur toute la polyligne. Une grille de distances calculée segment par segment (`PolylineDistanceGrid`), avec la même arithmétique, donne des cartes identiques au bit près (empreintes de 6 cartes de bataille et du look-dev).
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.

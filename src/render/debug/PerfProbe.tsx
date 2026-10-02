@@ -4,7 +4,7 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { BatchedMesh, InstancedMesh, Mesh, type Object3D } from 'three';
+import { BatchedMesh, InstancedMesh, Mesh, type Material, type Object3D } from 'three';
 import { renderScale } from '../quality/DynamicResolution.tsx';
 
 const RING_SIZE = 8192;
@@ -151,6 +151,22 @@ export function PerfProbe() {
         }
       });
       return [...kinds.values()].filter((k) => k.signatures.size > 1).map((k) => ({ material: k.name, signatures: [...k.signatures], users: [...k.users] }));
+    };
+    // Shader programs per material (load-time budget: every program is compiled behind the
+    // loading screen).
+    api.control['programList'] = () => {
+      const rows: { material: string; type: string; programs: number }[] = [];
+      const seen = new Set<string>();
+      scene.traverse((o) => {
+        const m = (o as { material?: Material | Material[] }).material;
+        for (const mat of m ? (Array.isArray(m) ? m : [m]) : []) {
+          if (seen.has(mat.uuid)) continue;
+          seen.add(mat.uuid);
+          const programs = (gl.properties.get(mat) as { programs?: Map<string, unknown> }).programs?.size ?? 0;
+          rows.push({ material: mat.name || '(unnamed)', type: mat.type, programs });
+        }
+      });
+      return rows;
     };
     api.control['shadowPass'] = (on: boolean) => {
       gl.shadowMap.autoUpdate = on;

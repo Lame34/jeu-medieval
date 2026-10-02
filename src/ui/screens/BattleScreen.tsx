@@ -11,6 +11,7 @@ import { GameCanvas } from '../../render/GameCanvas.tsx';
 import { WorldScene } from '../../render/WorldScene.tsx';
 import type { UnitHandle } from '../../render/units/Units.tsx';
 import { useBattleUi } from '../../state/battle-ui.ts';
+import { useSceneStatus } from '../../state/scene-status.ts';
 import { useSettings } from '../../state/settings.ts';
 import { BattleHud } from '../battle/BattleHud.tsx';
 import { BattleSession, PLAYER_FACTION } from '../battle/session.ts';
@@ -59,6 +60,7 @@ function useBattleMap(): { layout: WorldLayout | null; error: string | null } {
       if (data.ok) {
         // Read by the bench and capture scripts (load-time budget, brief §7).
         document.body.dataset['worldgenMs'] = data.ms.toFixed(0);
+        document.body.dataset['layoutAtMs'] = performance.now().toFixed(0);
         setState({ layout: data.layout, error: null });
       } else setState({ layout: null, error: data.error });
       worker.terminate();
@@ -82,6 +84,7 @@ export default function BattleScreen() {
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   const [castle, setCastle] = useState<CastleHandle | null>(null);
+  const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
 
   // Hooks for capture/bench scripts: window.__perf.control.setView(i) / setHour(h).
@@ -138,6 +141,7 @@ export default function BattleScreen() {
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
+      {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
       {session && (
         <BattleHud
           onEndTurn={() => {

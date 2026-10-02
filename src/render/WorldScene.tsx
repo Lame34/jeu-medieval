@@ -4,7 +4,7 @@
  */
 import { useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo } from 'react';
-import { Vector2 } from 'three';
+import { HalfFloatType, Vector2, WebGLRenderTarget } from 'three';
 import type { UnitMarker, WorldLayout } from '../core/worldgen/types.ts';
 import { Atmosphere } from './atmosphere/Atmosphere.tsx';
 import { Buildings } from './buildings/Buildings.tsx';
@@ -19,6 +19,7 @@ import { DistantLandscape } from './terrain/DistantLandscape.tsx';
 import { Terrain } from './terrain/Terrain.tsx';
 import { useSettings } from '../state/settings.ts';
 import { paintedGlobals } from './materials/painted-globals.ts';
+import { useSceneStatus } from '../state/scene-status.ts';
 import { assignShadowDepthMaterials } from './materials/shadow-depth.ts';
 import { QUALITY_PRESETS } from './quality/presets.ts';
 import { buildHeightTexture, buildSplatTexture } from './terrain/terrain-textures.ts';
@@ -31,17 +32,36 @@ import { Water } from './water/Water.tsx';
 const SINGLE_MESH_TERRAIN_CELLS = 256;
 
 /** Signals (bench/capture scripts) that suspended assets are in and shaders are compiled. */
-function SceneReady() {
+function SceneReady({ toTarget }: { readonly toTarget: boolean }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
+  const advance = useThree((s) => s.advance);
   useEffect(() => {
     let cancelled = false;
     // One shadow depth material per kind of caster (no program switch in the shadow pass).
     assignShadowDepthMaterials(scene);
-    // Compile every program up front (brief §7: no in-game shader hitch).
-    void gl.compileAsync(scene, camera).then(() => {
+    // Compile every program up front (brief §7: no in-game shader hitch). The time and the
+    // program count are read by the load measurements (scripts, e2e).
+    // The post chain draws the scene into a render target (linear output): programs compiled
+    // for the canvas (sRGB output) would have another cache key and be compiled again at the
+    // first frame. Compile them as they will be drawn.
+    const compileStart = performance.now();
+    const target = toTarget ? new WebGLRenderTarget(1, 1, { type: HalfFloatType }) : null;
+    const previous = gl.getRenderTarget();
+    if (target) gl.setRenderTarget(target);
+    const compiled = gl.compileAsync(scene, camera);
+    gl.setRenderTarget(previous);
+    void compiled.then(() => {
+      target?.dispose();
       if (cancelled) return;
+      // One frame still behind the overlay: the shadow pass's depth programs, which compile()
+      // does not cover, are linked here rather than in the first visible frame.
+      advance(performance.now());
+      document.body.dataset['compileMs'] = (performance.now() - compileStart).toFixed(0);
+      document.body.dataset['programs'] = String(gl.info.programs?.length ?? 0);
+      document.body.dataset['readyAtMs'] = performance.now().toFixed(0);
+      useSceneStatus.getState().setReady(true);
       const perf = window.__perf;
       if (perf) perf.control['sceneReady'] = () => true;
       document.body.dataset['sceneReady'] = 'true';
@@ -49,8 +69,9 @@ function SceneReady() {
     return () => {
       cancelled = true;
       delete document.body.dataset['sceneReady'];
+      useSceneStatus.getState().setReady(false);
     };
-  }, [gl, scene, camera]);
+  }, [gl, scene, camera, advance, toTarget]);
   return null;
 }
 
@@ -104,7 +125,7 @@ export function WorldScene({
       <Suspense fallback={null}>
         <Buildings houses={layout.houses} terrain={t} />
         <Units units={units ?? layout.units} terrain={t} onHandles={onUnitHandles} />
-        <SceneReady />
+        <SceneReady toTarget={postfx} />
       </Suspense>
       {postfx && <PostFX />}
     </>

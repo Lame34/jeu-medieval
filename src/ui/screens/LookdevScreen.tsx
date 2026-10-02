@@ -5,8 +5,10 @@ import { isBenchMode } from '../../render/debug/PerfProbe.tsx';
 import { GameCanvas } from '../../render/GameCanvas.tsx';
 import { LOOKDEV_HOURS, LOOKDEV_LIMITS, LOOKDEV_VIEWS } from '../../render/lookdev/views.ts';
 import { WorldScene } from '../../render/WorldScene.tsx';
+import { useSceneStatus } from '../../state/scene-status.ts';
 import { useSettings } from '../../state/settings.ts';
 import { navigate, ROUTES } from '../router.ts';
+import { LoadingScreen } from './LoadingScreen.tsx';
 import './screens.css';
 import './lookdev.css';
 
@@ -19,6 +21,7 @@ export default function LookdevScreen() {
   const hour = useSettings((s) => s.hour);
   const setHour = useSettings((s) => s.setHour);
   const bench = isBenchMode();
+  const sceneReady = useSceneStatus((s) => s.ready);
 
   // Hooks for capture/bench scripts: window.__perf.control.setView(i) / setHour(h).
   useEffect(() => {
@@ -51,6 +54,7 @@ export default function LookdevScreen() {
         <WorldScene layout={layout} />
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={LOOKDEV_LIMITS} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
+      {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
       {!bench && (
         <>
           <button type="button" className="scene-back" onClick={() => navigate(ROUTES.title)}>
