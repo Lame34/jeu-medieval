@@ -29,6 +29,66 @@ export function projectOnPolyline(p: Vec2, line: readonly Vec2[]): SegmentProjec
   return best;
 }
 
+/** Distance from (px, pz) to segment ab, with exactly the arithmetic of projectOnPolyline. */
+function segmentDistance(px: number, pz: number, a: Vec2, b: Vec2): number {
+  const abx = b.x - a.x;
+  const abz = b.z - a.z;
+  const lenSq = abx * abx + abz * abz;
+  const t = lenSq > 0 ? Math.min(1, Math.max(0, ((px - a.x) * abx + (pz - a.z) * abz) / lenSq)) : 0;
+  return Math.hypot(px - (a.x + abx * t), pz - (a.z + abz * t));
+}
+
+/**
+ * Distances from the points of a regular grid (x = originX + i·step, z = originZ + j·step,
+ * i < cols, j < rows) to a polyline, wherever they are at most `maxDistance` (Infinity
+ * elsewhere). Each segment only visits the points of its own bounding box, so a long road or
+ * river costs its length, not the map's area × its segment count; the values are exactly
+ * projectOnPolyline(...).distance (same arithmetic, minimum over the same segments).
+ */
+export class PolylineDistanceGrid {
+  readonly originX: number;
+  readonly originZ: number;
+  readonly step: number;
+  readonly cols: number;
+  readonly rows: number;
+  private readonly d: Float64Array;
+
+  constructor(line: readonly Vec2[], originX: number, originZ: number, step: number, cols: number, rows: number, maxDistance: number) {
+    this.originX = originX;
+    this.originZ = originZ;
+    this.step = step;
+    this.cols = cols;
+    this.rows = rows;
+    this.d = new Float64Array(cols * rows).fill(Number.POSITIVE_INFINITY);
+    for (let k = 0; k < line.length - 1; k++) {
+      const a = line[k] as Vec2;
+      const b = line[k + 1] as Vec2;
+      const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - maxDistance - originX) / step));
+      const i1 = Math.min(cols - 1, Math.ceil((Math.max(a.x, b.x) + maxDistance - originX) / step));
+      const j0 = Math.max(0, Math.floor((Math.min(a.z, b.z) - maxDistance - originZ) / step));
+      const j1 = Math.min(rows - 1, Math.ceil((Math.max(a.z, b.z) + maxDistance - originZ) / step));
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          const dist = segmentDistance(originX + i * step, originZ + j * step, a, b);
+          const at = j * cols + i;
+          if (dist <= maxDistance && dist < (this.d[at] as number)) this.d[at] = dist;
+        }
+      }
+    }
+  }
+
+  /** Distance at grid point (i, j); Infinity outside the grid or beyond the maximum distance. */
+  at(i: number, j: number): number {
+    if (i < 0 || j < 0 || i >= this.cols || j >= this.rows) return Number.POSITIVE_INFINITY;
+    return this.d[j * this.cols + i] as number;
+  }
+
+  /** Distance at the grid point (x, z) lies on (it must be one: x = originX + i·step). */
+  atPoint(x: number, z: number): number {
+    return this.at(Math.round((x - this.originX) / this.step), Math.round((z - this.originZ) / this.step));
+  }
+}
+
 export function polylineLength(line: readonly Vec2[]): number {
   let total = 0;
   for (let i = 0; i < line.length - 1; i++) {

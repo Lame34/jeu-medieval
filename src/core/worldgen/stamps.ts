@@ -7,7 +7,7 @@ import { smoothstep } from '../math/scalar.ts';
 import type { TerrainLayerId } from '../rules/types.ts';
 import { TerrainLayer } from '../rules/types.ts';
 import { cornerIndex, sampleHeight, type TerrainData } from '../terrain-data/terrain-data.ts';
-import { pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
+import { PolylineDistanceGrid, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
 
 export type HeightFn = (x: number, z: number) => number;
 
@@ -35,6 +35,16 @@ export function boundsOf(points: readonly Vec2[], margin: number): Bounds2 {
 
 function inside(b: Bounds2 | undefined, x: number, z: number): boolean {
   return !b || (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
+}
+
+/** Distances from every height corner to `line`, up to `maxDistance` (corner (ix, iz) at ix·cs, iz·cs). */
+export function cornerDistances(t: TerrainData, line: readonly Vec2[], maxDistance: number): PolylineDistanceGrid {
+  return new PolylineDistanceGrid(line, 0, 0, t.cellSize, t.width + 1, t.depth + 1, maxDistance);
+}
+
+/** Distances from every cell centre to `line`, up to `maxDistance`. */
+function cellDistances(t: TerrainData, line: readonly Vec2[], maxDistance: number): PolylineDistanceGrid {
+  return new PolylineDistanceGrid(line, t.cellSize / 2, t.cellSize / 2, t.cellSize, t.width, t.depth, maxDistance);
 }
 
 /** Writes heights at every corner from a function of world position. */
@@ -66,9 +76,10 @@ export function blendHeights(t: TerrainData, weightFn: HeightFn, targetFn: Heigh
  */
 export function carveChannel(t: TerrainData, centerline: readonly Vec2[], halfWidthM: number, bankM: number, bedM: number | HeightFn): void {
   const bed = typeof bedM === 'number' ? () => bedM : bedM;
+  const distance = cornerDistances(t, centerline, halfWidthM + bankM);
   blendHeights(
     t,
-    (x, z) => 1 - smoothstep(halfWidthM * 0.55, halfWidthM + bankM, projectOnPolyline({ x, z }, centerline).distance),
+    (x, z) => 1 - smoothstep(halfWidthM * 0.55, halfWidthM + bankM, distance.atPoint(x, z)),
     bed,
     boundsOf(centerline, halfWidthM + bankM),
   );
@@ -113,12 +124,13 @@ export function rampAlong(t: TerrainData, centerline: readonly Vec2[], halfWidth
 export function smoothAlong(t: TerrainData, centerline: readonly Vec2[], radiusM: number, strength: number): void {
   const source = t.heights.slice();
   const bounds = boundsOf(centerline, radiusM);
+  const distance = cornerDistances(t, centerline, radiusM);
   for (let iz = 1; iz < t.depth; iz++) {
     for (let ix = 1; ix < t.width; ix++) {
       const x = ix * t.cellSize;
       const z = iz * t.cellSize;
       if (!inside(bounds, x, z)) continue;
-      const d = projectOnPolyline({ x, z }, centerline).distance;
+      const d = distance.at(ix, iz);
       if (d > radiusM) continue;
       let sum = 0;
       let n = 0;
@@ -153,12 +165,13 @@ export function paintCells(t: TerrainData, layer: TerrainLayerId, predicate: (ce
 }
 
 export function paintAlongPolyline(t: TerrainData, line: readonly Vec2[], halfWidthM: number, layer: TerrainLayerId, onlyOver?: readonly TerrainLayerId[]): void {
+  const distance = cellDistances(t, line, halfWidthM);
   paintCells(
     t,
     layer,
-    (c, cx, cz) => {
+    (_c, cx, cz) => {
       if (onlyOver && !onlyOver.includes(t.layers[cz * t.width + cx] as TerrainLayerId)) return false;
-      return projectOnPolyline(c, line).distance <= halfWidthM;
+      return distance.at(cx, cz) <= halfWidthM;
     },
     boundsOf(line, halfWidthM),
   );

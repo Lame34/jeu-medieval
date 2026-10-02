@@ -1,6 +1,6 @@
 /** Per-cell boolean masks for world generation (exclusion zones), stamped with bounded loops. */
 import type { Vec2 } from '../math/vec2.ts';
-import { pointInPolygon, projectOnPolyline } from './geometry.ts';
+import { PolylineDistanceGrid, pointInPolygon, projectOnPolyline } from './geometry.ts';
 import { boundsOf, type Bounds2 } from './stamps.ts';
 
 export class CellMask {
@@ -39,7 +39,9 @@ export class CellMask {
   }
 
   markPolyline(line: readonly Vec2[], radiusM: number): void {
-    this.stamp(boundsOf(line, radiusM), (c) => projectOnPolyline(c, line).distance <= radiusM);
+    const cs = this.cellSize;
+    const distance = new PolylineDistanceGrid(line, cs / 2, cs / 2, cs, this.width, this.depth, radiusM);
+    this.stamp(boundsOf(line, radiusM), (c) => distance.atPoint(c.x, c.z) <= radiusM);
   }
 
   markDisc(center: Vec2, radiusM: number): void {

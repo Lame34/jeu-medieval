@@ -22,6 +22,7 @@ import {
   blendHeights,
   boundsOf,
   carveChannel,
+  cornerDistances,
   rampAlong,
   fillHeights,
   flattenPolygon,
@@ -130,9 +131,10 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     riverControl.push({ x, z: riverZ + fbm(meander, x, riverZ, MEANDER) * 60 });
   }
   const river = catmullRom(riverControl, 10);
+  const valley = cornerDistances(t, river, RIVER.valleyHalfM);
   blendHeights(
     t,
-    (x, z) => 1 - smoothstep(RIVER.widthM, RIVER.valleyHalfM, projectOnPolyline({ x, z }, river).distance),
+    (x, z) => 1 - smoothstep(RIVER.widthM, RIVER.valleyHalfM, valley.atPoint(x, z)),
     () => RIVER.levelM + RIVER.valleyAboveM,
     boundsOf(river, RIVER.valleyHalfM),
   );
@@ -190,7 +192,17 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
   carveChannel(t, castle.moat.centerline, moatWidth / 2, 2, castle.moat.levelM - MOAT_BED_BELOW_M);
 
   // --- Roads ----------------------------------------------------------------------------------
-  const nearRiver = (x: number, z: number) => projectOnPolyline({ x, z }, river).distance < RIVER.widthM / 2 + ROAD.riverClearM;
+  // Asked again and again by the road router at the same lattice points: remembered.
+  const nearRiverMemo = new Map<string, boolean>();
+  const nearRiver = (x: number, z: number) => {
+    const key = `${x},${z}`;
+    let near = nearRiverMemo.get(key);
+    if (near === undefined) {
+      near = projectOnPolyline({ x, z }, river).distance < RIVER.widthM / 2 + ROAD.riverClearM;
+      nearRiverMemo.set(key, near);
+    }
+    return near;
+  };
   const nearCrossing = (x: number, z: number) =>
     Math.hypot(x - bridgePoint.x, z - bridgePoint.z) < ROAD.crossingRadiusM || Math.hypot(x - ford.x, z - ford.z) < ROAD.crossingRadiusM;
   const castleBlock = (x: number, z: number) => Math.hypot(x - castleCenter.x, z - castleCenter.z) < plateauR - 4;
