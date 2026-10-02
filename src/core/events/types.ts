@@ -18,6 +18,9 @@ export type GameEvent =
   | StructureBrokenEvent
   | SiegeWorkProgressedEvent
   | MoatFilledEvent
+  | TowerDockedEvent
+  | TowerUndockedEvent
+  | UnitClimbedEvent
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
@@ -102,6 +105,28 @@ export interface MoatFilledEvent {
   readonly type: 'moatFilled';
   readonly workId: string;
   readonly byId: string;
+}
+
+/** A siege tower has lowered its gangway onto a wall-walk. */
+export interface TowerDockedEvent {
+  readonly type: 'towerDocked';
+  readonly towerId: string;
+  readonly structureId: string;
+}
+
+/** A docked tower lost its wall (segment down) or was destroyed. */
+export interface TowerUndockedEvent {
+  readonly type: 'towerUndocked';
+  readonly towerId: string;
+}
+
+/** A unit climbed a docked tower onto the wall-walk. */
+export interface UnitClimbedEvent {
+  readonly type: 'unitClimbed';
+  readonly unitId: string;
+  readonly towerId: string;
+  readonly from: Vec2;
+  readonly to: Vec2;
 }
 
 export interface OverwatchSetEvent {

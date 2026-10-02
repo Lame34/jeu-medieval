@@ -171,6 +171,13 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Parc de siège.** Le sapeur de l'armée attend avec les engins sur la route, à 62 m de la porte, au lieu de marcher 300 m depuis la zone de déploiement.
 - **Capture** : `scripts/capture-works.ts` joue le chantier par de vraies commandes, sur des cibles calculées à partir de la même graine. La garnison y passe ses tours : on capture les travaux, pas les chances du sapeur sous les murs, où il meurt en trois tours face aux arbalétriers.
 
+## ADR-027 — Tour de siège (J4)
+**Décision** :
+- **Une commande plutôt qu'un faux escalier.** Une tour (étiquette ) à moins de 2,5 m d'un segment de courtine intact s'y amarre (, son action), en passant par la douve comblée ou par la berme après le pont-levis. Une unité à pied au pied de la tour y monte (, 2 PA) et arrive sur la cellule libre du chemin de ronde la plus proche. La tour porte au plus 4 unités par tour, comme le brief. Une tour amarrée ne bouge plus. L'amarrage est rompu si le segment tombe ou si la tour est détruite (, après chaque commande). L'état (version 5) porte une liste .
+- **Rendu.** Trois étages sur quatre roues, bardés de planches et de peaux devant et sur les côtés, ouverts derrière sur leurs échelles. La passerelle a son propre os : relevée au roulage, elle s'abat à l'amarrage. Un maillage skinné, un appel. Une montée se joue en trois temps : marche jusqu'au pied, ascension dans la tour, pas sur le chemin de ronde. La touche **F** amarre la tour sélectionnée au mur sous le pointeur, ou fait monter l'unité sélectionnée dans la tour amarrée voisine.
+- **Parc de siège** : deux rangs de deux le long de la route, bélier et catapulte devant, sapeur et tour derrière.
+- **À reprendre (J5/J7)** : à 2 PA par tour, la tour met environ 17 tours à aller du parc à un segment éloigné de la porte (capture ). Il faudra régler la vitesse des engins ou leurs positions de départ. La plate-forme est à 10,4 m : juste pour les courtines de 10 m du premier château, trop basse pour les suivants.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

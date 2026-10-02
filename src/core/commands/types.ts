@@ -1,7 +1,16 @@
 import type { Vec2 } from '../math/vec2.ts';
 
 /** Player / AI intentions. Plain JSON: a battle replays from `seed + scenario + Command[]`. */
-export type Command = MoveCommand | AttackCommand | AttackStructureCommand | FillMoatCommand | UndermineCommand | OverwatchCommand | EndTurnCommand;
+export type Command =
+  | MoveCommand
+  | AttackCommand
+  | AttackStructureCommand
+  | FillMoatCommand
+  | UndermineCommand
+  | DockTowerCommand
+  | ClimbTowerCommand
+  | OverwatchCommand
+  | EndTurnCommand;
 
 export interface MoveCommand {
   readonly type: 'move';
@@ -35,6 +44,20 @@ export interface UndermineCommand {
   readonly type: 'undermine';
   readonly unitId: string;
   readonly structureId: string;
+}
+
+/** A siege tower docks against a curtain segment, lowering its gangway. */
+export interface DockTowerCommand {
+  readonly type: 'dockTower';
+  readonly unitId: string;
+  readonly structureId: string;
+}
+
+/** A unit at a docked tower's foot climbs it onto the wall-walk. */
+export interface ClimbTowerCommand {
+  readonly type: 'climbTower';
+  readonly unitId: string;
+  readonly towerId: string;
 }
 
 /** Gives up the unit's action (and remaining AP) to watch a cone until its next turn. */
@@ -79,6 +102,13 @@ export const COMMAND_REJECTIONS = [
   'notAMoat',
   'workDone',
   'notAWall',
+  'notATower',
+  'alreadyDocked',
+  'notDocked',
+  'towerFull',
+  'cannotClimb',
+  'noRoomOnWall',
+  'towerDocked',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

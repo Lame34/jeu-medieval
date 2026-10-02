@@ -36,6 +36,13 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   notAMoat: "Ce n'est pas la douve.",
   workDone: 'Ce tronçon de douve est déjà comblé.',
   notAWall: 'On ne sape que les courtines.',
+  notATower: "Seule une tour de siège s'amarre aux murs.",
+  alreadyDocked: 'La tour est déjà amarrée.',
+  notDocked: "Cette tour n'est pas amarrée à un mur.",
+  towerFull: 'La tour a déjà porté tous les hommes de ce tour.',
+  cannotClimb: 'Ni les engins ni les cavaliers ne montent dans la tour.',
+  noRoomOnWall: 'Plus de place sur ce chemin de ronde.',
+  towerDocked: 'Amarrée au mur, la tour ne bouge plus.',
 };
 
 /** What a structure is called in the journal and the HUD. */
@@ -80,6 +87,12 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
         : `${unitLabel(state, event.unitId)} sape la courtine (${event.progress}/${event.required}).`;
     case 'moatFilled':
       return 'La douve est comblée : une chaussée de fascines la traverse.';
+    case 'towerDocked':
+      return 'La tour de siège abaisse sa passerelle sur le chemin de ronde !';
+    case 'towerUndocked':
+      return 'La tour de siège a perdu son mur.';
+    case 'unitClimbed':
+      return `${unitLabel(state, event.unitId)} monte à l'assaut par la tour.`;
     case 'unitDied':
       return `${unitLabel(state, event.unitId)} tombe.`;
     case 'overwatchSet':

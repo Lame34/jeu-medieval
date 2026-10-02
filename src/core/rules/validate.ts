@@ -220,6 +220,9 @@ function readStructures(raw: unknown): StructureRules {
     mineTurns: num(s['mineTurns'], 'damage.structures.mineTurns', 1),
     fillSlotM: num(s['fillSlotM'], 'damage.structures.fillSlotM', 1),
     fillBankM: num(s['fillBankM'], 'damage.structures.fillBankM', 0),
+    towerDockReachM: num(s['towerDockReachM'], 'damage.structures.towerDockReachM', 0),
+    towerClimbAp: num(s['towerClimbAp'], 'damage.structures.towerClimbAp', 0),
+    towerCapacity: num(s['towerCapacity'], 'damage.structures.towerCapacity', 1),
   });
 }
 

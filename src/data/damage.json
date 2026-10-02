@@ -37,7 +37,10 @@
     "fillTurns": 2,
     "mineTurns": 3,
     "fillSlotM": 4,
-    "fillBankM": 2.5
+    "fillBankM": 2.5,
+    "towerDockReachM": 2.5,
+    "towerClimbAp": 2,
+    "towerCapacity": 4
   },
   "morale": {
     "$comment": "Brief §9.7 : sous 30 ébranlée (−1 PA), sous 15 en fuite. Pertes et gains : valeurs de départ (J7 : équilibrage).",

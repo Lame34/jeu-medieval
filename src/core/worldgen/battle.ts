@@ -64,10 +64,10 @@ const GARRISON = { wall: ['crossbowman', 'wallGuard', 'crossbowman', 'wallGuard'
 /** J3 village outpost: defenders placed on open ground on a circle around the village centre. */
 const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], radiusM: 13, angleOffset: 0.4, searchCells: 12, maxGrade: 0.6 } as const;
 /**
- * J4 siege park: the engines, assembled overnight, and their sapper wait on the approach road this far from the
+ * J4 siege park: the engines (ram, catapult, siege tower), assembled overnight, and their sapper wait on the approach road this far from the
  * gate (beyond the reach of the tower archers, the walls within catapult range), side by side.
  */
-const SIEGE_PARK = { types: ['ram', 'catapult', 'sapper'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
+const SIEGE_PARK = { types: ['ram', 'catapult', 'sapper', 'siegeTower'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
 /** The gate-tower archer who works the drawbridge winch (J4): killing them drops the bridge. */
 const WINCH_OPERATOR_ID = 'def-tower-0';
 const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
@@ -445,10 +445,17 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const len = Math.hypot(parkAhead.x - parkAt.x, parkAhead.z - parkAt.z) || 1;
     return { x: -(parkAhead.z - parkAt.z) / len, z: (parkAhead.x - parkAt.x) / len };
   })();
+  // Along the road, towards the castle.
+  const parkDir = (() => {
+    const len = Math.hypot(parkAhead.x - parkAt.x, parkAhead.z - parkAt.z) || 1;
+    return { x: (parkAhead.x - parkAt.x) / len, z: (parkAhead.z - parkAt.z) / len };
+  })();
   const parkTaken = new Set(units.map((u) => `${u.position.x},${u.position.z}`));
   SIEGE_PARK.types.forEach((typeKey, i) => {
-    const offset = (i - (SIEGE_PARK.types.length - 1) / 2) * SIEGE_PARK.spacingM;
-    const spot = nearestOpenCell(t, { x: parkAt.x + parkSide.x * offset, z: parkAt.z + parkSide.z * offset }, parkTaken, SIEGE_PARK.maxGrade);
+    // Two by two either side of the road: the ram and the catapult in front, the rest behind.
+    const across = ((i % 2) - 0.5) * SIEGE_PARK.spacingM;
+    const back = Math.floor(i / 2) * SIEGE_PARK.spacingM;
+    const spot = nearestOpenCell(t, { x: parkAt.x + parkSide.x * across - parkDir.x * back, z: parkAt.z + parkSide.z * across - parkDir.z * back }, parkTaken, SIEGE_PARK.maxGrade);
     if (!spot) return;
     parkTaken.add(`${spot.x},${spot.z}`);
     units.push({ id: `att-siege-${i}`, faction: 'attacker', typeKey, position: spot, facingTurns: turnsFacing({ x: castle.gate.center.x - spot.x, z: castle.gate.center.z - spot.z }) });

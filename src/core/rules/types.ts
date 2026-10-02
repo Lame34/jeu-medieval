@@ -181,6 +181,10 @@ export interface StructureRules {
   /** Moat slots along the centreline (m), and how far the causeway runs past the water (m). */
   readonly fillSlotM: number;
   readonly fillBankM: number;
+  /** Siege tower: docking reach to a wall segment (m), AP of a climb, climbs a turn. */
+  readonly towerDockReachM: number;
+  readonly towerClimbAp: number;
+  readonly towerCapacity: number;
 }
 
 export interface GameRules {

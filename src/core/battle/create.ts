@@ -77,6 +77,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     units,
     structures,
     works: NO_WORKS,
+    docks: [],
     rng: root.fork(BATTLE_RNG_LABEL).getState(),
   };
 }

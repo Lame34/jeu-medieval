@@ -65,6 +65,8 @@ export function planMove(ctx: BattleContext, state: BattleState, unitId: string,
   const unit = findUnit(state, unitId);
   if (!unit) return { ok: false, reason: 'unknownUnit' };
   if (!unit.alive) return { ok: false, reason: 'unitDead' };
+  // A docked siege tower stays against its wall.
+  if (state.docks.some((d) => d.towerId === unitId)) return { ok: false, reason: 'towerDocked' };
   const nav = ctx.nav;
   if (target.x < 0 || target.z < 0 || target.x >= nav.width * nav.cellSize || target.z >= nav.depth * nav.cellSize) {
     return { ok: false, reason: 'outOfBounds' };

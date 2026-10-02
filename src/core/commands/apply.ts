@@ -11,12 +11,25 @@ import type { BattleContext } from '../battle/context.ts';
 import { findUnit, planMove, type MovePlan } from '../battle/movement.ts';
 import { lowerDrawbridges, previewStructureAttack, resolveStructureAttack } from '../battle/siege.ts';
 import { previewFill, previewUndermine, resolveWork, type WorkPreviewResult } from '../battle/siege-works.ts';
+import { previewClimb, previewDock, refillDocks, releaseDocks, resolveClimb, resolveDock } from '../battle/siege-tower.ts';
 import { syncNav } from '../battle/structures.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { normalize } from '../math/vec2.ts';
 import type { Faction } from '../rules/types.ts';
-import type { AttackCommand, AttackStructureCommand, Command, CommandRejection, EndTurnCommand, FillMoatCommand, MoveCommand, OverwatchCommand, UndermineCommand } from './types.ts';
+import type {
+  AttackCommand,
+  AttackStructureCommand,
+  ClimbTowerCommand,
+  Command,
+  CommandRejection,
+  DockTowerCommand,
+  EndTurnCommand,
+  FillMoatCommand,
+  MoveCommand,
+  OverwatchCommand,
+  UndermineCommand,
+} from './types.ts';
 
 export interface CommandResult {
   readonly state: BattleState;
@@ -94,6 +107,22 @@ function applyWork(ctx: BattleContext, state: BattleState, command: FillMoatComm
   return { state: next, events, rejection: null };
 }
 
+function applyDock(ctx: BattleContext, state: BattleState, command: DockTowerCommand): CommandResult {
+  const result = previewDock(ctx, state, command.unitId, command.structureId);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveDock(ctx, state, result.preview);
+  return { state: next, events, rejection: null };
+}
+
+function applyClimb(ctx: BattleContext, state: BattleState, command: ClimbTowerCommand): CommandResult {
+  const unit = findUnit(state, command.unitId);
+  if (unit?.alive && unit.faction === state.activeFaction && moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
+  const result = previewClimb(ctx, state, command.unitId, command.towerId);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveClimb(ctx, state, result.preview);
+  return { state: next, events, rejection: null };
+}
+
 function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnCommand): CommandResult {
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
@@ -103,7 +132,7 @@ function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnC
     { type: 'turnStarted', faction: next, turn },
   ];
   // Recovery, AP and attacks restored (shaken penalty), routed units run.
-  const started = startTurn(ctx, { ...state, activeFaction: next, turn }, next, events);
+  const started = startTurn(ctx, refillDocks({ ...state, activeFaction: next, turn }), next, events);
   return { state: started, events, rejection: null };
 }
 
@@ -118,6 +147,10 @@ function dispatch(ctx: BattleContext, state: BattleState, command: Command): Com
     case 'fillMoat':
     case 'undermine':
       return applyWork(ctx, state, command);
+    case 'dockTower':
+      return applyDock(ctx, state, command);
+    case 'climbTower':
+      return applyClimb(ctx, state, command);
     case 'overwatch':
       return applyOverwatch(ctx, state, command);
     case 'endTurn':
@@ -135,7 +168,7 @@ export function applyCommand(ctx: BattleContext, state: BattleState, command: Co
   }
   // Deaths, whatever caused them, may have freed a drawbridge.
   const events = [...result.events];
-  const settled = lowerDrawbridges(ctx, result.state, events);
+  const settled = releaseDocks(lowerDrawbridges(ctx, result.state, events), events);
   syncNav(ctx, settled.structures, settled.works);
   return settled === result.state ? result : { state: settled, events, rejection: null };
 }
