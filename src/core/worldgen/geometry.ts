@@ -56,6 +56,20 @@ export function pointAlong(line: readonly Vec2[], s: number): Vec2 {
 }
 
 /** Centripetal-free uniform Catmull–Rom resampling: smooth curves through control points. */
+/** The part of a polyline between arc lengths `from` and `to`. */
+export function subPolyline(line: readonly Vec2[], from: number, to: number): Vec2[] {
+  const out: Vec2[] = [pointAlong(line, from)];
+  let s = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1] as Vec2;
+    const b = line[i] as Vec2;
+    s += Math.hypot(b.x - a.x, b.z - a.z);
+    if (s > from && s < to) out.push(b);
+  }
+  out.push(pointAlong(line, to));
+  return out;
+}
+
 export function catmullRom(points: readonly Vec2[], samplesPerSegment: number): Vec2[] {
   if (points.length < 2) return [...points];
   const out: Vec2[] = [];

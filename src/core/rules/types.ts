@@ -161,6 +161,20 @@ export interface MoraleRules {
   readonly recoveryPerTurn: number;
 }
 
+/** Castle structures (J4, brief §9.8). */
+export interface StructureRules {
+  readonly wallHp: number;
+  readonly gateHp: number;
+  readonly portcullisHp: number;
+  /** Extra hit chance against something as large as a wall or a gate. */
+  readonly hitBonus: number;
+  /** Damage taken by units on a wall-walk segment that collapses. */
+  readonly fallDamage: number;
+  /** Morale lost by defenders within the radius (m) of a collapsing segment. */
+  readonly collapseMoraleLoss: number;
+  readonly collapseMoraleRadiusM: number;
+}
+
 export interface GameRules {
   /** Indexed by TerrainLayerId. */
   readonly terrainLayers: readonly TerrainLayerRule[];
@@ -168,4 +182,5 @@ export interface GameRules {
   readonly units: Readonly<Record<string, UnitTypeRule>>;
   readonly damage: DamageRules;
   readonly morale: MoraleRules;
+  readonly structures: StructureRules;
 }

@@ -51,6 +51,8 @@ export interface GateSite {
   readonly baseHeightM: number;
   /** A drawbridge spans the moat in front of the gate. */
   readonly drawbridge: boolean;
+  /** The defender working the drawbridge winch: killing them lowers it (J4). */
+  readonly winchOperatorId?: string;
 }
 
 export interface KeepSite {

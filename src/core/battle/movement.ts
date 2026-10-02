@@ -9,6 +9,7 @@ import { computeReachable, type ReachableField } from '../nav-grid/reachable.ts'
 import type { MovementProfile, UnitTypeRule } from '../rules/types.ts';
 import type { BattleContext } from './context.ts';
 import { cellIndexOf, snapToCellCenter } from './create.ts';
+import { syncNav } from './structures.ts';
 import type { BattleState, UnitState } from './types.ts';
 
 export interface MovePlan {
@@ -60,6 +61,7 @@ function enemyBlocker(occupied: Map<number, UnitState>, mover: UnitState): Block
 }
 
 export function planMove(ctx: BattleContext, state: BattleState, unitId: string, target: Vec2): MovePlanResult {
+  syncNav(ctx, state.structures);
   const unit = findUnit(state, unitId);
   if (!unit) return { ok: false, reason: 'unknownUnit' };
   if (!unit.alive) return { ok: false, reason: 'unitDead' };
@@ -88,6 +90,7 @@ export function planMove(ctx: BattleContext, state: BattleState, unitId: string,
 }
 
 export function movementArea(ctx: BattleContext, state: BattleState, unitId: string): MovementArea | null {
+  syncNav(ctx, state.structures);
   const unit = findUnit(state, unitId);
   if (!unit || !unit.alive) return null;
   const type = unitType(ctx, unit);

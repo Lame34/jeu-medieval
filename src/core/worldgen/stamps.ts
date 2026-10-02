@@ -6,8 +6,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import { smoothstep } from '../math/scalar.ts';
 import type { TerrainLayerId } from '../rules/types.ts';
 import { TerrainLayer } from '../rules/types.ts';
-import { cornerIndex, type TerrainData } from '../terrain-data/terrain-data.ts';
-import { pointInPolygon, projectOnPolyline } from './geometry.ts';
+import { cornerIndex, sampleHeight, type TerrainData } from '../terrain-data/terrain-data.ts';
+import { pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
 
 export type HeightFn = (x: number, z: number) => number;
 
@@ -86,6 +86,26 @@ export function flattenPolygon(t: TerrainData, polygon: readonly Vec2[], heightM
     },
     () => heightM,
     boundsOf(polygon, marginM),
+  );
+}
+
+/**
+ * Regrades a road into a ramp: its surface follows a straight profile from the height at one end
+ * to the height at the other (a constant grade along its length, engines can climb it), blended
+ * back into the relief over `shoulderM` on both sides.
+ */
+export function rampAlong(t: TerrainData, centerline: readonly Vec2[], halfWidthM: number, shoulderM: number): void {
+  const first = centerline[0];
+  const last = centerline[centerline.length - 1];
+  const total = polylineLength(centerline);
+  if (!first || !last || total <= 0) return;
+  const h0 = sampleHeight(t, first.x, first.z);
+  const h1 = sampleHeight(t, last.x, last.z);
+  blendHeights(
+    t,
+    (x, z) => 1 - smoothstep(halfWidthM, halfWidthM + shoulderM, projectOnPolyline({ x, z }, centerline).distance),
+    (x, z) => h0 + (h1 - h0) * Math.min(1, Math.max(0, projectOnPolyline({ x, z }, centerline).along / total)),
+    boundsOf(centerline, halfWidthM + shoulderM),
   );
 }
 

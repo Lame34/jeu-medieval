@@ -1,17 +1,21 @@
 /**
  * Pure command reducer: (state, command) → (new state, events). Invalid commands leave the
  * state untouched and emit a `commandRejected` event, so a recorded command log always replays.
+ * The context's navigation grid is synced to the state's structures before and after each
+ * command (a breach or a lowered drawbridge reshapes the ground).
  */
 import { previewAttack, resolveAttack } from '../battle/combat.ts';
 import { moraleStanding, startTurn } from '../battle/morale.ts';
 import { canOverwatch, moveThroughOverwatch } from '../battle/overwatch.ts';
 import type { BattleContext } from '../battle/context.ts';
 import { findUnit, planMove, type MovePlan } from '../battle/movement.ts';
+import { lowerDrawbridges, previewStructureAttack, resolveStructureAttack } from '../battle/siege.ts';
+import { syncNav } from '../battle/structures.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { normalize } from '../math/vec2.ts';
 import type { Faction } from '../rules/types.ts';
-import type { AttackCommand, Command, CommandRejection, EndTurnCommand, MoveCommand, OverwatchCommand } from './types.ts';
+import type { AttackCommand, AttackStructureCommand, Command, CommandRejection, EndTurnCommand, MoveCommand, OverwatchCommand } from './types.ts';
 
 export interface CommandResult {
   readonly state: BattleState;
@@ -69,6 +73,17 @@ function applyAttack(ctx: BattleContext, state: BattleState, command: AttackComm
   return { state: next, events, rejection: null };
 }
 
+function applyAttackStructure(ctx: BattleContext, state: BattleState, command: AttackStructureCommand): CommandResult {
+  const attacker = findUnit(state, command.unitId);
+  if (attacker?.alive && attacker.faction === state.activeFaction && moraleStanding(ctx.rules.morale, attacker.morale) === 'fleeing') {
+    return reject(state, command, 'unitFleeing');
+  }
+  const result = previewStructureAttack(ctx, state, command.unitId, command.structureId);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveStructureAttack(ctx, state, result.preview);
+  return { state: next, events, rejection: null };
+}
+
 function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnCommand): CommandResult {
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
@@ -82,16 +97,32 @@ function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnC
   return { state: started, events, rejection: null };
 }
 
-export function applyCommand(ctx: BattleContext, state: BattleState, command: Command): CommandResult {
-  if (state.status !== 'ongoing') return reject(state, command, 'battleOver');
+function dispatch(ctx: BattleContext, state: BattleState, command: Command): CommandResult {
   switch (command.type) {
     case 'move':
       return applyMove(ctx, state, command);
     case 'attack':
       return applyAttack(ctx, state, command);
+    case 'attackStructure':
+      return applyAttackStructure(ctx, state, command);
     case 'overwatch':
       return applyOverwatch(ctx, state, command);
     case 'endTurn':
       return applyEndTurn(ctx, state, command);
   }
+}
+
+export function applyCommand(ctx: BattleContext, state: BattleState, command: Command): CommandResult {
+  if (state.status !== 'ongoing') return reject(state, command, 'battleOver');
+  syncNav(ctx, state.structures);
+  const result = dispatch(ctx, state, command);
+  if (result.rejection || result.state.status !== 'ongoing') {
+    syncNav(ctx, result.state.structures);
+    return result;
+  }
+  // Deaths, whatever caused them, may have freed a drawbridge.
+  const events = [...result.events];
+  const settled = lowerDrawbridges(ctx, result.state, events);
+  syncNav(ctx, settled.structures);
+  return settled === result.state ? result : { state: settled, events, rejection: null };
 }

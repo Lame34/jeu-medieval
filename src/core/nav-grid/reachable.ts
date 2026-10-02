@@ -10,6 +10,7 @@ import {
   DIAGONAL_NEIGHBORS,
   NEIGHBOR_DX,
   NEIGHBOR_DZ,
+  connectedComponents,
   edgeCost,
   nextGeneration,
   type BlockedPredicate,
@@ -94,13 +95,23 @@ export function computeReachable(ctx: PathContext, query: ReachableQuery): Reach
   return { profile, origin, budget, minCx, minCz, width, depth, cost };
 }
 
+/** Where a cost field may stop early: once these cells are settled, `slackAp` further out. */
+export interface FieldSettle {
+  readonly cells: readonly number[];
+  readonly slackAp: number;
+}
+
 /**
- * Multi-source Dijkstra over the whole grid: the AP cost from every cell to the nearest origin
+ * Multi-source Dijkstra over the grid: the AP cost from every cell to the nearest origin
  * (costs are accumulated outwards from the origins, so uphill and downhill swap: an estimate for
  * scoring, not an executable path). Impassable origins are skipped. Full-grid Float32Array,
  * IMPASSABLE where no origin is reachable within the budget.
+ *
+ * With `settle`, the search stops once every one of its cells that some origin can reach is
+ * settled and the frontier is `slackAp` past the farthest: the field is exact up to there and
+ * IMPASSABLE beyond (callers only read it around those cells).
  */
-export function computeCostField(ctx: PathContext, profile: MovementProfile, origins: readonly number[], budget: number): Float32Array {
+export function computeCostField(ctx: PathContext, profile: MovementProfile, origins: readonly number[], budget: number, settle?: FieldSettle): Float32Array {
   const { nav } = ctx;
   const w = nav.width;
   const gen = nextGeneration(ctx);
@@ -111,12 +122,24 @@ export function computeCostField(ctx: PathContext, profile: MovementProfile, ori
     ctx.seen[origin] = gen;
     ctx.heap.push(origin, 0, 0);
   }
+  let pending: Set<number> | null = null;
+  let limit = budget;
+  if (settle) {
+    const label = connectedComponents(ctx, profile);
+    const reached = new Set<number>();
+    for (const origin of origins) if ((label[origin] as number) >= 0) reached.add(label[origin] as number);
+    pending = new Set(settle.cells.filter((c) => reached.has(label[c] as number)));
+    if (pending.size === 0) limit = -1;
+  }
   while (ctx.heap.size > 0) {
     const current = ctx.heap.pop();
     if (ctx.closed[current] === gen) continue;
-    ctx.closed[current] = gen;
     const gCurrent = ctx.g[current] as number;
+    if (gCurrent > limit) break;
+    ctx.closed[current] = gen;
     field[current] = gCurrent;
+    // Our cells settle in cost order: the last one is the farthest.
+    if (pending?.delete(current) && pending.size === 0) limit = Math.min(budget, gCurrent + (settle as FieldSettle).slackAp);
     const cx = current % w;
     const cz = Math.floor(current / w);
     for (let n = 0; n < DIAGONAL_NEIGHBORS; n++) {

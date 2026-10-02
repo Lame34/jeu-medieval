@@ -13,6 +13,7 @@ import { battleStatus, blowOdds, coverAgainst, faceTowards, heightSteps, rollBlo
 import { snapToCellCenter } from './create.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { unitType, type MovePlan } from './movement.ts';
+import { syncNav } from './structures.ts';
 import type { BattleState, UnitState } from './types.ts';
 
 const INDIRECT_FIRE_TAG = 'indirectFire';
@@ -52,6 +53,7 @@ export interface Threat {
 
 /** Enemy shooters that could fire at `unit` if it stood at `at` (the preview's exposure line). */
 export function threatsAt(ctx: BattleContext, state: BattleState, unit: UnitState, at: Vec2): Threat[] {
+  syncNav(ctx, state.structures);
   const threats: Threat[] = [];
   for (const enemy of state.units) {
     if (!enemy.alive || enemy.faction === unit.faction) continue;

@@ -18,6 +18,7 @@ import {
   type GameRules,
   type MovementProfile,
   type MoraleRules,
+  type StructureRules,
   type MovementRules,
   type TerrainLayerRule,
   type UnitAttackRule,
@@ -205,6 +206,19 @@ function readMorale(raw: unknown): MoraleRules {
   });
 }
 
+function readStructures(raw: unknown): StructureRules {
+  const s = obj(raw, 'damage.structures');
+  return Object.freeze({
+    wallHp: num(s['wallHp'], 'damage.structures.wallHp', 1),
+    gateHp: num(s['gateHp'], 'damage.structures.gateHp', 1),
+    portcullisHp: num(s['portcullisHp'], 'damage.structures.portcullisHp', 1),
+    hitBonus: num(s['hitBonus'], 'damage.structures.hitBonus', 0, 1),
+    fallDamage: num(s['fallDamage'], 'damage.structures.fallDamage', 0),
+    collapseMoraleLoss: num(s['collapseMoraleLoss'], 'damage.structures.collapseMoraleLoss', 0),
+    collapseMoraleRadiusM: num(s['collapseMoraleRadiusM'], 'damage.structures.collapseMoraleRadiusM', 0),
+  });
+}
+
 export interface RawRuleFiles {
   readonly terrain: unknown;
   readonly units: unknown;
@@ -219,5 +233,6 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     units: Object.freeze(readUnits(raw.units)),
     damage: readDamage(raw.damage),
     morale: readMorale(obj(raw.damage, 'damage')['morale']),
+    structures: readStructures(obj(raw.damage, 'damage')['structures']),
   });
 }

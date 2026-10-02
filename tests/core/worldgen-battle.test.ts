@@ -83,17 +83,31 @@ describe('generateBattleMap: deployment zone', () => {
     expect(deploy.minZ).toBeGreaterThan(castleCenterZ); // deployment sits well south of the castle
   });
 
-  it('places every attacker unit marker inside the deployment zone', () => {
+  it('places every attacker unit marker inside the deployment zone, siege engines excepted', () => {
     const deploy = mapA1.layout.deployment;
     expect(deploy).toBeDefined();
     if (!deploy) return;
-    const attackers = mapA1.layout.units.filter((u) => u.faction === 'attacker');
+    const attackers = mapA1.layout.units.filter((u) => u.faction === 'attacker' && !u.id.startsWith('att-siege-'));
     expect(attackers.length).toBeGreaterThan(0);
     for (const u of attackers) {
       expect(u.position.x).toBeGreaterThanOrEqual(deploy.minX);
       expect(u.position.x).toBeLessThanOrEqual(deploy.maxX);
       expect(u.position.z).toBeGreaterThanOrEqual(deploy.minZ);
       expect(u.position.z).toBeLessThanOrEqual(deploy.maxZ);
+    }
+  });
+
+  it('parks the siege engines (J4) on the approach road, beyond the tower archers yet within catapult range', () => {
+    const engines = mapA1.layout.units.filter((u) => u.id.startsWith('att-siege-'));
+    expect(engines.map((u) => u.typeKey).sort()).toEqual(['catapult', 'ram']);
+    const gate = mapA1.castle.gate.center;
+    const road = mapA1.layout.roads.find((r) => r.id === 'road-main');
+    expect(road).toBeDefined();
+    for (const u of engines) {
+      const d = Math.hypot(u.position.x - gate.x, u.position.z - gate.z);
+      expect(d).toBeGreaterThan(50);
+      expect(d).toBeLessThan(75);
+      expect(projectOnPolyline(u.position, road?.centerline ?? []).distance).toBeLessThan(10);
     }
   });
 });

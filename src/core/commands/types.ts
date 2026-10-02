@@ -1,7 +1,7 @@
 import type { Vec2 } from '../math/vec2.ts';
 
 /** Player / AI intentions. Plain JSON: a battle replays from `seed + scenario + Command[]`. */
-export type Command = MoveCommand | AttackCommand | OverwatchCommand | EndTurnCommand;
+export type Command = MoveCommand | AttackCommand | AttackStructureCommand | OverwatchCommand | EndTurnCommand;
 
 export interface MoveCommand {
   readonly type: 'move';
@@ -14,6 +14,13 @@ export interface AttackCommand {
   readonly type: 'attack';
   readonly unitId: string;
   readonly targetId: string;
+}
+
+/** A siege engine strikes a castle structure (wall segment, gate, portcullis). */
+export interface AttackStructureCommand {
+  readonly type: 'attackStructure';
+  readonly unitId: string;
+  readonly structureId: string;
 }
 
 /** Gives up the unit's action (and remaining AP) to watch a cone until its next turn. */
@@ -48,6 +55,12 @@ export const COMMAND_REJECTIONS = [
   'unitFleeing',
   'cannotOverwatch',
   'invalidDirection',
+  'unknownStructure',
+  'structureDown',
+  'structureInvulnerable',
+  'noSiegeWeapon',
+  'gatesOnly',
+  'structureShielded',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

@@ -2,8 +2,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 
-/** 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 2;
+/** 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 3;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -25,6 +25,14 @@ export interface UnitState {
   readonly alive: boolean;
 }
 
+/** A castle structure's condition (definitions live in the context). */
+export interface StructureState {
+  readonly id: string;
+  readonly hp: number;
+  /** Breached, smashed, or (drawbridge) lowered. */
+  readonly broken: boolean;
+}
+
 /** Fully serialisable battle state. A battle is `seed + scenario + commands`. */
 export interface BattleState {
   readonly version: typeof BATTLE_STATE_VERSION;
@@ -34,6 +42,8 @@ export interface BattleState {
   readonly status: BattleStatus;
   /** Sorted by id: iteration order is part of determinism. */
   readonly units: readonly UnitState[];
+  /** Sorted by id. */
+  readonly structures: readonly StructureState[];
   readonly rng: RngState;
 }
 

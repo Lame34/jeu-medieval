@@ -18,15 +18,16 @@ import { distance, normalize, sub, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { traverseSegment } from '../nav-grid/traverse.ts';
 import { Rng } from '../rng.ts';
-import { COVER_LEVELS, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
+import { COVER_LEVELS, type ArmorClass, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
 import { deckAt, type BattleContext } from './context.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
+import { syncNav } from './structures.ts';
 import { findUnit, unitType } from './movement.ts';
 import type { BattleState, BattleStatus, UnitState } from './types.ts';
 
-/** Units whose shots arc over obstacles (no line of sight needed). */
-const INDIRECT_FIRE_TAG = 'indirectFire';
+/** Units whose shots arc over obstacles: no line of sight needed, and no height modifier. */
+export const INDIRECT_FIRE_TAG = 'indirectFire';
 
 export interface DamageRange {
   /** A normal hit. */
@@ -106,13 +107,27 @@ export function coverAgainst(ctx: BattleContext, shooter: Vec2, target: Vec2): C
 }
 
 export function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: UnitTypeRule, accuracyFactor: number, steps: number, cover: CoverLevel, obscurance: number): BlowOdds {
+  return oddsAgainst(ctx, attack, target.armor, accuracyFactor, steps, cover, obscurance, 0);
+}
+
+/** Odds of a blow against `armor` (a unit's armour or a structure's material). */
+export function oddsAgainst(
+  ctx: BattleContext,
+  attack: UnitAttackRule,
+  armor: ArmorClass,
+  accuracyFactor: number,
+  steps: number,
+  cover: CoverLevel,
+  obscurance: number,
+  hitBonus: number,
+): BlowOdds {
   const d = ctx.rules.damage;
   const hitChance = clamp(
-    attack.accuracy * accuracyFactor + steps * d.accuracyPerHeightStep - d.coverPenalty[cover] - obscurance * d.obscurancePenalty,
+    attack.accuracy * accuracyFactor + hitBonus + steps * d.accuracyPerHeightStep - d.coverPenalty[cover] - obscurance * d.obscurancePenalty,
     d.hitChanceMin,
     d.hitChanceMax,
   );
-  const base = attack.power * (1 - d.armorReduction[target.armor]) * d.multipliers[attack.type][target.armor];
+  const base = attack.power * (1 - d.armorReduction[armor]) * d.multipliers[attack.type][armor];
   return {
     hitChance,
     critChance: d.critChance,
@@ -121,6 +136,7 @@ export function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: Uni
 }
 
 export function previewAttack(ctx: BattleContext, state: BattleState, attackerId: string, targetId: string): AttackPreviewResult {
+  syncNav(ctx, state.structures);
   const attacker = findUnit(state, attackerId);
   if (!attacker) return { ok: false, reason: 'unknownUnit' };
   if (!attacker.alive) return { ok: false, reason: 'unitDead' };
@@ -138,8 +154,9 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   if (attacker.ap < d.attackApCost) return { ok: false, reason: 'insufficientAp' };
 
   const melee = attack.rangeM === 0;
+  const indirect = aType.tags.includes(INDIRECT_FIRE_TAG);
   const distanceM = distance(attacker.position, target.position);
-  const steps = heightSteps(ctx, attacker.position, target.position);
+  const steps = indirect ? 0 : heightSteps(ctx, attacker.position, target.position);
   const effectiveRangeM = melee ? d.meleeReachM : attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep);
   if (distanceM > effectiveRangeM) return { ok: false, reason: 'outOfRange' };
 
@@ -147,7 +164,7 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   let obscurance = 0;
   if (!melee) {
     cover = coverAgainst(ctx, attacker.position, target.position);
-    if (!aType.tags.includes(INDIRECT_FIRE_TAG)) {
+    if (!indirect) {
       const sight = lineOfSight(ctx.nav, {
         from: attacker.position,
         to: target.position,

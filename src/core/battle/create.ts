@@ -3,6 +3,7 @@ import { isPassable } from '../nav-grid/nav-grid.ts';
 import { Rng, type Seed } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 import type { BattleContext } from './context.ts';
+import { initialStructures, syncNav } from './structures.ts';
 import { BATTLE_STATE_VERSION, type BattleState, type Scenario, type UnitState } from './types.ts';
 
 export const DEFAULT_MORALE = 70;
@@ -27,6 +28,9 @@ export function cellIndexOf(ctx: BattleContext, p: Vec2): number {
 }
 
 export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario): BattleState {
+  // Spawns are checked against the intact castle.
+  const structures = initialStructures(ctx.structures);
+  syncNav(ctx, structures);
   const firstFaction: Faction = scenario.firstFaction ?? 'attacker';
   const morale = scenario.initialMorale ?? DEFAULT_MORALE;
   const seenIds = new Set<string>();
@@ -71,6 +75,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     activeFaction: firstFaction,
     status: 'ongoing',
     units,
+    structures,
     rng: root.fork(BATTLE_RNG_LABEL).getState(),
   };
 }

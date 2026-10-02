@@ -28,6 +28,8 @@ export interface PathContext {
   readonly closed: Uint32Array;
   readonly heap: CellHeap;
   generation: number;
+  /** Connected regions per profile (computed on demand, see connectedComponents). */
+  readonly components: Partial<Record<MovementProfile, Int32Array>>;
 }
 
 export function createPathContext(nav: NavGrid): PathContext {
@@ -40,7 +42,63 @@ export function createPathContext(nav: NavGrid): PathContext {
     closed: new Uint32Array(count),
     heap: new CellHeap(),
     generation: 0,
+    components: {},
   };
+}
+
+/**
+ * True when a unit of `profile` can step from (cx, cz) to its neighbour (cx + dx, cz + dz):
+ * exactly the cases where edgeCost is finite, without the cost arithmetic. Symmetric.
+ */
+export function edgePassable(nav: NavGrid, profile: MovementProfile, cx: number, cz: number, dx: number, dz: number): boolean {
+  const nx = cx + dx;
+  const nz = cz + dz;
+  if (nx < 0 || nz < 0 || nx >= nav.width || nz >= nav.depth) return false;
+  const costs = nav.apPerMeter[profile];
+  const w = nav.width;
+  const from = cz * w + cx;
+  const to = nz * w + nx;
+  if ((costs[from] as number) === IMPASSABLE || (costs[to] as number) === IMPASSABLE) return false;
+  if (dx !== 0 && dz !== 0 && ((costs[cz * w + nx] as number) === IMPASSABLE || (costs[nz * w + cx] as number) === IMPASSABLE)) return false;
+  return deckStepCost(nav, costs[to] as number, from, to) !== IMPASSABLE;
+}
+
+/**
+ * Label of the connected region of every cell for `profile` (-1 where impassable), computed
+ * once per grid and profile: two cells share a label exactly when a path joins them.
+ */
+export function connectedComponents(ctx: PathContext, profile: MovementProfile): Int32Array {
+  const cached = ctx.components[profile];
+  if (cached) return cached;
+  const { nav } = ctx;
+  const w = nav.width;
+  const count = w * nav.depth;
+  const label = new Int32Array(count).fill(-1);
+  const stack = new Int32Array(count);
+  const costs = nav.apPerMeter[profile];
+  let next = 0;
+  for (let seed = 0; seed < count; seed++) {
+    if (label[seed] !== -1 || (costs[seed] as number) === IMPASSABLE) continue;
+    let top = 0;
+    stack[top++] = seed;
+    label[seed] = next;
+    while (top > 0) {
+      const cell = stack[--top] as number;
+      const cx = cell % w;
+      const cz = Math.floor(cell / w);
+      for (let n = 0; n < DIAGONAL_NEIGHBORS; n++) {
+        const dx = NEIGHBOR_DX[n] as number;
+        const dz = NEIGHBOR_DZ[n] as number;
+        const to = (cz + dz) * w + (cx + dx);
+        if (!edgePassable(nav, profile, cx, cz, dx, dz) || label[to] !== -1) continue;
+        label[to] = next;
+        stack[top++] = to;
+      }
+    }
+    next++;
+  }
+  ctx.components[profile] = label;
+  return label;
 }
 
 export function nextGeneration(ctx: PathContext): number {

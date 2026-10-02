@@ -13,7 +13,7 @@ import { cellGrade, createTerrainData, sampleHeight } from '../terrain-data/terr
 import { planCastle, turnsFacing, type CastlePlan } from './castle.ts';
 import { stampCastleDecks } from './decks.ts';
 import { buildParcels } from './fields.ts';
-import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline } from './geometry.ts';
+import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline, subPolyline } from './geometry.ts';
 import { CellMask } from './raster.ts';
 import { routeRoad } from './roads.ts';
 import { poissonScatter } from './scatter.ts';
@@ -21,6 +21,7 @@ import {
   blendHeights,
   boundsOf,
   carveChannel,
+  rampAlong,
   fillHeights,
   flattenPolygon,
   paintAlongPolyline,
@@ -43,6 +44,8 @@ const TERRAIN = { base: 4, reliefAmp: 8, ridgeAmp: 5 };
 const BUTTE = { height: 15, topMargin: 12, slopeWidth: 70 };
 const RIVER = { widthM: 12, levelM: 1, bedBelowM: 1.8, bankM: 5, valleyHalfM: 70, valleyAboveM: 1.4, fordFraction: 0.3, bridgeFraction: 0.62, fordLengthM: 14, fordBedBelowM: 0.35 };
 const ROAD = { mainHalfM: 2.6, sideHalfM: 2.0, stepM: 4, slopePenalty: 40, riverClearM: 3, crossingRadiusM: 10, smoothRadiusM: 6 };
+/** The castle ramp (J4): grade cap (engines climb 0.3), length bounds, road margin and shoulders. */
+const RAMP = { grade: 0.2, minLengthM: 40, maxLengthM: 240, searchStepM: 2, marginM: 1.5, shoulderM: 7 };
 const BRIDGE = { widthM: 5.5, landingM: 5, deckAboveWaterM: 1.8 };
 const VILLAGE = { spanM: 95, minHouses: 8, maxHouses: 15, offsetM: 12, spacingM: 12, marginM: 2 };
 const FARMS = { count: 3, fieldRingM: 70 };
@@ -51,6 +54,8 @@ const FOREST_TARGET = 0.3;
 const CASTLE_CLEAR_M = 45;
 const DEPLOY = { depthM: 60 };
 const MOAT_BED_BELOW_M = 1.6;
+/** Half the depth (m, across the wall line) of the gatehouse block between the gate towers. */
+const GATEHOUSE_HALF_DEPTH_M = 2;
 /** Houses are not built across more than this height difference (diagonal of the plot). */
 const MAX_HOUSE_SLOPE_DROP_M = 2.2;
 const TREES = { minDistM: 4.6, underDistM: 2.4, hedgeTreeEveryM: 11 };
@@ -58,6 +63,13 @@ const TREES = { minDistM: 4.6, underDistM: 2.4, hedgeTreeEveryM: 11 };
 const GARRISON = { wall: ['crossbowman', 'wallGuard', 'crossbowman', 'wallGuard'], courtyard: ['officer', 'militia'], searchCells: 3 } as const;
 /** J3 village outpost: defenders placed on open ground on a circle around the village centre. */
 const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], radiusM: 13, angleOffset: 0.4, searchCells: 12, maxGrade: 0.6 } as const;
+/**
+ * J4 siege park: the engines, assembled overnight, wait on the approach road this far from the
+ * gate (beyond the reach of the tower archers, the walls within catapult range), side by side.
+ */
+const SIEGE_PARK = { types: ['ram', 'catapult'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
+/** The gate-tower archer who works the drawbridge winch (J4): killing them drops the bridge. */
+const WINCH_OPERATOR_ID = 'def-tower-0';
 const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
 
 export interface BattleMapParams {
@@ -202,6 +214,17 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     { id: 'road-west', kind: 'path', centerline: westRoad, widthM: ROAD.sideHalfM * 2 },
     { id: 'road-east', kind: 'path', centerline: eastRoad, widthM: ROAD.sideHalfM * 2 },
   ];
+  // The climb to the castle is regraded into an even ramp the siege engines can take (J4): it
+  // starts far enough down the main road to stay under the ramp grade.
+  const mainLength = polylineLength(mainRoad);
+  const rampTop = sampleHeight(t, castle.gateApproach.x, castle.gateApproach.z);
+  let rampLength = RAMP.minLengthM;
+  for (let len = RAMP.minLengthM; len <= Math.min(RAMP.maxLengthM, mainLength); len += RAMP.searchStepM) {
+    const foot = pointAlong(mainRoad, mainLength - len);
+    rampLength = len;
+    if ((rampTop - sampleHeight(t, foot.x, foot.z)) / len <= RAMP.grade) break;
+  }
+  rampAlong(t, subPolyline(mainRoad, mainLength - rampLength, mainLength), ROAD.mainHalfM + RAMP.marginM, RAMP.shoulderM);
   for (const r of roads) smoothAlong(t, r.centerline, ROAD.smoothRadiusM, 0.7);
 
   // --- Village and farms -----------------------------------------------------------------------
@@ -330,6 +353,9 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     { x: castle.gate.center.x + gateOut.x * 2, z: castle.gate.center.z + gateOut.z * 2 },
   ];
   paintAlongPolyline(t, gateLine, castle.gate.openingM / 2 + 0.5, TerrainLayer.Wall);
+  // The gatehouse masonry runs on to both gate towers: no gap beside the passage.
+  const gateTowers = castle.towers.filter((tw) => tw.id.includes('gate-tower')).map((tw) => tw.center);
+  if (gateTowers.length === 2) paintAlongPolyline(t, gateTowers, GATEHOUSE_HALF_DEPTH_M, TerrainLayer.Wall, [TerrainLayer.Plain]);
 
   // --- Vegetation ---------------------------------------------------------------------------------
   const vegRng = root.fork('vegetation');
@@ -388,6 +414,29 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const p = { x: castleCenter.x + Math.cos(a) * castleRadius * 0.3, z: castleCenter.z + Math.sin(a) * castleRadius * 0.3 };
     units.push({ id: `def-${i}`, faction: 'defender', typeKey, position: { x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 }, facingTurns: turnsFacing(gateOut) });
   });
+  // J4: the siege park, on the approach road short of the castle.
+  const parkAlong = (() => {
+    const total = polylineLength(mainRoad);
+    for (let along = total; along > 0; along -= 1) {
+      const q = pointAlong(mainRoad, along);
+      if (Math.hypot(q.x - castle.gate.center.x, q.z - castle.gate.center.z) >= SIEGE_PARK.distanceM) return along;
+    }
+    return 0;
+  })();
+  const parkAt = pointAlong(mainRoad, parkAlong);
+  const parkAhead = pointAlong(mainRoad, parkAlong + 2);
+  const parkSide = (() => {
+    const len = Math.hypot(parkAhead.x - parkAt.x, parkAhead.z - parkAt.z) || 1;
+    return { x: -(parkAhead.z - parkAt.z) / len, z: (parkAhead.x - parkAt.x) / len };
+  })();
+  const parkTaken = new Set(units.map((u) => `${u.position.x},${u.position.z}`));
+  SIEGE_PARK.types.forEach((typeKey, i) => {
+    const offset = (i - (SIEGE_PARK.types.length - 1) / 2) * SIEGE_PARK.spacingM;
+    const spot = nearestOpenCell(t, { x: parkAt.x + parkSide.x * offset, z: parkAt.z + parkSide.z * offset }, parkTaken, SIEGE_PARK.maxGrade);
+    if (!spot) return;
+    parkTaken.add(`${spot.x},${spot.z}`);
+    units.push({ id: `att-siege-${i}`, faction: 'attacker', typeKey, position: spot, facingTurns: turnsFacing({ x: castle.gate.center.x - spot.x, z: castle.gate.center.z - spot.z }) });
+  });
   // J3: a village outpost fights in the open (the castle garrison waits for the siege, J4).
   const deployCenter = { x: (deployment.minX + deployment.maxX) / 2, z: (deployment.minZ + deployment.maxZ) / 2 };
   const taken = new Set(units.map((u) => `${u.position.x},${u.position.z}`));
@@ -419,7 +468,7 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     hedges,
     walls: castle.walls,
     towers: castle.towers,
-    gates: [castle.gate],
+    gates: [units.some((u) => u.id === WINCH_OPERATOR_ID) ? { ...castle.gate, winchOperatorId: WINCH_OPERATOR_ID } : castle.gate],
     keeps: castle.keep ? [castle.keep] : [],
     bridges,
     units,
@@ -448,8 +497,8 @@ function nearestLayerCell(t: ReturnType<typeof createTerrainData>, target: Vec2,
   return null;
 }
 
-/** Nearest cell centre to `target` on open ground (plain, road, field; gentle slope), not taken. */
-function nearestOpenCell(t: ReturnType<typeof createTerrainData>, target: Vec2, taken: ReadonlySet<string>): Vec2 | null {
+/** Nearest cell centre to `target` on open ground (plain, road, field; slope up to `maxGrade`), not taken. */
+function nearestOpenCell(t: ReturnType<typeof createTerrainData>, target: Vec2, taken: ReadonlySet<string>, maxGrade: number = OUTPOST.maxGrade): Vec2 | null {
   const cx0 = Math.floor(target.x);
   const cz0 = Math.floor(target.z);
   for (let r = 0; r <= OUTPOST.searchCells; r++) {
@@ -460,7 +509,7 @@ function nearestOpenCell(t: ReturnType<typeof createTerrainData>, target: Vec2, 
         const cz = cz0 + dz;
         if (cx < 0 || cz < 0 || cx >= t.width || cz >= t.depth) continue;
         const layer = t.layers[cz * t.width + cx] as number;
-        if (!(OPEN_LAYERS as readonly number[]).includes(layer) || cellGrade(t, cx, cz) > OUTPOST.maxGrade) continue;
+        if (!(OPEN_LAYERS as readonly number[]).includes(layer) || cellGrade(t, cx, cz) > maxGrade) continue;
         const spot = { x: cx + 0.5, z: cz + 0.5 };
         if (!taken.has(`${spot.x},${spot.z}`)) return spot;
       }

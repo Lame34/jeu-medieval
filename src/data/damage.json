@@ -25,6 +25,16 @@
   "overwatchHalfAngleDeg": 40,
   "overwatchAccuracyFactor": 0.85,
   "overwatchSampleM": 0.5,
+  "structures": {
+    "$comment": "Brief §9.8 : un segment de courtine passe d'intact à effondré (gravats franchissables) ; la porte puis la herse cèdent au bélier. Valeurs de départ (J7 : équilibrage).",
+    "wallHp": 120,
+    "gateHp": 60,
+    "portcullisHp": 30,
+    "hitBonus": 0.15,
+    "fallDamage": 8,
+    "collapseMoraleLoss": 20,
+    "collapseMoraleRadiusM": 20
+  },
   "morale": {
     "$comment": "Brief §9.7 : sous 30 ébranlée (−1 PA), sous 15 en fuite. Pertes et gains : valeurs de départ (J7 : équilibrage).",
     "max": 100,

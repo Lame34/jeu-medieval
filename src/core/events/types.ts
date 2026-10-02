@@ -1,5 +1,6 @@
 import type { Command, CommandRejection } from '../commands/types.ts';
 import type { Vec2 } from '../math/vec2.ts';
+import type { StructureKind } from '../battle/structures.ts';
 import type { BattleStatus } from '../battle/types.ts';
 import type { Faction } from '../rules/types.ts';
 
@@ -13,6 +14,8 @@ export type GameEvent =
   | UnitDiedEvent
   | MoraleChangedEvent
   | OverwatchSetEvent
+  | StructureDamagedEvent
+  | StructureBrokenEvent
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
@@ -53,13 +56,42 @@ export interface UnitDiedEvent {
   readonly byId: string;
 }
 
+/** A siege engine's blow against a structure. */
+export interface StructureDamagedEvent {
+  readonly type: 'structureDamaged';
+  readonly attackerId: string;
+  readonly structureId: string;
+  readonly hitChance: number;
+  readonly hit: boolean;
+  readonly crit: boolean;
+  readonly damage: number;
+  readonly hpAfter: number;
+}
+
+/** A unit thrown down by a collapsing wall-walk. */
+export interface FallenUnit {
+  readonly unitId: string;
+  readonly damage: number;
+  readonly hpAfter: number;
+}
+
+/** A wall segment collapses into rubble, a gate or portcullis gives way, a drawbridge drops. */
+export interface StructureBrokenEvent {
+  readonly type: 'structureBroken';
+  readonly structureId: string;
+  readonly kind: StructureKind;
+  /** The engine that dealt the last blow (none for a drawbridge lowered by its operator's death). */
+  readonly byId: string | null;
+  readonly fallen: readonly FallenUnit[];
+}
+
 export interface OverwatchSetEvent {
   readonly type: 'overwatchSet';
   readonly unitId: string;
   readonly direction: Vec2;
 }
 
-export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery';
+export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery' | 'wallCollapsed';
 
 export interface MoraleChangedEvent {
   readonly type: 'moraleChanged';

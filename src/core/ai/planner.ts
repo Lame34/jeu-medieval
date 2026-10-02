@@ -9,6 +9,10 @@
  * target's priority (siege engines, wounded units), minus the riposte it would draw. Without a
  * target, shooters stand guard towards the nearest enemy and melee units close in. Commands are
  * applied one by one, so every unit plans against the positions its comrades just took.
+ *
+ * Siege (J4): engines weigh blows against the castle's structures (expected damage, plus the
+ * chance to bring one down); a ram closes in on the gate it can strike, and waits out of the
+ * fight while none is exposed; a drawbridge's winch operator stays at the winch.
  */
 import { previewAttack, type AttackPreview } from '../battle/combat.ts';
 import type { BattleContext } from '../battle/context.ts';
@@ -16,6 +20,8 @@ import { cellIndexOf } from '../battle/create.ts';
 import { moraleStanding } from '../battle/morale.ts';
 import { movementArea, occupancy, unitType } from '../battle/movement.ts';
 import { canOverwatch, threatsAt } from '../battle/overwatch.ts';
+import { distanceToCells, GATES_ONLY_TAG, shieldOf, SIEGE_ENGINE_TAG, structuresInReach, type StructureAttackPreview } from '../battle/siege.ts';
+import { isBroken, syncNav } from '../battle/structures.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import { applyCommand } from '../commands/apply.ts';
 import type { Command } from '../commands/types.ts';
@@ -45,15 +51,22 @@ export const AI_WEIGHTS = {
   guardBonus: 1,
   /** Defenders leave their spot only for enemies closer than this (m). */
   defenderEngageRadiusM: 25,
+  /** Value per expected point of structure damage, and of bringing a structure down. */
+  structureDamage: 0.5,
+  breachBonus: 30,
 } as const;
 
 /** Horizon (AP) of the approach fields: enemies farther than this by the ground are ignored. */
 const APPROACH_BUDGET_AP = 120;
+/**
+ * The approach fields stop this many AP (per AP of our fastest unit) past our farthest unit: a
+ * move's AP buys at most this much field cost (the field runs uphill/downhill reversed).
+ */
+const APPROACH_SLACK_PER_AP = 3;
 
 /** Spots scored per unit: its own cell plus the cheapest reachable cells on a coarse lattice. */
 const MAX_CANDIDATES = 160;
 const LATTICE_STEP_CELLS = 2;
-const SIEGE_ENGINE_TAG = 'siegeEngine';
 
 interface Candidate {
   readonly position: Vec2;
@@ -83,6 +96,16 @@ function attackValue(ctx: BattleContext, state: BattleState, preview: AttackPrev
   return gain - risk;
 }
 
+function structureAttackValue(state: BattleState, preview: StructureAttackPreview): number {
+  const hp = state.structures.find((st) => st.id === preview.structureId)?.hp ?? 0;
+  return expectedDamage(preview.blow) * AI_WEIGHTS.structureDamage + killChance(preview.blow, hp) * AI_WEIGHTS.breachBonus;
+}
+
+/** A winch operator keeps to the winch while their drawbridge is raised. */
+function holdsPost(ctx: BattleContext, state: BattleState, unit: UnitState): boolean {
+  return ctx.structures.some((d) => d.operatorId === unit.id && !isBroken(state.structures, d.id));
+}
+
 function withUnitAt(state: BattleState, unit: UnitState, position: Vec2, ap: number): BattleState {
   return { ...state, units: state.units.map((u) => (u.id === unit.id ? { ...u, position, ap } : u)) };
 }
@@ -95,6 +118,11 @@ function candidates(ctx: BattleContext, state: BattleState, unit: UnitState, bud
   const occupied = occupancy(ctx, state);
   const enemies = state.units.filter((u) => u.alive && u.faction !== unit.faction);
   const reach = ctx.rules.damage.meleeReachM;
+  // Engines working at contact also keep the cells next to the structures they could strike.
+  const type = unitType(ctx, unit);
+  const breachable = type.tags.includes(SIEGE_ENGINE_TAG) && type.attack?.rangeM === 0
+    ? ctx.structures.filter((d) => d.maxHp > 0 && !isBroken(state.structures, d.id)).map((d) => d.cells)
+    : [];
   const out: Candidate[] = [];
   for (let wz = 0; wz < field.depth; wz++) {
     for (let wx = 0; wx < field.width; wx++) {
@@ -105,8 +133,8 @@ function candidates(ctx: BattleContext, state: BattleState, unit: UnitState, bud
       const index = cz * ctx.nav.width + cx;
       if (occupied.has(index)) continue;
       const position = cellCenter(ctx.terrain, cx, cz);
-      const nextToEnemy = enemies.some((e) => distance(e.position, position) <= reach);
-      if (!nextToEnemy && (cx % LATTICE_STEP_CELLS !== 0 || cz % LATTICE_STEP_CELLS !== 0)) continue;
+      const nextToTarget = enemies.some((e) => distance(e.position, position) <= reach) || breachable.some((cells) => distanceToCells(ctx, cells, position) <= reach);
+      if (!nextToTarget && (cx % LATTICE_STEP_CELLS !== 0 || cz % LATTICE_STEP_CELLS !== 0)) continue;
       out.push({ position, cost, index });
     }
   }
@@ -152,6 +180,7 @@ interface Decision {
  */
 export class ApproachFields {
   private readonly fields = new Map<MovementProfile, Float32Array>();
+  private readonly gateFields = new Map<MovementProfile, Float32Array | null>();
   private readonly ctx: BattleContext;
   private readonly state: BattleState;
   private readonly faction: Faction;
@@ -166,10 +195,53 @@ export class ApproachFields {
     let field = this.fields.get(profile);
     if (!field) {
       const origins = this.state.units.filter((u) => u.alive && u.faction !== this.faction).map((u) => cellIndexOf(this.ctx, u.position));
-      field = computeCostField(this.ctx.paths, profile, origins, APPROACH_BUDGET_AP);
+      // Exact around our own units of this profile (their moves stay within their AP), then stop.
+      const ours = this.state.units.filter((u) => u.alive && u.faction === this.faction && unitType(this.ctx, u).movement === profile);
+      const maxAp = ours.reduce((m, u) => Math.max(m, unitType(this.ctx, u).ap), 0);
+      field = computeCostField(this.ctx.paths, profile, origins, APPROACH_BUDGET_AP, {
+        cells: ours.map((u) => cellIndexOf(this.ctx, u.position)),
+        slackAp: maxAp * APPROACH_SLACK_PER_AP + 1,
+      });
       this.fields.set(profile, field);
     }
     return field[cellIndexOf(this.ctx, p)] as number;
+  }
+
+  /**
+   * Travel cost to the nearest cell from which a ram strikes an exposed gate or portcullis
+   * (intact, nothing intact in front of it); null while no gate is exposed.
+   */
+  gateCostAt(profile: MovementProfile, p: Vec2): number | null {
+    let field = this.gateFields.get(profile);
+    if (field === undefined) {
+      const ctx = this.ctx;
+      const reach = ctx.rules.damage.meleeReachM;
+      const origins: number[] = [];
+      for (const def of ctx.structures) {
+        if ((def.kind !== 'gate' && def.kind !== 'portcullis') || isBroken(this.state.structures, def.id) || shieldOf(ctx, this.state.structures, def)) continue;
+        const span = Math.ceil(reach) + 1;
+        const seen = new Set<number>();
+        for (const cell of def.cells) {
+          const cx0 = cell % ctx.nav.width;
+          const cz0 = Math.floor(cell / ctx.nav.width);
+          for (let dz = -span; dz <= span; dz++) {
+            for (let dx = -span; dx <= span; dx++) {
+              const cx = cx0 + dx;
+              const cz = cz0 + dz;
+              if (cx < 0 || cz < 0 || cx >= ctx.nav.width || cz >= ctx.nav.depth) continue;
+              const i = cz * ctx.nav.width + cx;
+              if (seen.has(i) || (ctx.nav.apPerMeter[profile][i] as number) === IMPASSABLE) continue;
+              seen.add(i);
+              if (distanceToCells(ctx, def.cells, cellCenter(ctx.terrain, cx, cz)) <= reach) origins.push(i);
+            }
+          }
+        }
+      }
+      const rams = this.state.units.filter((u) => u.alive && u.faction === this.faction && unitType(ctx, u).tags.includes(GATES_ONLY_TAG));
+      field = origins.length === 0 ? null : computeCostField(ctx.paths, profile, origins, APPROACH_BUDGET_AP, { cells: rams.map((u) => cellIndexOf(ctx, u.position)), slackAp: APPROACH_SLACK_PER_AP * 2 + 1 });
+      this.gateFields.set(profile, field);
+    }
+    return field ? (field[cellIndexOf(this.ctx, p)] as number) : null;
   }
 }
 
@@ -185,8 +257,14 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
   const consider = (d: Decision) => {
     if (!best || d.score > best.score) best = d;
   };
+  const siegeEngine = type.tags.includes(SIEGE_ENGINE_TAG);
+  // A ram's objective is the exposed gate: it holds back while there is none.
+  const ram = type.tags.includes(GATES_ONLY_TAG);
+  const gateFrom = ram ? approach.gateCostAt(type.movement, unit.position) : null;
+  const holding = holdsPost(ctx, state, unit) || (ram && (gateFrom === null || gateFrom === IMPASSABLE));
 
   for (const c of candidates(ctx, state, unit, Math.max(0, budget))) {
+    if (holding && c.cost > 0) continue;
     const apLeft = unit.ap - Math.ceil(c.cost);
     const there = c.cost > 0 ? withUnitAt(state, unit, c.position, apLeft) : state;
     const moved = there.units.find((u) => u.id === unit.id) as UnitState;
@@ -199,17 +277,23 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
         if (!preview.ok) continue;
         consider({ commands: [...move, { type: 'attack', unitId: unit.id, targetId: enemy.id }], score: base + attackValue(ctx, there, preview.preview) });
       }
+      if (siegeEngine) {
+        for (const blow of structuresInReach(ctx, there, unit.id)) {
+          consider({ commands: [...move, { type: 'attackStructure', unitId: unit.id, structureId: blow.structureId }], score: base + structureAttackValue(there, blow) });
+        }
+      }
     }
     // No shot from here: close in, and shooters end the move on guard. Defenders hold their
     // ground until the enemy comes within engagement range.
     const nearest = nearestEnemy(there, moved, c.position);
     if (nearest) {
-      const toCost = approach.costAt(type.movement, c.position);
-      const gained = fromCost === IMPASSABLE || toCost === IMPASSABLE ? 0 : fromCost - toCost;
+      const from = ram ? (gateFrom as number) : fromCost;
+      const toCost = ram ? (approach.gateCostAt(type.movement, c.position) as number) : approach.costAt(type.movement, c.position);
+      const gained = from === IMPASSABLE || toCost === IMPASSABLE ? 0 : from - toCost;
       const engaged = unit.faction === 'attacker' || distance(unit.position, nearest.position) <= AI_WEIGHTS.defenderEngageRadiusM;
-      const holding = canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
-      const guard: Command[] = holding ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
-      consider({ commands: [...move, ...guard], score: base + (engaged ? gained * AI_WEIGHTS.approachPerAp : 0) + (holding ? AI_WEIGHTS.guardBonus : 0) });
+      const guarding = canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
+      const guard: Command[] = guarding ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
+      consider({ commands: [...move, ...guard], score: base + (engaged ? gained * AI_WEIGHTS.approachPerAp : 0) + (guarding ? AI_WEIGHTS.guardBonus : 0) });
     }
   }
   return (best as Decision | null)?.commands ?? [];
@@ -224,6 +308,7 @@ export interface AiTurn {
 /** Plays `faction`'s whole turn (ending it). Rejected commands are skipped, never retried. */
 export function playTurn(ctx: BattleContext, state: BattleState, faction: Faction): AiTurn {
   if (state.activeFaction !== faction || state.status !== 'ongoing') return { state, commands: [], events: [] };
+  syncNav(ctx, state.structures);
   let current = state;
   const commands: Command[] = [];
   const events: GameEvent[] = [];

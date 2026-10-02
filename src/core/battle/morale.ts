@@ -3,8 +3,8 @@
  * unit falling below half its HP, a kill. Under `shakenBelow` a unit starts its turn with
  * `shakenApPenalty` fewer AP; under `fleeBelow` it takes no orders and, at the start of its turn,
  * runs to the reachable cell farthest from the enemy. Every unit regains `recoveryPerTurn` at
- * the start of its turn, so a routed unit can rally. Encirclement, fire and collapsing walls join
- * in J4.
+ * the start of its turn, so a routed unit can rally. A wall segment collapsing shakes the
+ * defenders around it (J4); encirclement and fire join later.
  */
 import type { GameEvent, MoraleReason } from '../events/types.ts';
 import { distance, normalize, sub, type Vec2 } from '../math/vec2.ts';
@@ -59,6 +59,14 @@ export function moraleAfterBlows(ctx: BattleContext, units: readonly UnitState[]
     if (killer.alive) out[ki] = shift(rules, killer, rules.killGain, 'kill', events);
   }
   return out;
+}
+
+/** Defenders shaken by a wall segment collapsing near them (brief §9.7). */
+export function moraleAfterCollapse(ctx: BattleContext, units: readonly UnitState[], at: Vec2, faction: UnitState['faction'], events: GameEvent[]): UnitState[] {
+  const s = ctx.rules.structures;
+  return units.map((u) =>
+    u.alive && u.faction === faction && distance(u.position, at) <= s.collapseMoraleRadiusM ? shift(ctx.rules.morale, u, -s.collapseMoraleLoss, 'wallCollapsed', events) : u,
+  );
 }
 
 function nearestEnemyDistance(state: BattleState, unit: UnitState, p: Vec2): number {

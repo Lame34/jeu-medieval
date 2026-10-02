@@ -130,12 +130,17 @@ export function buildNavGrid(terrain: TerrainData, rules: GameRules, deck?: Floa
 }
 
 /**
- * Extra AP to step from cell `from` onto cell `to` (entered at `costTo` AP/m): IMPASSABLE when
- * their decks differ by more than a step, the uphill surcharge of the rise when climbing, 0
- * otherwise. Shared by segmentCost and edgeCost so both stay bit-identical.
+ * Extra AP to step from cell `from` onto cell `to` (entered at `costTo` AP/m) when either is a
+ * deck: IMPASSABLE when their surfaces differ by more than a step, the uphill surcharge of the rise
+ * when climbing, 0 otherwise (and between two ground cells, whose slope the grade already prices). Shared by segmentCost and edgeCost so both stay bit-identical.
  */
 export function deckStepCost(nav: NavGrid, costTo: number, from: number, to: number): number {
-  const step = (nav.deck[to] as number) - (nav.deck[from] as number);
+  const deckFrom = nav.deck[from] as number;
+  const deckTo = nav.deck[to] as number;
+  if (deckFrom === 0 && deckTo === 0) return 0;
+  // On and off a deck the step is between standing surfaces (relief + deck): a bridge laid
+  // level across a ditch meets both banks, a wall-walk stays out of reach from its foot.
+  const step = (nav.centerHeight[to] as number) + deckTo - ((nav.centerHeight[from] as number) + deckFrom);
   if (step > nav.maxDeckStepM || -step > nav.maxDeckStepM) return IMPASSABLE;
   return step > 0 ? costTo * (nav.uphillPenaltyPerGrade * step) : 0;
 }
