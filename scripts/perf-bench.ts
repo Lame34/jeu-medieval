@@ -28,7 +28,7 @@ const WARMUP_MS = 2500;
 const LOW_PERCENTILE = 0.99;
 /** A frame this long at 60 Hz has missed at least one vsync (uncapped medians are meaningless: rAF bursts). */
 const HITCH_MS = 25;
-const BUDGET = { avgFps: 60, lowFps: 40, throttledAvgFps: 40, drawCalls: 150, triangles: 1_500_000 };
+const BUDGET = { avgFps: 60, lowFps: 40, throttledAvgFps: 40, drawCalls: 150, triangles: 1_500_000, loadS: 10 };
 
 interface ViewResult {
   readonly view: number;
@@ -54,6 +54,8 @@ interface Pass {
   readonly heapBytes: number;
   readonly textures: number;
   readonly errors: string[];
+  /** Navigation start → scene ready (s), in a fresh browser (document.body.dataset.readyAtMs). */
+  readonly loadS: number;
 }
 
 /**
@@ -81,8 +83,9 @@ async function measurePass(uncapped: boolean): Promise<Pass> {
       views.push({ times: sample.times, calls: sample.info?.calls ?? 0, triangles: sample.info?.triangles ?? 0, scale: sample.info?.renderScale ?? 1 });
     }
     const heapBytes = await page.evaluate(() => (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0);
+    const loadS = (await page.evaluate(() => Number(document.body.dataset['readyAtMs'] ?? 'NaN'))) / 1000;
     const textures = await page.evaluate(() => window.__perf?.renderer().textures ?? 0);
-    return { gpu, views, heapBytes, textures, errors };
+    return { gpu, views, heapBytes, textures, errors, loadS };
   } finally {
     await browser.close();
   }
@@ -108,27 +111,27 @@ async function main(): Promise<void> {
         scale: pacing.views[view]?.scale ?? 1,
       };
     });
-    report(throughput.gpu, results, throughput.heapBytes, throughput.textures, [...throughput.errors, ...pacing.errors]);
+    report(throughput.gpu, results, throughput.heapBytes, throughput.textures, [...throughput.errors, ...pacing.errors], Math.max(throughput.loadS, pacing.loadS));
   });
 }
 
-function report(gpu: string, results: ViewResult[], heapBytes: number, textures: number, errors: string[]): void {
+function report(gpu: string, results: ViewResult[], heapBytes: number, textures: number, errors: string[], loadS: number): void {
   const avg = results.reduce((s, r) => s + r.avgFps, 0) / results.length;
   const low = Math.min(...results.map((r) => r.lowFps));
   const calls = Math.max(...results.map((r) => r.calls));
   const tris = Math.max(...results.map((r) => r.triangles));
   const fpsBudget = CPU_THROTTLE > 1 ? BUDGET.throttledAvgFps : BUDGET.avgFps;
-  const verdict = avg >= fpsBudget && (CPU_THROTTLE > 1 || low >= BUDGET.lowFps) && calls < BUDGET.drawCalls && tris < BUDGET.triangles;
+  const verdict = avg >= fpsBudget && (CPU_THROTTLE > 1 || low >= BUDGET.lowFps) && calls < BUDGET.drawCalls && tris < BUDGET.triangles && (CPU_THROTTLE > 1 || !(loadS >= BUDGET.loadS));
   console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE} url=${baseUrl()}`);
   for (const r of results) {
     console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · hitches ${r.hitches}/${r.pacedFrames} (> ${HITCH_MS} ms) · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames · scale ${r.scale.toFixed(2)}`);
   }
-  console.log(`TOTAL avg ${avg.toFixed(1)} fps · worst 1% low ${low.toFixed(1)} · max ${calls} calls · max ${(tris / 1e6).toFixed(2)} M tris · heap ${(heapBytes / 1048576).toFixed(0)} MB · ${textures} textures → ${verdict ? 'WITHIN BUDGET' : 'OVER BUDGET'}`);
+  console.log(`TOTAL avg ${avg.toFixed(1)} fps · worst 1% low ${low.toFixed(1)} · max ${calls} calls · max ${(tris / 1e6).toFixed(2)} M tris · heap ${(heapBytes / 1048576).toFixed(0)} MB · ${textures} textures · load ${loadS.toFixed(1)} s → ${verdict ? 'WITHIN BUDGET' : 'OVER BUDGET'}`);
   if (errors.length > 0) console.log(`console errors: ${errors.length}`);
 
   const stamp = new Date().toISOString();
   mkdirSync('perf-results', { recursive: true });
-  writeFileSync(join('perf-results', `${stamp.replace(/[:.]/g, '-')}-${SCENE}-${PRESET}-x${CPU_THROTTLE}.json`), JSON.stringify({ stamp, gpu, SCENE, PRESET, CPU_THROTTLE, results }, null, 2));
+  writeFileSync(join('perf-results', `${stamp.replace(/[:.]/g, '-')}-${SCENE}-${PRESET}-x${CPU_THROTTLE}.json`), JSON.stringify({ stamp, gpu, SCENE, PRESET, CPU_THROTTLE, loadS, results }, null, 2));
   if (flag('log')) {
     const commit = execSync('git rev-parse --short HEAD').toString().trim();
     const line = `| ${stamp.slice(0, 16).replace('T', ' ')} | ${commit} | ${SCENE} | ${PRESET} | ×${CPU_THROTTLE} | ${avg.toFixed(1)} | ${low.toFixed(1)} | ${calls} | ${(tris / 1e6).toFixed(2)} M | ${textures} | ${verdict ? '✅' : '❌'} |\n`;
