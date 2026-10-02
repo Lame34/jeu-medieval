@@ -68,6 +68,9 @@ Trois causes :
 - **`compileAsync` compilait pour le canevas** (sortie sRGB), alors que la scène est dessinée dans la cible du post-traitement (sortie linéaire). La clé de cache différait : chaque programme était compilé deux fois, et la passe anticipée ne servait à rien. On compile désormais avec une cible liée. Une image est ensuite dessinée derrière l'écran de chargement pour les programmes de profondeur de la passe d'ombre, que `compile()` ne couvre pas.
 - **Tampons de lignes polygonales.** Routes, rivière, masques d'exclusion et lissages projetaient chaque cellule de la carte sur toute la polyligne. Une grille de distances calculée segment par segment (`PolylineDistanceGrid`), avec la même arithmétique, donne des cartes identiques au bit près (empreintes de 6 cartes de bataille et du look-dev).
 
+## Bataille après le rendu du siège (J4, 02/10)
+Les mesures de 3403468 (64,1 FPS, 1 % low 29,5) ont été prises après une journée de charge GPU continue (captures, e2e). Un A/B enchaîné sur le même état thermique donne : de6c368 (avant le chargement sans image) à 65,4 FPS et 1 % low 33,8 ; 3403468 à 67,0 FPS et 1 % low 32,2. Pas de régression du rendu du siège ni du chargement. La marge s'est tout de même réduite depuis le 30/09 : 120 → 145 appels, vue d'ensemble à 55–58 FPS. Une passe de performance est à faire avant ⛳ J5.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.
@@ -110,3 +113,5 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-09-30 16:17 | d7a66ec | lookdev | portable | ×4 | 95.4 | 15.1 | 66 | 0.47 M | 48 | ✅ |
 | 2026-09-30 16:19 | d7a66ec | battle | portable | ×1 | 78.5 | 54.6 | 120 | 1.42 M | 61 | ✅ |
 | 2026-09-30 16:21 | d7a66ec | battle | portable | ×4 | 63.2 | 8.2 | 120 | 1.42 M | 61 | ✅ |
+| 2026-10-02 18:31 | 3403468 | battle | portable | ×1 | 64.1 | 29.5 | 145 | 1.47 M | 70 | ❌ |
+| 2026-10-02 18:32 | 3403468 | battle | portable | ×4 | 62.4 | 4.6 | 145 | 1.47 M | 70 | ✅ |
