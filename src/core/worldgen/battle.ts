@@ -9,12 +9,13 @@ import type { Vec2 } from '../math/vec2.ts';
 import { createSimplex, fbm, ridged, warpedFbm, type FbmOptions } from '../noise/noise.ts';
 import { Rng, type Seed } from '../rng.ts';
 import { TerrainLayer } from '../rules/types.ts';
-import { cellGrade, createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
+import { cellCenterHeight, cellGrade, createTerrainData, sampleHeight } from '../terrain-data/terrain-data.ts';
 import { planCastle, turnsFacing, type CastlePlan } from './castle.ts';
 import { stampCastleDecks } from './decks.ts';
 import { buildParcels } from './fields.ts';
 import { catmullRom, orientedRect, pointAlong, pointInPolygon, polylineLength, projectOnPolyline, subPolyline } from './geometry.ts';
 import { CellMask } from './raster.ts';
+import { crossingCells, findCrossingEndM, gateAxes, GATEHOUSE, liftTipM, passageCells } from './gatehouse.ts';
 import { routeRoad } from './roads.ts';
 import { poissonScatter } from './scatter.ts';
 import {
@@ -54,8 +55,6 @@ const FOREST_TARGET = 0.3;
 const CASTLE_CLEAR_M = 45;
 const DEPLOY = { depthM: 60 };
 const MOAT_BED_BELOW_M = 1.6;
-/** Half the depth (m, across the wall line) of the gatehouse block between the gate towers. */
-const GATEHOUSE_HALF_DEPTH_M = 2;
 /** Houses are not built across more than this height difference (diagonal of the plot). */
 const MAX_HOUSE_SLOPE_DROP_M = 2.2;
 const TREES = { minDistM: 4.6, underDistM: 2.4, hedgeTreeEveryM: 11 };
@@ -347,15 +346,20 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
   // Wall-walks and tower tops (walkable decks) and their stairs; the keep and the gate stay solid.
   const decks = stampCastleDecks(t, castle, castleCenter);
   if (castle.keep) paintPolygon(t, orientedRect(castle.keep.center, castle.keep.widthM, castle.keep.depthM, castle.keep.rotationTurns), TerrainLayer.Wall);
-  const gateOut = { x: Math.sin(castle.gate.rotationTurns * 2 * Math.PI), z: Math.cos(castle.gate.rotationTurns * 2 * Math.PI) };
-  const gateLine = [
-    { x: castle.gate.center.x - gateOut.x * 2, z: castle.gate.center.z - gateOut.z * 2 },
-    { x: castle.gate.center.x + gateOut.x * 2, z: castle.gate.center.z + gateOut.z * 2 },
-  ];
-  paintAlongPolyline(t, gateLine, castle.gate.openingM / 2 + 0.5, TerrainLayer.Wall);
-  // The gatehouse masonry runs on to both gate towers: no gap beside the passage.
+  const gateOut = gateAxes(castle.gate).out;
+  // The passage (closed by the gate and the portcullis) and the gatehouse masonry on to both gate
+  // towers: no gap beside the passage.
+  for (const i of passageCells(t, castle.gate)) t.layers[i] = TerrainLayer.Wall;
   const gateTowers = castle.towers.filter((tw) => tw.id.includes('gate-tower')).map((tw) => tw.center);
-  if (gateTowers.length === 2) paintAlongPolyline(t, gateTowers, GATEHOUSE_HALF_DEPTH_M, TerrainLayer.Wall, [TerrainLayer.Plain]);
+  if (gateTowers.length === 2) paintAlongPolyline(t, gateTowers, GATEHOUSE.depthM / 2, TerrainLayer.Wall, [TerrainLayer.Plain]);
+  // The moat crossing: the fixed timber bridge beyond the lifting span (a deck at sill height).
+  const crossingEndM = findCrossingEndM(t, castle.gate);
+  if (crossingEndM !== null) {
+    for (const i of crossingCells(t, castle.gate, liftTipM(), crossingEndM)) {
+      t.layers[i] = TerrainLayer.Bridge;
+      decks.deck[i] = Math.max(0, castle.gate.baseHeightM - cellCenterHeight(t, i % t.width, Math.floor(i / t.width)));
+    }
+  }
 
   // --- Vegetation ---------------------------------------------------------------------------------
   const vegRng = root.fork('vegetation');
@@ -468,7 +472,13 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     hedges,
     walls: castle.walls,
     towers: castle.towers,
-    gates: [units.some((u) => u.id === WINCH_OPERATOR_ID) ? { ...castle.gate, winchOperatorId: WINCH_OPERATOR_ID } : castle.gate],
+    gates: [
+      {
+        ...castle.gate,
+        ...(units.some((u) => u.id === WINCH_OPERATOR_ID) ? { winchOperatorId: WINCH_OPERATOR_ID } : {}),
+        ...(crossingEndM !== null ? { crossingEndM } : {}),
+      },
+    ],
     keeps: castle.keep ? [castle.keep] : [],
     bridges,
     units,

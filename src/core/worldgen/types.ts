@@ -53,6 +53,8 @@ export interface GateSite {
   readonly drawbridge: boolean;
   /** The defender working the drawbridge winch: killing them lowers it (J4). */
   readonly winchOperatorId?: string;
+  /** Where the moat crossing lands on the outer bank, along the gate axis (m; gatehouse.ts). */
+  readonly crossingEndM?: number;
 }
 
 export interface KeepSite {

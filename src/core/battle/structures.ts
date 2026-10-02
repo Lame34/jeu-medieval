@@ -13,6 +13,7 @@ import { buildNavGrid } from '../nav-grid/nav-grid.ts';
 import { createPathContext } from '../nav-grid/pathfinding.ts';
 import { TerrainLayer, type ArmorClass, type StructureRules } from '../rules/types.ts';
 import { cellCenterHeight, type TerrainData } from '../terrain-data/terrain-data.ts';
+import { crossingCells, liftHingeM, liftTipM, passageCells } from '../worldgen/gatehouse.ts';
 import type { WorldLayout } from '../worldgen/types.ts';
 import type { BattleContext } from './context.ts';
 import type { StructureState } from './types.ts';
@@ -36,13 +37,8 @@ export interface StructureDef {
   readonly deckHeightM?: number;
 }
 
-/** Segment-to-cell assignment margin and the drawbridge's reach from the gate (m). */
+/** Segment-to-cell assignment margin (m). */
 const WALL_CELL_MARGIN_M = 0.5;
-const GATE_PASSAGE_HALF_LENGTH_M = 2;
-const DRAWBRIDGE_REACH_M = 30;
-/** Ground this far below the gate sill is spanned by the drawbridge (the moat and its banks). */
-const DRAWBRIDGE_DIP_M = 0.25;
-const DRAWBRIDGE_SCAN_M = 0.5;
 
 function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   const dx = b.x - a.x;
@@ -52,7 +48,7 @@ function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   return Math.hypot(p.x - (a.x + dx * t), p.z - (a.z + dz * t));
 }
 
-/** Cells within `radius` of segment ab, of `layer` (any layer when negative). */
+/** Cells within `radius` of segment ab, of `layer`. */
 function cellsNear(t: TerrainData, a: Vec2, b: Vec2, radius: number, layer: number): number[] {
   const out: number[] = [];
   const minX = Math.max(0, Math.floor(Math.min(a.x, b.x) - radius));
@@ -62,7 +58,7 @@ function cellsNear(t: TerrainData, a: Vec2, b: Vec2, radius: number, layer: numb
   for (let cz = minZ; cz <= maxZ; cz++) {
     for (let cx = minX; cx <= maxX; cx++) {
       const i = cz * t.width + cx;
-      if (layer >= 0 && t.layers[i] !== layer) continue;
+      if (t.layers[i] !== layer) continue;
       if (distanceToSegment({ x: cx + 0.5, z: cz + 0.5 }, a, b) <= radius) out.push(i);
     }
   }
@@ -80,36 +76,6 @@ function centerOf(t: TerrainData, cells: readonly number[], fallback: Vec2): Vec
   return { x: x / cells.length, z: z / cells.length };
 }
 
-/**
- * Cells under a lowered drawbridge: the corridor in front of the gate across the moat, extended
- * over both banks while the ground along the gate axis stays below the sill, one cell more at
- * each end. None without a moat in front of the gate.
- */
-function drawbridgeCells(t: TerrainData, center: Vec2, out: Vec2, halfWidthM: number, sillM: number): number[] {
-  const corridor: { i: number; along: number }[] = [];
-  const end = { x: center.x + out.x * DRAWBRIDGE_REACH_M, z: center.z + out.z * DRAWBRIDGE_REACH_M };
-  let first = Number.POSITIVE_INFINITY;
-  let last = Number.NEGATIVE_INFINITY;
-  for (const i of cellsNear(t, center, end, halfWidthM, -1)) {
-    const along = ((i % t.width) + 0.5 - center.x) * out.x + (Math.floor(i / t.width) + 0.5 - center.z) * out.z;
-    if (along < GATE_PASSAGE_HALF_LENGTH_M) continue;
-    corridor.push({ i, along });
-    if (t.layers[i] === TerrainLayer.Moat) {
-      first = Math.min(first, along);
-      last = Math.max(last, along);
-    }
-  }
-  if (first > last) return [];
-  const belowSill = (along: number) => {
-    const cx = Math.floor(center.x + out.x * along);
-    const cz = Math.floor(center.z + out.z * along);
-    return cx >= 0 && cz >= 0 && cx < t.width && cz < t.depth && cellCenterHeight(t, cx, cz) < sillM - DRAWBRIDGE_DIP_M;
-  };
-  while (first - DRAWBRIDGE_SCAN_M > GATE_PASSAGE_HALF_LENGTH_M && belowSill(first - DRAWBRIDGE_SCAN_M)) first -= DRAWBRIDGE_SCAN_M;
-  while (last + DRAWBRIDGE_SCAN_M < DRAWBRIDGE_REACH_M && belowSill(last + DRAWBRIDGE_SCAN_M)) last += DRAWBRIDGE_SCAN_M;
-  return corridor.filter((c) => c.along >= first - t.cellSize && c.along <= last + t.cellSize).map((c) => c.i);
-}
-
 /** Structure definitions of a map (none on open maps). HP come from the rules. */
 export function planStructures(layout: WorldLayout, hp: Pick<StructureRules, 'wallHp' | 'gateHp' | 'portcullisHp'>): StructureDef[] {
   const t = layout.terrain;
@@ -121,7 +87,7 @@ export function planStructures(layout: WorldLayout, hp: Pick<StructureRules, 'wa
   }
   const segments: { id: string; a: Vec2; b: Vec2; reach: number }[] = [];
   for (const w of layout.walls) {
-    for (let k = 0; k < w.points.length - 1; k++) segments.push({ id: `${w.id}:${k}`, a: w.points[k] as Vec2, b: w.points[k + 1] as Vec2, reach: w.thicknessM / 2 + WALL_CELL_MARGIN_M });
+    for (let k = 0; k < w.points.length - 1; k++) segments.push({ id: wallSegmentId(w.id, k), a: w.points[k] as Vec2, b: w.points[k + 1] as Vec2, reach: w.thicknessM / 2 + WALL_CELL_MARGIN_M });
   }
   const cellsOf = new Map<string, number[]>(segments.map((s) => [s.id, []]));
   for (const s of segments) {
@@ -134,24 +100,17 @@ export function planStructures(layout: WorldLayout, hp: Pick<StructureRules, 'wa
   }
   for (const s of segments) {
     const cells = cellsOf.get(s.id) ?? [];
-    if (cells.length > 0) defs.push({ id: `wall:${s.id}`, kind: 'wall', material: 'stone', maxHp: hp.wallHp, cells, center: centerOf(t, cells, s.a) });
+    if (cells.length > 0) defs.push({ id: s.id, kind: 'wall', material: 'stone', maxHp: hp.wallHp, cells, center: centerOf(t, cells, s.a) });
   }
   for (const gate of layout.gates) {
-    const a = gate.rotationTurns * 2 * Math.PI;
-    const out = { x: Math.sin(a), z: Math.cos(a) };
-    const passage = cellsNear(
-      t,
-      { x: gate.center.x - out.x * GATE_PASSAGE_HALF_LENGTH_M, z: gate.center.z - out.z * GATE_PASSAGE_HALF_LENGTH_M },
-      { x: gate.center.x + out.x * GATE_PASSAGE_HALF_LENGTH_M, z: gate.center.z + out.z * GATE_PASSAGE_HALF_LENGTH_M },
-      gate.openingM / 2 + WALL_CELL_MARGIN_M,
-      TerrainLayer.Wall,
-    );
-    defs.push({ id: `gate:${gate.id}`, kind: 'gate', material: 'wood', maxHp: hp.gateHp, cells: passage, center: gate.center, gateId: gate.id });
-    defs.push({ id: `portcullis:${gate.id}`, kind: 'portcullis', material: 'heavy', maxHp: hp.portcullisHp, cells: passage, center: gate.center, gateId: gate.id });
-    if (gate.drawbridge) {
-      const under = drawbridgeCells(t, gate.center, out, gate.openingM / 2, gate.baseHeightM);
+    const passage = passageCells(t, gate);
+    defs.push({ id: gateStructureId('gate', gate.id), kind: 'gate', material: 'wood', maxHp: hp.gateHp, cells: passage, center: gate.center, gateId: gate.id });
+    defs.push({ id: gateStructureId('portcullis', gate.id), kind: 'portcullis', material: 'heavy', maxHp: hp.portcullisHp, cells: passage, center: gate.center, gateId: gate.id });
+    if (gate.drawbridge && gate.crossingEndM !== undefined) {
+      // The lifting span, one cell onto the fixed bridge so that the two meet.
+      const under = crossingCells(t, gate, liftHingeM(), liftTipM() + t.cellSize);
       defs.push({
-        id: `drawbridge:${gate.id}`,
+        id: gateStructureId('drawbridge', gate.id),
         kind: 'drawbridge',
         material: 'wood',
         maxHp: 0,
@@ -164,6 +123,16 @@ export function planStructures(layout: WorldLayout, hp: Pick<StructureRules, 'wa
     }
   }
   return defs.sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+}
+
+/** Id of the structure for segment `k` of wall run `wallId` (from points[k] to points[k + 1]). */
+export function wallSegmentId(wallId: string, k: number): string {
+  return `wall:${wallId}:${k}`;
+}
+
+/** Id of a gatehouse structure. */
+export function gateStructureId(kind: 'gate' | 'portcullis' | 'drawbridge', gateId: string): string {
+  return `${kind}:${gateId}`;
 }
 
 export function initialStructures(defs: readonly StructureDef[]): StructureState[] {
