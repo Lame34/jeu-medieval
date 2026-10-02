@@ -97,9 +97,9 @@ describe('generateBattleMap: deployment zone', () => {
     }
   });
 
-  it('parks the siege engines (J4) on the approach road, beyond the tower archers yet within catapult range', () => {
+  it('parks the siege engines and their sapper (J4) on the approach road, beyond the tower archers yet within catapult range', () => {
     const engines = mapA1.layout.units.filter((u) => u.id.startsWith('att-siege-'));
-    expect(engines.map((u) => u.typeKey).sort()).toEqual(['catapult', 'ram']);
+    expect(engines.map((u) => u.typeKey).sort()).toEqual(['catapult', 'ram', 'sapper']);
     const gate = mapA1.castle.gate.center;
     const road = mapA1.layout.roads.find((r) => r.id === 'road-main');
     expect(road).toBeDefined();

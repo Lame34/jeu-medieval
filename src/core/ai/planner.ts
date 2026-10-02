@@ -308,7 +308,7 @@ export interface AiTurn {
 /** Plays `faction`'s whole turn (ending it). Rejected commands are skipped, never retried. */
 export function playTurn(ctx: BattleContext, state: BattleState, faction: Faction): AiTurn {
   if (state.activeFaction !== faction || state.status !== 'ongoing') return { state, commands: [], events: [] };
-  syncNav(ctx, state.structures);
+  syncNav(ctx, state.structures, state.works);
   let current = state;
   const commands: Command[] = [];
   const events: GameEvent[] = [];

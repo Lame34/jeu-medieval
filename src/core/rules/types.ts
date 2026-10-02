@@ -45,6 +45,8 @@ export const TerrainLayer = {
   Rampart: 15,
   /** Stairs up to the wall-walk, their deck rising step by step. */
   Stair: 16,
+  /** Fascines filling the moat (J4): a causeway just under the sill, flammable. */
+  Fascine: 17,
 } as const;
 export type TerrainLayerId = (typeof TerrainLayer)[keyof typeof TerrainLayer];
 export type TerrainLayerKey = keyof typeof TerrainLayer;
@@ -173,6 +175,12 @@ export interface StructureRules {
   /** Morale lost by defenders within the radius (m) of a collapsing segment. */
   readonly collapseMoraleLoss: number;
   readonly collapseMoraleRadiusM: number;
+  /** Sappers: turns of work to fill a moat slot, to undermine a segment. */
+  readonly fillTurns: number;
+  readonly mineTurns: number;
+  /** Moat slots along the centreline (m), and how far the causeway runs past the water (m). */
+  readonly fillSlotM: number;
+  readonly fillBankM: number;
 }
 
 export interface GameRules {

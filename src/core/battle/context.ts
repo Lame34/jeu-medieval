@@ -8,8 +8,9 @@ import { buildNavGrid, type NavGrid } from '../nav-grid/nav-grid.ts';
 import { createPathContext, type PathContext } from '../nav-grid/pathfinding.ts';
 import type { GameRules } from '../rules/types.ts';
 import type { TerrainData } from '../terrain-data/terrain-data.ts';
+import type { MoatInfo } from './moat.ts';
 import type { StructureDef } from './structures.ts';
-import type { StructureState } from './types.ts';
+import type { StructureState, WorkState } from './types.ts';
 
 /** Deck elevation (m above the relief) of the cell holding `p`. */
 export function deckAt(ctx: BattleContext, p: { readonly x: number; readonly z: number }): number {
@@ -33,17 +34,20 @@ export interface BattleContext {
   /** Broken-structure signature of `nav`, and the grids already built. */
   navKey: string;
   readonly navCache: Map<string, { readonly nav: NavGrid; readonly paths: PathContext }>;
-  /** The structures array `nav` was last synced to (states share it until a structure changes). */
+  /** The arrays `nav` was last synced to (states share them until something changes). */
   navFor: readonly StructureState[] | null;
+  navForWorks: readonly WorkState[] | null;
+  /** The castle moats (sappers fill them slot by slot). */
+  readonly moats: readonly MoatInfo[];
 }
 
 /**
  * `deck`: per-cell deck elevation (wall-walks, tower tops, stairs), from the map
- * (WorldLayout.deck); none on open maps. `structures`: the castle's breakable parts.
+ * (WorldLayout.deck); none on open maps. `structures`: the castle's breakable parts; `moats`: its ditches.
  */
-export function createBattleContext(terrain: TerrainData, rules: GameRules, deck?: Float32Array, structures: readonly StructureDef[] = []): BattleContext {
+export function createBattleContext(terrain: TerrainData, rules: GameRules, deck?: Float32Array, structures: readonly StructureDef[] = [], moats: readonly MoatInfo[] = []): BattleContext {
   const baseDeck = deck ?? new Float32Array(terrain.width * terrain.depth);
   const nav = buildNavGrid(terrain, rules, baseDeck);
   const paths = createPathContext(nav);
-  return { rules, terrain, nav, paths, structures, baseTerrain: terrain, baseDeck, navKey: '', navCache: new Map([['', { nav, paths }]]), navFor: null };
+  return { rules, terrain, nav, paths, structures, baseTerrain: terrain, baseDeck, navKey: '', navCache: new Map([['', { nav, paths }]]), navFor: null, navForWorks: null, moats };
 }

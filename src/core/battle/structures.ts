@@ -16,7 +16,8 @@ import { cellCenterHeight, type TerrainData } from '../terrain-data/terrain-data
 import { crossingCells, liftHingeM, liftTipM, passageCells } from '../worldgen/gatehouse.ts';
 import type { WorldLayout } from '../worldgen/types.ts';
 import type { BattleContext } from './context.ts';
-import type { StructureState } from './types.ts';
+import { fillCells, fillSurfaceM, FILL_SITE_PREFIX } from './moat.ts';
+import type { StructureState, WorkState } from './types.ts';
 
 export type StructureKind = 'wall' | 'gate' | 'portcullis' | 'drawbridge';
 
@@ -147,19 +148,30 @@ export function isBroken(structures: readonly StructureState[], id: string): boo
   return structures.find((s) => s.id === id)?.broken ?? false;
 }
 
-/** Which structures change the ground (the cache key of the navigation grids). */
-export function navSignature(structures: readonly StructureState[]): string {
-  return structures
-    .filter((s) => s.broken)
-    .map((s) => s.id)
-    .join('|');
+/** No works yet (a stable empty list: states share it). */
+export const NO_WORKS: readonly WorkState[] = Object.freeze([]);
+
+/** What changes the ground — broken structures, filled moat slots — the key of the navigation grids. */
+export function navSignature(structures: readonly StructureState[], works: readonly WorkState[] = NO_WORKS): string {
+  const parts = structures.filter((s) => s.broken).map((s) => s.id);
+  for (const w of works) if (w.done && w.id.startsWith(FILL_SITE_PREFIX)) parts.push(w.id);
+  return parts.join('|');
 }
 
-/** Layers and decks of the ground once `structures` are applied to the map. */
-function groundFor(ctx: BattleContext, structures: readonly StructureState[]): { terrain: TerrainData; deck: Float32Array } {
+/** Layers and decks of the ground once `structures` and `works` are applied to the map. */
+function groundFor(ctx: BattleContext, structures: readonly StructureState[], works: readonly WorkState[]): { terrain: TerrainData; deck: Float32Array } {
   const base = ctx.baseTerrain;
   const layers = new Uint8Array(base.layers);
   const deck = new Float32Array(ctx.baseDeck);
+  // Fascine causeways across the moat, level just under the sill.
+  for (const w of works) {
+    if (!w.done || !w.id.startsWith(FILL_SITE_PREFIX)) continue;
+    const surface = fillSurfaceM(ctx, w.id);
+    for (const i of fillCells(ctx, w.id)) {
+      layers[i] = TerrainLayer.Fascine;
+      deck[i] = Math.max(0, surface - cellCenterHeight(base, i % base.width, Math.floor(i / base.width)));
+    }
+  }
   for (const def of ctx.structures) {
     if (!isBroken(structures, def.id)) continue;
     if (def.kind === 'wall') {
@@ -187,14 +199,14 @@ function groundFor(ctx: BattleContext, structures: readonly StructureState[]): {
   return { terrain: { ...base, layers }, deck };
 }
 
-/** Points the context's navigation grid at the one matching `structures` (built once, then cached). */
-export function syncNav(ctx: BattleContext, structures: readonly StructureState[]): void {
-  if (ctx.navFor === structures) return;
-  const key = navSignature(structures);
+/** Points the context's navigation grid at the one matching `structures` and `works` (built once, then cached). */
+export function syncNav(ctx: BattleContext, structures: readonly StructureState[], works: readonly WorkState[] = NO_WORKS): void {
+  if (ctx.navFor === structures && ctx.navForWorks === works) return;
+  const key = navSignature(structures, works);
   if (key !== ctx.navKey) {
     let entry = ctx.navCache.get(key);
     if (!entry) {
-      const ground = groundFor(ctx, structures);
+      const ground = groundFor(ctx, structures, works);
       const nav = buildNavGrid(ground.terrain, ctx.rules, ground.deck);
       entry = { nav, paths: createPathContext(nav) };
       ctx.navCache.set(key, entry);
@@ -204,4 +216,5 @@ export function syncNav(ctx: BattleContext, structures: readonly StructureState[
     ctx.navKey = key;
   }
   ctx.navFor = structures;
+  ctx.navForWorks = works;
 }

@@ -136,7 +136,7 @@ export function oddsAgainst(
 }
 
 export function previewAttack(ctx: BattleContext, state: BattleState, attackerId: string, targetId: string): AttackPreviewResult {
-  syncNav(ctx, state.structures);
+  syncNav(ctx, state.structures, state.works);
   const attacker = findUnit(state, attackerId);
   if (!attacker) return { ok: false, reason: 'unknownUnit' };
   if (!attacker.alive) return { ok: false, reason: 'unitDead' };

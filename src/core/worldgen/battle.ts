@@ -64,10 +64,10 @@ const GARRISON = { wall: ['crossbowman', 'wallGuard', 'crossbowman', 'wallGuard'
 /** J3 village outpost: defenders placed on open ground on a circle around the village centre. */
 const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], radiusM: 13, angleOffset: 0.4, searchCells: 12, maxGrade: 0.6 } as const;
 /**
- * J4 siege park: the engines, assembled overnight, wait on the approach road this far from the
+ * J4 siege park: the engines, assembled overnight, and their sapper wait on the approach road this far from the
  * gate (beyond the reach of the tower archers, the walls within catapult range), side by side.
  */
-const SIEGE_PARK = { types: ['ram', 'catapult'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
+const SIEGE_PARK = { types: ['ram', 'catapult', 'sapper'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
 /** The gate-tower archer who works the drawbridge winch (J4): killing them drops the bridge. */
 const WINCH_OPERATOR_ID = 'def-tower-0';
 const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
@@ -403,7 +403,7 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
 
   // --- Units (J2: markers for readability tests) ------------------------------------------------
   const units: UnitMarker[] = [];
-  const attackTypes = ['knight', 'soldier', 'archer', 'archer', 'soldier', 'knight', 'sapper', 'archer'];
+  const attackTypes = ['knight', 'soldier', 'archer', 'archer', 'soldier', 'knight', 'archer'];
   attackTypes.forEach((typeKey, i) => {
     const x = MAP_M / 2 - 28 + (i % 4) * 14 + 0.5;
     const z = deployment.minZ + 18 + Math.floor(i / 4) * 10 + 0.5;

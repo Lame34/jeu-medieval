@@ -64,7 +64,7 @@ export function shieldOf(ctx: BattleContext, structures: readonly StructureState
 }
 
 export function previewStructureAttack(ctx: BattleContext, state: BattleState, attackerId: string, structureId: string): StructureAttackPreviewResult {
-  syncNav(ctx, state.structures);
+  syncNav(ctx, state.structures, state.works);
   const attacker = findUnit(state, attackerId);
   if (!attacker) return { ok: false, reason: 'unknownUnit' };
   if (!attacker.alive) return { ok: false, reason: 'unitDead' };
@@ -94,7 +94,7 @@ export function previewStructureAttack(ctx: BattleContext, state: BattleState, a
  * `def` gives way: a wall segment throws down the units on its wall-walk (fall damage, guard
  * lost) and shakes the defenders around it. Appends the events; returns the units.
  */
-function collapse(ctx: BattleContext, units: readonly UnitState[], def: StructureDef, byId: string | null, events: GameEvent[]): UnitState[] {
+export function bringDown(ctx: BattleContext, units: readonly UnitState[], def: StructureDef, byId: string | null, events: GameEvent[]): UnitState[] {
   const fallen: FallenUnit[] = [];
   const blows: BlowOutcome[] = [];
   let out = [...units];
@@ -130,7 +130,7 @@ export function resolveStructureAttack(ctx: BattleContext, state: BattleState, p
   const acted: UnitState = { ...attacker, ap: attacker.ap - preview.apCost, actions: attacker.actions - 1, facing: faceTowards(attacker.position, def.center, attacker.facing) };
   let units: readonly UnitState[] = state.units.map((u) => (u.id === acted.id ? acted : u));
   const structures = state.structures.map((s) => (s.id === def.id ? { id: s.id, hp: hpAfter, broken: hpAfter === 0 } : s));
-  if (hpAfter === 0) units = collapse(ctx, units, def, attacker.id, events);
+  if (hpAfter === 0) units = bringDown(ctx, units, def, attacker.id, events);
   const status = battleStatus(units);
   if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
   return { state: { ...state, units, structures, status, rng: rng.getState() }, events };

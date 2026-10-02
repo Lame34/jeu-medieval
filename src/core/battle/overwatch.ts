@@ -53,7 +53,7 @@ export interface Threat {
 
 /** Enemy shooters that could fire at `unit` if it stood at `at` (the preview's exposure line). */
 export function threatsAt(ctx: BattleContext, state: BattleState, unit: UnitState, at: Vec2): Threat[] {
-  syncNav(ctx, state.structures);
+  syncNav(ctx, state.structures, state.works);
   const threats: Threat[] = [];
   for (const enemy of state.units) {
     if (!enemy.alive || enemy.faction === unit.faction) continue;

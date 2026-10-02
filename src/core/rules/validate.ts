@@ -216,6 +216,10 @@ function readStructures(raw: unknown): StructureRules {
     fallDamage: num(s['fallDamage'], 'damage.structures.fallDamage', 0),
     collapseMoraleLoss: num(s['collapseMoraleLoss'], 'damage.structures.collapseMoraleLoss', 0),
     collapseMoraleRadiusM: num(s['collapseMoraleRadiusM'], 'damage.structures.collapseMoraleRadiusM', 0),
+    fillTurns: num(s['fillTurns'], 'damage.structures.fillTurns', 1),
+    mineTurns: num(s['mineTurns'], 'damage.structures.mineTurns', 1),
+    fillSlotM: num(s['fillSlotM'], 'damage.structures.fillSlotM', 1),
+    fillBankM: num(s['fillBankM'], 'damage.structures.fillBankM', 0),
   });
 }
 

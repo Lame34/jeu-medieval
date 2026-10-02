@@ -6,6 +6,7 @@
 import { playTurn } from '../../core/ai/planner.ts';
 import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
 import { createBattle } from '../../core/battle/create.ts';
+import { moatsOf } from '../../core/battle/moat.ts';
 import { planStructures } from '../../core/battle/structures.ts';
 import type { BattleState, Scenario, UnitSpawn } from '../../core/battle/types.ts';
 import { applyCommand, type CommandResult } from '../../core/commands/apply.ts';
@@ -47,7 +48,7 @@ export class BattleSession {
   private readonly listeners = new Set<SessionListener>();
 
   constructor(layout: WorldLayout, seed: Seed) {
-    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck, planStructures(layout, DEFAULT_RULES.structures));
+    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck, planStructures(layout, DEFAULT_RULES.structures), moatsOf(layout));
     this.seed = seed;
     this.scenario = scenarioFrom(this.ctx, layout);
     this.current = createBattle(this.ctx, seed, this.scenario);

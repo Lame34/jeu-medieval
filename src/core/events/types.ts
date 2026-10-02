@@ -16,6 +16,8 @@ export type GameEvent =
   | OverwatchSetEvent
   | StructureDamagedEvent
   | StructureBrokenEvent
+  | SiegeWorkProgressedEvent
+  | MoatFilledEvent
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
@@ -83,6 +85,23 @@ export interface StructureBrokenEvent {
   /** The engine that dealt the last blow (none for a drawbridge lowered by its operator's death). */
   readonly byId: string | null;
   readonly fallen: readonly FallenUnit[];
+}
+
+/** A sapper's turn of work on a site (moat slot or wall segment). */
+export interface SiegeWorkProgressedEvent {
+  readonly type: 'siegeWorkProgressed';
+  readonly unitId: string;
+  readonly workId: string;
+  readonly kind: 'fill' | 'mine';
+  readonly progress: number;
+  readonly required: number;
+}
+
+/** A moat slot is filled: the causeway can be crossed. */
+export interface MoatFilledEvent {
+  readonly type: 'moatFilled';
+  readonly workId: string;
+  readonly byId: string;
 }
 
 export interface OverwatchSetEvent {

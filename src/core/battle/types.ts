@@ -2,8 +2,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 
-/** 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 3;
+/** 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 4;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -33,6 +33,14 @@ export interface StructureState {
   readonly broken: boolean;
 }
 
+/** A sappers' work site (a moat slot being filled, a segment being undermined). */
+export interface WorkState {
+  readonly id: string;
+  /** Turns of work done. */
+  readonly progress: number;
+  readonly done: boolean;
+}
+
 /** Fully serialisable battle state. A battle is `seed + scenario + commands`. */
 export interface BattleState {
   readonly version: typeof BATTLE_STATE_VERSION;
@@ -44,6 +52,8 @@ export interface BattleState {
   readonly units: readonly UnitState[];
   /** Sorted by id. */
   readonly structures: readonly StructureState[];
+  /** Sorted by id. */
+  readonly works: readonly WorkState[];
   readonly rng: RngState;
 }
 

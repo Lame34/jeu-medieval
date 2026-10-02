@@ -161,6 +161,16 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Cônes de garde.** Les morceaux qui enjambent un bord de tablier sont omis : plus de voiles rouges pendus aux murs.
 - **Mesure.** Sur la vue d'ensemble du bench de bataille, on était à 169 appels avec des engins en six maillages et des courtines à part ; le budget de moins de 150 appels est revenu après ces corrections (test e2e `battle.spec`).
 
+## ADR-026 — Travaux de sape : fascines et sape (J4)
+**Décision** :
+- **Le chantier porte la progression, pas le sapeur.** L'état de bataille (version 4) a une liste `works` (`id`, tours faits, terminé). Un autre sapeur peut reprendre un chantier, et un sapeur tué n'efface pas le travail fait. Un tour de travail prend tout le tour du sapeur (PA et action) et lui fait perdre sa garde : il reste exposé là où il creuse.
+- **Fascines** (`fillMoat`, 2 tours). La douve est découpée en tranches de 4 m le long de son axe (`battle/moat.ts`). Une tranche couvre tout le fossé, berges comprises : les cellules à moins de demi-largeur + 2,5 m de l'axe et sous le seuil moins 0,25 m. Une fois comblée, elle devient une chaussée de la couche `Fascine` (praticable par tous, engins compris, inflammable), un tablier 0,3 m sous le seuil. Comme les ouvrages tombés, elle entre dans la signature de la grille de navigation : `syncNav(ctx, structures, works)`, une grille en cache par combinaison.
+- **Sape** (`undermine`, 3 tours). Au pied d'un segment de courtine ; le segment s'effondre ensuite comme une brèche (`bringDown`) : chute des unités du chemin de ronde, moral, tas de gravats, crédité au sapeur.
+- **Commandes.** La touche **F** comble la tranche de douve, ou sape la courtine, sous le pointeur. Le clic garde le déplacement, ce qui laisse le sapeur traverser la douve à la nage, et l'ordre reste explicite, comme la garde (**G**). Rejets propres : `noSiegeSkill`, `notAMoat`, `workDone`, `notAWall`.
+- **Rendu.** Les fascines sont des bottes de branchages en instances, qui montent du fond du fossé jusqu'à la chaussée au fil des tours. Au pied du mur, un abri de planches et un tas de déblais grandissent avec la sape ; l'abri disparaît avec le mur. Un lot vide de bottes est compilé dès le chargement.
+- **Parc de siège.** Le sapeur de l'armée attend avec les engins sur la route, à 62 m de la porte, au lieu de marcher 300 m depuis la zone de déploiement.
+- **Capture** : `scripts/capture-works.ts` joue le chantier par de vraies commandes, sur des cibles calculées à partir de la même graine. La garnison y passe ses tours : on capture les travaux, pas les chances du sapeur sous les murs, où il meurt en trois tours face aux arbalétriers.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

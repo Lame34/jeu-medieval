@@ -32,6 +32,10 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   noSiegeWeapon: 'Seuls les engins de siège entament les murailles.',
   gatesOnly: "Le bélier n'enfonce que les portes.",
   structureShielded: "Un autre ouvrage le protège : d'abord le pont-levis, puis la porte.",
+  noSiegeSkill: 'Seuls les sapeurs comblent la douve et sapent les murs.',
+  notAMoat: "Ce n'est pas la douve.",
+  workDone: 'Ce tronçon de douve est déjà comblé.',
+  notAWall: 'On ne sape que les courtines.',
 };
 
 /** What a structure is called in the journal and the HUD. */
@@ -70,6 +74,12 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
         : event.kind === 'drawbridge'
           ? 'Le treuilliste est tombé : le pont-levis s’abat sur la douve !'
           : `${STRUCTURE_LABEL[event.kind]} cède !`;
+    case 'siegeWorkProgressed':
+      return event.kind === 'fill'
+        ? `${unitLabel(state, event.unitId)} jette des fascines dans la douve (${event.progress}/${event.required}).`
+        : `${unitLabel(state, event.unitId)} sape la courtine (${event.progress}/${event.required}).`;
+    case 'moatFilled':
+      return 'La douve est comblée : une chaussée de fascines la traverse.';
     case 'unitDied':
       return `${unitLabel(state, event.unitId)} tombe.`;
     case 'overwatchSet':
