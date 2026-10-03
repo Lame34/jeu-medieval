@@ -166,6 +166,19 @@ export interface FireCell {
   readonly seed: number;
 }
 
+/** Billboard flames (the fire's shader), `aFlame` per instance: seed, size scale, phase. */
+export function createFlameMesh(capacity: number, time: { value: number }, name: string): InstancedMesh {
+  const quad = new PlaneGeometry(1, 1);
+  quad.setAttribute('aFlame', new InstancedBufferAttribute(new Float32Array(capacity * 4), 4));
+  const material = new ShaderMaterial({ name: 'Fire:flame', vertexShader: FLAME_VERTEX, fragmentShader: FLAME_FRAGMENT, uniforms: { uTime: time }, transparent: true, depthWrite: false, blending: NormalBlending });
+  const mesh = new InstancedMesh(quad, material, capacity);
+  mesh.name = name;
+  mesh.count = 0;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 5;
+  return mesh;
+}
+
 export class FireField {
   readonly group = new Group();
   private readonly flames: InstancedMesh;
@@ -186,15 +199,8 @@ export class FireField {
   private readonly m = new Matrix4();
 
   constructor() {
-    const quad = new PlaneGeometry(1, 1);
-    const flameSeed = new InstancedBufferAttribute(new Float32Array(MAX_FLAMES * 4), 4);
-    quad.setAttribute('aFlame', flameSeed);
-    const flameMat = new ShaderMaterial({ name: 'Fire:flame', vertexShader: FLAME_VERTEX, fragmentShader: FLAME_FRAGMENT, uniforms: { uTime: this.time }, transparent: true, depthWrite: false, blending: NormalBlending });
-    this.flames = new InstancedMesh(quad, flameMat, MAX_FLAMES);
-    this.flames.name = 'Fire:flames';
-    this.flames.count = 0;
-    this.flames.frustumCulled = false;
-    this.flames.renderOrder = 5;
+    this.flames = createFlameMesh(MAX_FLAMES, this.time, 'Fire:flames');
+    const flameMat = this.flames.material as ShaderMaterial;
     const ground = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     ground.setAttribute('aFlame', new InstancedBufferAttribute(new Float32Array(MAX_FLAMES * 4), 4));
     const glowMat = new ShaderMaterial({ name: 'Fire:glow', vertexShader: GROUND_VERTEX, fragmentShader: GLOW_FRAGMENT, uniforms: { uTime: this.time }, transparent: true, depthWrite: false, blending: AdditiveBlending });

@@ -2,7 +2,8 @@
  * Uniforms shared by every painted shader (objects, terrain, water, sky). Materials receive
  * these exact objects by reference, so one update per frame reaches the whole scene.
  */
-import { Color, Vector2, Vector3 } from 'three';
+import { Color, Vector2, Vector3, Vector4 } from 'three';
+import { MAX_TORCHES } from './painted-chunks.ts';
 import { resolveRig, type ResolvedRig } from '../atmosphere/time-of-day.ts';
 
 /**
@@ -68,6 +69,11 @@ export const paintedGlobals = {
   /** Playable map rectangle: fog thickens outside it so the map edge never reads. */
   uMapMin: { value: new Vector2(-1e6, -1e6) },
   uMapMax: { value: new Vector2(1e6, 1e6) },
+  /** Torches lighting the scene (xyz: flame, w: 1 in use), their strength (0 by day), colour and reach. */
+  uTorches: { value: Array.from({ length: MAX_TORCHES }, () => new Vector4()) },
+  uTorchStrength: { value: 0 },
+  uTorchColor: { value: new Color('#ffa457') },
+  uTorchRadius: { value: 9 },
 };
 
 /** Scene light = sun · sin(elevation) + weighted sky ambient, normalised by the 16:30 rig. */
@@ -115,8 +121,24 @@ export function applyRigToGlobals(rig: ResolvedRig): void {
   g.uHorizonAway.value.copy(rig.horizonAway);
 }
 
+/** Distance fog under each weather (rain and fog close it in; fog nearly hides the far map). */
+export const WEATHER_FOG: Readonly<Record<'clear' | 'rain' | 'fog', FogSettings>> = {
+  clear: DEFAULT_FOG,
+  rain: { ...DEFAULT_FOG, startBeyondFocusM: 45, endBeyondFocusM: 520, maxAmount: 0.74 },
+  fog: { ...DEFAULT_FOG, startBeyondFocusM: 6, endBeyondFocusM: 150, maxAmount: 0.9, valleyAmount: 0.25 },
+};
+
+/** The fog the camera anchors (Atmosphere sets it from the battle's weather). */
+let activeFog: FogSettings = DEFAULT_FOG;
+
+export function setActiveFog(fog: FogSettings): void {
+  activeFog = fog;
+  paintedGlobals.uFogMax.value = fog.maxAmount;
+  paintedGlobals.uValleyFog.value = fog.valleyAmount;
+}
+
 /** Keeps the fog anchored to the camera focus: crisp foreground at every zoom level. */
-export function updateFogForCamera(cameraToFocusM: number, fog: FogSettings = DEFAULT_FOG): void {
+export function updateFogForCamera(cameraToFocusM: number, fog: FogSettings = activeFog): void {
   paintedGlobals.uFogStart.value = cameraToFocusM + fog.startBeyondFocusM;
   paintedGlobals.uFogEnd.value = cameraToFocusM + fog.endBeyondFocusM;
 }

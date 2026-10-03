@@ -3,6 +3,11 @@ import { structureDef } from '../../core/battle/structures.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
+import { Rain } from '../../render/vfx/Rain.tsx';
+import { Torches } from '../../render/vfx/Torches.tsx';
+import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
+import { useSceneConditions } from '../../state/scene-conditions.ts';
+import type { BattleState } from '../../core/battle/types.ts';
 import { Projectiles, type ProjectileHandle } from '../../render/vfx/Projectiles.tsx';
 import { TerrainLayer } from '../../core/rules/types.ts';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
@@ -28,6 +33,17 @@ const DEFAULT_SEED = 'siege-1';
 const OPENING_VIEW = 1;
 
 /** Seed and castle from the URL (`/battle?seed=…&castle=1..4`), for benches and replays. */
+/** Fixed weather and hour for captures and tests (?weather=rain&hour=21); drawn from the seed otherwise. */
+function conditionsParams(): Partial<BattleConditions> {
+  const query = new URLSearchParams(window.location.search);
+  const weather = query.get('weather');
+  const hour = query.get('hour');
+  return {
+    ...((WEATHERS as readonly string[]).includes(weather ?? '') ? { weather: weather as Weather } : {}),
+    ...(hour !== null && Number.isFinite(Number(hour)) ? { startHour: Number(hour) } : {}),
+  };
+}
+
 function mapParams(): WorldgenRequest {
   const query = new URLSearchParams(window.location.search);
   const castle = Number(query.get('castle') ?? '1');
@@ -83,7 +99,7 @@ export default function BattleScreen() {
   const setHour = useSettings((s) => s.setHour);
   const bench = isBenchMode();
   // The battle itself (not in bench mode: measurements keep the map's fixed markers).
-  const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed) : null), [layout, bench]);
+  const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed, conditionsParams()) : null), [layout, bench]);
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
@@ -106,6 +122,27 @@ export default function BattleScreen() {
   );
   const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
+
+  // The scene is lit for the battle's hour and weather, round after round; under fog the
+  // enemies none of the player's men can see are hidden (fog of war).
+  useEffect(() => {
+    if (!session) return undefined;
+    const apply = (state: BattleState) => {
+      useSceneConditions.getState().set(hourOf(session.ctx.rules, state), state.weather);
+      if (handles) {
+        for (const u of state.units) {
+          if (u.faction === PLAYER_FACTION) continue;
+          handles.get(u.id)?.setHidden(!isSeenBy(session.ctx, state, PLAYER_FACTION, u.position));
+        }
+      }
+    };
+    apply(session.state);
+    const off = session.subscribe((_, state) => apply(state));
+    return () => {
+      off();
+      useSceneConditions.getState().set(null, 'clear');
+    };
+  }, [session, handles]);
 
   // Hooks for capture/bench scripts: window.__perf.control.setView(i) / setHour(h).
   useEffect(() => {
@@ -158,6 +195,8 @@ export default function BattleScreen() {
       <GameCanvas>
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
+        {session && <Torches layout={layout} />}
+        {session?.state.weather === 'rain' && <Rain windX={session.state.wind.x} windZ={session.state.wind.z} windStrength={session.state.wind.strength} />}
         {session && <Projectiles waterAt={waterAt} groundAt={heightAt} onHandle={setProjectiles} />}
         {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} projectiles={projectiles} terrain={layout.terrain} focusOn={focusOn} />}
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}

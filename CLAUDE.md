@@ -25,6 +25,7 @@ La bible du projet est **`docs/GAME_BRIEF.md`**, qui fait foi. La direction arti
 | `npm run bench:perf -- --preset portable [--scene battle] [--cpu-throttle 4] [--log]` | Bench GPU (Intel Arc obligatoire), une scène par passe (lookdev par défaut), écrit dans `docs/PERF_LOG.md` |
 | `npm run capture:lookdev [-- <tag> --scene battle --breakdown]` | Captures des vues × 3 heures dans `docs/captures/` (ventilation des triangles avec `--breakdown`) |
 | `node scripts/capture-siege.ts [<tag>] [--seed siege-1]` | Siège scripté via `?e2e` (pont-levis, fissures, effondrement, parc d'engins) capturé dans `docs/captures/` |
+| `node scripts/capture-weather.ts [<tag>]` | Bataille de nuit, au crépuscule, sous la pluie et dans le brouillard (`?weather=&hour=`) capturée dans `docs/captures/` |
 | `npm run assets:engines` | Blender headless : bélier et catapulte (maillages skinnés, couleurs de sommet) dans `assets-src/work/engines` |
 | `npm run assets:characters` | Blender headless : RPG Characters → GLB (proportions, atlas, tabard, clips) dans `assets-src/work/rpg` |
 | `npm run assets:process` | Pipeline d'assets (gltf-transform, meshopt, KTX2) vers `public/assets` |

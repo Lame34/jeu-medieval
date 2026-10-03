@@ -6,7 +6,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { DirectionalLight, HemisphereLight, Object3D, Vector3 } from 'three';
 import { useSettings } from '../../state/settings.ts';
-import { applyRigToGlobals, paintedGlobals } from '../materials/painted-globals.ts';
+import { useSceneConditions, useSceneHour } from '../../state/scene-conditions.ts';
+import { applyRigToGlobals, paintedGlobals, setActiveFog, WEATHER_FOG } from '../materials/painted-globals.ts';
 import { QUALITY_PRESETS } from '../quality/presets.ts';
 import { resolveRig } from './time-of-day.ts';
 
@@ -19,11 +20,17 @@ const MIN_SHADOW_RADIUS_M = 26;
 const SHADOW_RADIUS_PER_DISTANCE = 1.25;
 const SHADOW_RADIUS_HYSTERESIS = 0.08;
 
+/** Lit for the scene's hour and weather (a battle's, else the settings' hour under a clear sky). */
 export function Atmosphere() {
-  const hour = useSettings((s) => s.hour);
+  const hour = useSceneHour();
+  const weather = useSceneConditions((s) => s.weather);
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const scene = useThree((s) => s.scene);
-  const rig = useMemo(() => resolveRig(hour), [hour]);
+  const rig = useMemo(() => resolveRig(hour, weather), [hour, weather]);
+  useEffect(() => {
+    setActiveFog(WEATHER_FOG[weather]);
+    return () => setActiveFog(WEATHER_FOG.clear);
+  }, [weather]);
 
   const sun = useMemo(() => {
     const light = new DirectionalLight();

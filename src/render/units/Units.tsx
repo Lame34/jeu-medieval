@@ -85,6 +85,8 @@ export interface UnitHandle {
   setAlive(alive: boolean): void;
   /** Shows the unit through what hides it (selected unit, targeted enemy). */
   setSilhouette(on: boolean): void;
+  /** Hides the unit, ring and pennant (an enemy the player's men cannot see in the fog). */
+  setHidden(hidden: boolean): void;
 }
 
 const LOADOUTS: Readonly<Record<string, Loadout>> = {
@@ -198,6 +200,7 @@ export function Units({
     const handles = new Map<string, UnitHandle>();
     const factionOf: UnitMarker['faction'][] = [];
     const alive: boolean[] = [];
+    const hidden: boolean[] = [];
     units.forEach((unit, index) => {
       const engineKind = engineKindOf(unit.typeKey);
       if (engineKind) {
@@ -215,6 +218,7 @@ export function Units({
         const slot = roots.length;
         factionOf.push(unit.faction);
         alive.push(true);
+        hidden.push(false);
         engines.push(rig);
         const anchor = new Vector3();
         anchors.push(anchor);
@@ -228,6 +232,10 @@ export function Units({
             ring.visible = on;
           },
           setSilhouette: (on) => rig.setSilhouette(on),
+          setHidden(h) {
+            hidden[slot] = h;
+            root.visible = !h;
+          },
         });
         roots.push(root);
         return;
@@ -280,6 +288,7 @@ export function Units({
       const silhouetteMaterial = silhouetteMaterialFor(unit.faction);
       factionOf.push(unit.faction);
       alive.push(true);
+        hidden.push(false);
       handles.set(unit.id, {
         id: unit.id,
         root,
@@ -298,6 +307,10 @@ export function Units({
         setAlive(on) {
           alive[slot] = on;
           ring.visible = on;
+        },
+        setHidden(h) {
+          hidden[slot] = h;
+          root.visible = !h;
         },
         setSilhouette(on) {
           if (!silhouettes) {
@@ -330,7 +343,7 @@ export function Units({
         visible: new Uint8Array(slots.length).fill(1),
       };
     });
-    return { roots, rings, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, animElapsed: new Float32Array(mixers.length) };
+    return { roots, rings, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, hidden, animElapsed: new Float32Array(mixers.length) };
   }, [anims, bodies, engineModels, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -360,7 +373,7 @@ export function Units({
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale * ((ring.userData['engine'] as number | undefined) ?? 1));
     for (const p of built.pennants) {
-      for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] ? 1 : 0;
+      for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] && !built.hidden[p.slots[k] as number] ? 1 : 0;
       p.pennants.update(p.anchors, camera.position, distance, scale, p.visible);
     }
   });
