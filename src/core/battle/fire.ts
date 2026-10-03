@@ -19,6 +19,7 @@ import { deckAt, type BattleContext } from './context.ts';
 import { cellIndexOf } from './create.ts';
 import { findUnit, unitType } from './movement.ts';
 import { isBroken, syncNav, type StructureDef } from './structures.ts';
+import { conditionedRange, fireFactors, shotConditions, type ShotModifier } from './conditions.ts';
 import type { BattleState, FireState, UnitState } from './types.ts';
 
 export const FIRE_ARROWS_TAG = 'fireArrows';
@@ -45,13 +46,19 @@ export function woodenStructureAt(ctx: BattleContext, state: BattleState, cell: 
 }
 
 /** Rounds a cell burns for (0: it does not burn): its layer's material, or a wooden structure on it. */
-export function fuelOf(ctx: BattleContext, state: BattleState, cell: number, burnt: ReadonlySet<number> = new Set(state.burnt)): number {
+function dryFuelOf(ctx: BattleContext, state: BattleState, cell: number, burnt: ReadonlySet<number> = new Set(state.burnt)): number {
   if (burnt.has(cell)) return 0;
   const f = ctx.rules.fire;
   if (woodenStructureAt(ctx, state, cell)) return f.woodTurns;
   if (ctx.nav.flammable[cell] !== 1) return 0;
   const layer = ctx.rules.terrainLayers[ctx.nav.terrain.layers[cell] as number];
   return layer?.material === 'wood' ? f.woodTurns : f.vegetationTurns;
+}
+
+/** Rounds `cell` would burn (0: it does not burn); the rain shortens it, to one round at least. */
+export function fuelOf(ctx: BattleContext, state: BattleState, cell: number, burnt: ReadonlySet<number> = new Set(state.burnt)): number {
+  const dry = dryFuelOf(ctx, state, cell, burnt);
+  return dry <= 0 ? 0 : Math.max(1, Math.round(dry * fireFactors(ctx.rules, state.weather).fuel));
 }
 
 function isBurning(state: BattleState, cell: number): boolean {
@@ -68,6 +75,8 @@ export interface FireArrowPreview {
   readonly at: Vec2;
   readonly chance: number;
   readonly apCost: number;
+  /** Weather, night and wind modifiers of the shot. */
+  readonly conditions: readonly ShotModifier[];
 }
 
 export type FireArrowPreviewResult = { readonly ok: true; readonly preview: FireArrowPreview } | { readonly ok: false; readonly reason: CommandRejection };
@@ -93,7 +102,8 @@ export function previewFireArrow(ctx: BattleContext, state: BattleState, unitId:
   if (fuelOf(ctx, state, cell) <= 0) return { ok: false, reason: 'notFlammable' };
   const centre = { x: (cell % nav.width) + 0.5, z: Math.floor(cell / nav.width) + 0.5 };
   const steps = heightSteps(ctx, unit.position, centre);
-  const range = attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep);
+  const conditions = shotConditions(ctx, state, unit.position, centre, false);
+  const range = conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions);
   if (distance(unit.position, centre) > range) return { ok: false, reason: 'outOfRange' };
   // Aimed at the top of what burns there (the crop, the hedge, the roof).
   const top = Math.max(0, (nav.sightHeight[cell] as number) - deckAt(ctx, centre));
@@ -106,8 +116,10 @@ export function previewFireArrow(ctx: BattleContext, state: BattleState, unitId:
     toElevationM: deckAt(ctx, centre),
   });
   if (!sight.visible) return { ok: false, reason: 'noLineOfSight' };
-  const chance = Math.min(d.hitChanceMax, Math.max(d.hitChanceMin, attack.accuracy + steps * d.accuracyPerHeightStep - sight.obscurance * d.obscurancePenalty));
-  return { ok: true, preview: { unitId, cell, at: centre, chance, apCost } };
+  // Rain: the shot is worse and the arrow sputters out more often.
+  const hit = Math.min(d.hitChanceMax, Math.max(d.hitChanceMin, attack.accuracy + steps * d.accuracyPerHeightStep - sight.obscurance * d.obscurancePenalty + conditions.accuracy));
+  const chance = hit * fireFactors(ctx.rules, state.weather).ignite;
+  return { ok: true, preview: { unitId, cell, at: centre, chance, apCost, conditions: conditions.modifiers } };
 }
 
 export function resolveFireArrow(ctx: BattleContext, state: BattleState, preview: FireArrowPreview): { state: BattleState; events: GameEvent[] } {
@@ -205,6 +217,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
   const burnt = new Set(state.burnt);
   const lit: number[] = [];
   const wind = state.wind;
+  const rain = fireFactors(ctx.rules, state.weather);
   for (const fire of state.fires) {
     const cx = fire.cell % w;
     const cz = Math.floor(fire.cell / w);
@@ -217,7 +230,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
       if (fuelOf(ctx, state, n, burnt) <= 0) continue;
       const len = Math.hypot(dx, dz);
       const downwind = (dx * wind.x + dz * wind.z) / len;
-      const chance = Math.min(f.spreadMax, Math.max(0, f.spreadChance + downwind * wind.strength * f.windSpread)) / (len > 1 ? Math.SQRT2 : 1);
+      const chance = (Math.min(f.spreadMax, Math.max(0, f.spreadChance + downwind * wind.strength * f.windSpread)) / (len > 1 ? Math.SQRT2 : 1)) * rain.spread;
       if (rng.next() < chance) lit.push(n);
     }
   }

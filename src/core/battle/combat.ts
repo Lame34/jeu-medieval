@@ -20,6 +20,7 @@ import { traverseSegment } from '../nav-grid/traverse.ts';
 import { Rng } from '../rng.ts';
 import { COVER_LEVELS, type ArmorClass, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
+import { conditionedRange, NO_CONDITIONS, shotConditions, type ShotModifier } from './conditions.ts';
 import { deckAt, type BattleContext } from './context.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { syncNav } from './structures.ts';
@@ -58,6 +59,8 @@ export interface AttackPreview {
   readonly blow: BlowOdds;
   /** The target's answer to a melee blow, when it can fight at contact. */
   readonly riposte: BlowOdds | null;
+  /** Weather, night and wind modifiers of a shot (none in melee). */
+  readonly conditions: readonly ShotModifier[];
 }
 
 export type AttackPreviewResult = { readonly ok: true; readonly preview: AttackPreview } | { readonly ok: false; readonly reason: CommandRejection };
@@ -106,8 +109,8 @@ export function coverAgainst(ctx: BattleContext, shooter: Vec2, target: Vec2): C
   return COVER_LEVELS[best] as CoverLevel;
 }
 
-export function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: UnitTypeRule, accuracyFactor: number, steps: number, cover: CoverLevel, obscurance: number): BlowOdds {
-  return oddsAgainst(ctx, attack, target.armor, accuracyFactor, steps, cover, obscurance, 0);
+export function blowOdds(ctx: BattleContext, attack: UnitAttackRule, target: UnitTypeRule, accuracyFactor: number, steps: number, cover: CoverLevel, obscurance: number, conditionsAccuracy = 0): BlowOdds {
+  return oddsAgainst(ctx, attack, target.armor, accuracyFactor, steps, cover, obscurance, conditionsAccuracy);
 }
 
 /** Odds of a blow against `armor` (a unit's armour or a structure's material). */
@@ -157,7 +160,8 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   const indirect = aType.tags.includes(INDIRECT_FIRE_TAG);
   const distanceM = distance(attacker.position, target.position);
   const steps = indirect ? 0 : heightSteps(ctx, attacker.position, target.position);
-  const effectiveRangeM = melee ? d.meleeReachM : attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep);
+  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, target.position, indirect);
+  const effectiveRangeM = melee ? d.meleeReachM : conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions);
   if (distanceM > effectiveRangeM) return { ok: false, reason: 'outOfRange' };
 
   let cover: CoverLevel = 'none';
@@ -177,12 +181,12 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
       obscurance = sight.obscurance;
     }
   }
-  const blow = blowOdds(ctx, attack, tType, 1, steps, cover, obscurance);
+  const blow = blowOdds(ctx, attack, tType, 1, steps, cover, obscurance, conditions.accuracy);
   const answer = tType.attack;
   const riposte = melee && answer && answer.rangeM === 0 ? blowOdds(ctx, answer, aType, d.riposteAccuracyFactor, -steps, 'none', 0) : null;
   return {
     ok: true,
-    preview: { attackerId, targetId, melee, distanceM, effectiveRangeM, heightSteps: steps, cover, obscurance, apCost: d.attackApCost, blow, riposte },
+    preview: { attackerId, targetId, melee, distanceM, effectiveRangeM, heightSteps: steps, cover, obscurance, apCost: d.attackApCost, blow, riposte, conditions: conditions.modifiers },
   };
 }
 

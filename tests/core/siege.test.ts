@@ -100,7 +100,8 @@ describe('previewStructureAttack: nominal odds', () => {
     const r = previewStructureAttack(ctx, state, IDS.catapult, IDS.wallA);
     if (!r.ok) throw new Error(r.reason);
     const attack = DEFAULT_RULES.units.catapult!.attack!;
-    expect(r.preview.blow.hitChance).toBeCloseTo(clamp(attack.accuracy + S.hitBonus, D.hitChanceMin, D.hitChanceMax), PRECISION_DIGITS);
+    const conditions = r.preview.conditions.reduce((s, m) => s + m.accuracy, 0);
+    expect(r.preview.blow.hitChance).toBeCloseTo(clamp(attack.accuracy + S.hitBonus + conditions, D.hitChanceMin, D.hitChanceMax), PRECISION_DIGITS);
     const base = attack.power * (1 - D.armorReduction.stone) * D.multipliers.siege.stone;
     expect(r.preview.blow.damage.min).toBe(Math.round(base));
     expect(r.preview.blow.damage.max).toBe(Math.round(base * D.critMultiplier));

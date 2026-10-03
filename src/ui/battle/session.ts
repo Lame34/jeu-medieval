@@ -4,6 +4,7 @@
  * is `seed + scenario + commands`: the log replays it exactly.
  */
 import { playTurn } from '../../core/ai/planner.ts';
+import { drawConditions, lightsOf, type BattleConditions } from '../../core/battle/conditions.ts';
 import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
 import { createBattle } from '../../core/battle/create.ts';
 import { moatsOf } from '../../core/battle/moat.ts';
@@ -47,10 +48,11 @@ export class BattleSession {
   private readonly log: Command[] = [];
   private readonly listeners = new Set<SessionListener>();
 
-  constructor(layout: WorldLayout, seed: Seed) {
-    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck, planStructures(layout, DEFAULT_RULES.structures), moatsOf(layout));
+  constructor(layout: WorldLayout, seed: Seed, conditions: Partial<BattleConditions> = {}) {
+    this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck, planStructures(layout, DEFAULT_RULES.structures), moatsOf(layout), lightsOf(layout));
     this.seed = seed;
-    this.scenario = scenarioFrom(this.ctx, layout);
+    // The battle's weather and start hour, drawn from the seed unless the caller fixes them.
+    this.scenario = { ...scenarioFrom(this.ctx, layout), ...drawConditions(DEFAULT_RULES, seed), ...conditions };
     this.current = createBattle(this.ctx, seed, this.scenario);
   }
 

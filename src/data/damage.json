@@ -42,6 +42,24 @@
     "towerClimbAp": 2,
     "towerCapacity": 4
   },
+  "weather": {
+    "$comment": "Brief §9.11 : heure de départ tirée au sort qui avance à chaque tour ; pluie (−10 % de précision, feu affaibli, boue), brouillard (vision réduite), nuit (portée −30 %, torches), vent (déviation de l'artillerie). Valeurs de départ (J7 : équilibrage).",
+    "odds": { "clear": 0.55, "rain": 0.25, "fog": 0.2 },
+    "startHour": [6, 17],
+    "defaultStartHour": 12,
+    "hoursPerRound": 0.3333,
+    "nightFrom": 20.5,
+    "nightTo": 5.5,
+    "rainAccuracyPenalty": 0.1,
+    "rainFire": { "ignite": 0.5, "fuel": 0.5, "spread": 0.3 },
+    "muddyLayers": ["Plain", "Road", "Field"],
+    "mudCost": { "lightFoot": 1.2, "foot": 1.25, "mounted": 1.4, "engine": 1.5 },
+    "fogSightM": 30,
+    "nightRangeFactor": 0.7,
+    "nightAccuracyPenalty": 0.1,
+    "lightRadiusM": 9,
+    "windArtilleryPenalty": 0.15
+  },
   "battle": {
     "$comment": "J5 : les assaillants gagnent en anéantissant ou en mettant en fuite la garnison ; les défenseurs, en faisant de même, ou en tenant jusqu'à l'arrivée des renforts (limite de tours). Valeur de départ (J7 : équilibrage).",
     "turnLimit": 30

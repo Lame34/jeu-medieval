@@ -216,6 +216,34 @@ export interface StructureRules {
   readonly towerCapacity: number;
 }
 
+/** Weather and time of day (J5, brief §9.11). */
+export interface WeatherRules {
+  /** Odds of each weather (they sum to 1). */
+  readonly odds: Readonly<Record<'clear' | 'rain' | 'fog', number>>;
+  /** Range of the drawn start hour, and hours a round lasts. */
+  readonly startHour: readonly [number, number];
+  /** A scenario that sets no hour starts at this one. */
+  readonly defaultStartHour: number;
+  readonly hoursPerRound: number;
+  /** Night from this hour to that one. */
+  readonly nightFrom: number;
+  readonly nightTo: number;
+  readonly rainAccuracyPenalty: number;
+  /** Rain on fire: factors on a fire arrow's chance, a cell's fuel and the spread chance. */
+  readonly rainFire: { readonly ignite: number; readonly fuel: number; readonly spread: number };
+  /** Rain turns these layers to mud: their AP per metre × mudCost (per movement profile). */
+  readonly muddyLayers: readonly TerrainLayerKey[];
+  readonly mudCost: Readonly<Record<MovementProfile, number>>;
+  /** Fog: shots and sight reach no farther (m). */
+  readonly fogSightM: number;
+  /** Night: range factor and hit penalty, except at targets within lightRadiusM of a torch. */
+  readonly nightRangeFactor: number;
+  readonly nightAccuracyPenalty: number;
+  readonly lightRadiusM: number;
+  /** Artillery's hit penalty in a full crosswind of strength 1. */
+  readonly windArtilleryPenalty: number;
+}
+
 export interface GameRules {
   /** Indexed by TerrainLayerId. */
   readonly terrainLayers: readonly TerrainLayerRule[];
@@ -226,4 +254,5 @@ export interface GameRules {
   readonly structures: StructureRules;
   readonly fire: FireRules;
   readonly battle: BattleRules;
+  readonly weather: WeatherRules;
 }

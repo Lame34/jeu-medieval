@@ -20,6 +20,7 @@ import { cellIndexOf } from './create.ts';
 import { moraleAfterBlows, moraleAfterCollapse, type BlowOutcome } from './morale.ts';
 import { findUnit, unitType } from './movement.ts';
 import { isBroken, structureDef, syncNav, type StructureDef } from './structures.ts';
+import { conditionedRange, NO_CONDITIONS, shotConditions, type ShotModifier } from './conditions.ts';
 import type { BattleState, StructureState, UnitState } from './types.ts';
 
 /** Only siege engines harm structures; rams strike gates only. */
@@ -37,6 +38,8 @@ export interface StructureAttackPreview {
   readonly rangeM: number;
   readonly apCost: number;
   readonly blow: BlowOdds;
+  /** Weather, night and wind modifiers of a shot (none at contact). */
+  readonly conditions: readonly ShotModifier[];
 }
 
 export type StructureAttackPreviewResult = { readonly ok: true; readonly preview: StructureAttackPreview } | { readonly ok: false; readonly reason: CommandRejection };
@@ -84,10 +87,11 @@ export function previewStructureAttack(ctx: BattleContext, state: BattleState, a
   const d = ctx.rules.damage;
   if (attacker.ap < d.attackApCost) return { ok: false, reason: 'insufficientAp' };
   const distanceM = distanceToCells(ctx, def.cells, attacker.position);
-  const rangeM = melee ? d.meleeReachM : attack.rangeM;
+  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, def.center, true);
+  const rangeM = melee ? d.meleeReachM : conditionedRange(attack.rangeM, conditions);
   if (distanceM > rangeM) return { ok: false, reason: 'outOfRange' };
-  const blow = oddsAgainst(ctx, attack, def.material, 1, 0, 'none', 0, ctx.rules.structures.hitBonus);
-  return { ok: true, preview: { attackerId, structureId, melee, distanceM, rangeM, apCost: d.attackApCost, blow } };
+  const blow = oddsAgainst(ctx, attack, def.material, 1, 0, 'none', 0, ctx.rules.structures.hitBonus + conditions.accuracy);
+  return { ok: true, preview: { attackerId, structureId, melee, distanceM, rangeM, apCost: d.attackApCost, blow, conditions: conditions.modifiers } };
 }
 
 /**

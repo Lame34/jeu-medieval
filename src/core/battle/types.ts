@@ -1,9 +1,10 @@
 import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
+import type { Weather } from './conditions.ts';
 
-/** 7: turn limit (relief). 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 7;
+/** 8: weather and start hour. 7: turn limit (relief). 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 8;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -79,6 +80,9 @@ export interface BattleState {
   /** Sorted by tower id. */
   readonly docks: readonly DockState[];
   readonly wind: WindState;
+  /** Weather of the battle, and the hour of its first round (it advances each round). */
+  readonly weather: Weather;
+  readonly startHour: number;
   /** Sorted by cell. */
   readonly fires: readonly FireState[];
   /** Cells that burnt out (they never catch again), sorted. */
@@ -99,4 +103,7 @@ export interface Scenario {
   readonly initialMorale?: number;
   /** Rounds the defenders must hold (rules.battle.turnLimit when absent). */
   readonly turnLimit?: number;
+  /** Fixed weather and start hour (drawn from the seed when absent). */
+  readonly weather?: Weather;
+  readonly startHour?: number;
 }

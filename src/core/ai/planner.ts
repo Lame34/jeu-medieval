@@ -27,6 +27,7 @@ import { distanceToCells, GATES_ONLY_TAG, shieldOf, SIEGE_ENGINE_TAG, structures
 import { isBroken, syncNav } from '../battle/structures.ts';
 import { dockOf, TOWER_TAG } from '../battle/siege-tower.ts';
 import { FILL_MOAT_TAG } from '../battle/siege-works.ts';
+import { perceivedState } from '../battle/conditions.ts';
 import { breachGuardValue, cellsWithinReach, climbOrigins, dockOrigins, fireDecisions, sallyTarget, stagingOrigins, towerDecisions, worksDecisions, worthyFillSites } from './tactics.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import { applyCommand } from '../commands/apply.ts';
@@ -314,17 +315,18 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
     }
     // No shot from here: close in, and shooters end the move on guard. Defenders hold their
     // ground until the enemy comes within engagement range.
+    // Close in (on the enemy, the gatehouse's foot or the objective), even with no enemy in sight
+    // (fog): attackers press on, defenders keep their posts. Shooters end the move on guard,
+    // facing the nearest known enemy.
     const nearest = nearestEnemy(there, moved, c.position);
-    if (nearest) {
-      const from = toObjective ? (objectiveFrom as number) : fromCost;
-      const toCost = toObjective && objective ? (approach.objectiveCostAt(objective, type.movement, c.position) as number) : approach.costAt(type.movement, c.position);
-      const gained = from === IMPASSABLE || toCost === IMPASSABLE ? 0 : from - toCost;
-      const engaged = unit.faction === 'attacker' || sally || distance(unit.position, nearest.position) <= AI_WEIGHTS.defenderEngageRadiusM;
-      const guarding = canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
-      const guard: Command[] = guarding ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
-      const perAp = toObjective ? AI_WEIGHTS.objectivePerAp : AI_WEIGHTS.approachPerAp;
-      consider({ commands: [...move, ...guard], score: base + (engaged || toObjective ? gained * perAp : 0) + (guarding ? AI_WEIGHTS.guardBonus : 0) });
-    }
+    const from = toObjective ? (objectiveFrom as number) : fromCost;
+    const toCost = toObjective && objective ? (approach.objectiveCostAt(objective, type.movement, c.position) as number) : approach.costAt(type.movement, c.position);
+    const gained = from === IMPASSABLE || toCost === IMPASSABLE ? 0 : from - toCost;
+    const engaged = unit.faction === 'attacker' || sally || (nearest !== null && distance(unit.position, nearest.position) <= AI_WEIGHTS.defenderEngageRadiusM);
+    const guarding = nearest !== null && canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
+    const guard: Command[] = guarding && nearest ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
+    const perAp = toObjective ? AI_WEIGHTS.objectivePerAp : AI_WEIGHTS.approachPerAp;
+    if (nearest || gained > 0) consider({ commands: [...move, ...guard], score: base + (engaged || toObjective ? gained * perAp : 0) + (guarding ? AI_WEIGHTS.guardBonus : 0) });
   }
   return (best as Decision | null)?.commands ?? [];
 }
@@ -343,11 +345,14 @@ export function playTurn(ctx: BattleContext, state: BattleState, faction: Factio
   const commands: Command[] = [];
   const events: GameEvent[] = [];
   const ids = state.units.filter((u) => u.faction === faction).map((u) => u.id);
-  // Enemies do not move during our turn: one set of approach fields serves every unit.
-  const approach = new ApproachFields(ctx, state, faction);
+  // Enemies do not move during our turn: one set of approach fields serves every unit. Under
+  // fog, the AI only knows the enemies its men can see (no cheating, brief §9.6): it decides on
+  // that, and its orders play out on the real battle.
+  const approach = new ApproachFields(ctx, perceivedState(ctx, state, faction), faction);
   for (const id of ids) {
-    const unit = current.units.find((u) => u.id === id) as UnitState;
-    for (const command of decideUnit(ctx, current, unit, approach)) {
+    const seen = perceivedState(ctx, current, faction);
+    const unit = seen.units.find((u) => u.id === id) as UnitState;
+    for (const command of decideUnit(ctx, seen, unit, approach)) {
       const result = applyCommand(ctx, current, command);
       commands.push(command);
       events.push(...result.events);

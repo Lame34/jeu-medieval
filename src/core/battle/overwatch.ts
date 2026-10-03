@@ -14,6 +14,7 @@ import { snapToCellCenter } from './create.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { unitType, type MovePlan } from './movement.ts';
 import { syncNav } from './structures.ts';
+import { conditionedRange, NO_CONDITIONS, shotConditions } from './conditions.ts';
 import type { BattleState, UnitState } from './types.ts';
 
 const INDIRECT_FIRE_TAG = 'indirectFire';
@@ -28,12 +29,13 @@ export function canOverwatch(ctx: BattleContext, unit: UnitState): boolean {
  * Odds of a shot from `shooter` at an enemy of `targetUnit`'s type standing at `at`, or null when
  * out of range or out of sight. `accuracyFactor` < 1 for reaction shots.
  */
-export function shotOddsAt(ctx: BattleContext, shooter: UnitState, targetUnit: UnitState, at: Vec2, accuracyFactor: number): BlowOdds | null {
+export function shotOddsAt(ctx: BattleContext, shooter: UnitState, targetUnit: UnitState, at: Vec2, accuracyFactor: number, state?: BattleState): BlowOdds | null {
   const attack = unitType(ctx, shooter).attack;
   if (!attack || attack.rangeM === 0) return null;
   const d = ctx.rules.damage;
   const steps = heightSteps(ctx, shooter.position, at);
-  if (distance(shooter.position, at) > attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep)) return null;
+  const conditions = state ? shotConditions(ctx, state, shooter.position, at, false) : NO_CONDITIONS;
+  if (distance(shooter.position, at) > conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions)) return null;
   const sight = lineOfSight(ctx.nav, {
     from: shooter.position,
     to: at,
@@ -43,7 +45,7 @@ export function shotOddsAt(ctx: BattleContext, shooter: UnitState, targetUnit: U
     toElevationM: deckAt(ctx, at),
   });
   if (!sight.visible) return null;
-  return blowOdds(ctx, attack, unitType(ctx, targetUnit), accuracyFactor, steps, coverAgainst(ctx, shooter.position, at), sight.obscurance);
+  return blowOdds(ctx, attack, unitType(ctx, targetUnit), accuracyFactor, steps, coverAgainst(ctx, shooter.position, at), sight.obscurance, conditions.accuracy);
 }
 
 export interface Threat {
@@ -57,7 +59,7 @@ export function threatsAt(ctx: BattleContext, state: BattleState, unit: UnitStat
   const threats: Threat[] = [];
   for (const enemy of state.units) {
     if (!enemy.alive || enemy.faction === unit.faction) continue;
-    const odds = shotOddsAt(ctx, enemy, unit, at, 1);
+    const odds = shotOddsAt(ctx, enemy, unit, at, 1, state);
     if (odds) threats.push({ enemyId: enemy.id, hitChance: odds.hitChance });
   }
   return threats;
@@ -118,7 +120,7 @@ export function moveThroughOverwatch(ctx: BattleContext, state: BattleState, mov
       for (const id of watchers) {
         const watcher = units.find((u) => u.id === id) as UnitState;
         if (!watcher.alive || !watcher.overwatch || !inCone(ctx, watcher, sample.p)) continue;
-        const odds = shotOddsAt(ctx, watcher, current, sample.p, ctx.rules.damage.overwatchAccuracyFactor);
+        const odds = shotOddsAt(ctx, watcher, current, sample.p, ctx.rules.damage.overwatchAccuracyFactor, state);
         if (!odds) continue;
         pushSegment(sample.p, sample.segment);
         rng ??= Rng.fromState(state.rng);

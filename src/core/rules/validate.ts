@@ -20,6 +20,8 @@ import {
   type MoraleRules,
   type StructureRules,
   type FireRules,
+  type TerrainLayerKey,
+  type WeatherRules,
   type MovementRules,
   type TerrainLayerRule,
   type UnitAttackRule,
@@ -247,6 +249,41 @@ function readFire(raw: unknown): FireRules {
   });
 }
 
+function readWeather(raw: unknown): WeatherRules {
+  const w = obj(raw, 'damage.weather');
+  const n = (k: string, min?: number, max?: number) => num(w[k], `damage.weather.${k}`, min, max);
+  const odds = record(w['odds'], ['clear', 'rain', 'fog'] as const, 'damage.weather.odds', (v, p) => num(v, p, 0, 1));
+  const total = odds.clear + odds.rain + odds.fog;
+  if (Math.abs(total - 1) > 1e-6) throw new RulesValidationError('damage.weather.odds', `must sum to 1 (got ${total})`);
+  const hours = w['startHour'];
+  if (!Array.isArray(hours) || hours.length !== 2) throw new RulesValidationError('damage.weather.startHour', 'expected [from, to]');
+  const startHour: [number, number] = [num(hours[0], 'damage.weather.startHour[0]', 0, 24), num(hours[1], 'damage.weather.startHour[1]', 0, 24)];
+  const rf = obj(w['rainFire'], 'damage.weather.rainFire');
+  const layers = w['muddyLayers'];
+  if (!Array.isArray(layers)) throw new RulesValidationError('damage.weather.muddyLayers', 'expected an array');
+  const muddyLayers = layers.map((k, i) => {
+    if (typeof k !== 'string' || !(TERRAIN_LAYER_KEYS as readonly string[]).includes(k)) throw new RulesValidationError(`damage.weather.muddyLayers[${i}]`, `unknown layer "${String(k)}"`);
+    return k as TerrainLayerKey;
+  });
+  return Object.freeze({
+    odds: Object.freeze(odds),
+    startHour,
+    defaultStartHour: n('defaultStartHour', 0, 24),
+    hoursPerRound: n('hoursPerRound', 0, 24),
+    nightFrom: n('nightFrom', 0, 24),
+    nightTo: n('nightTo', 0, 24),
+    rainAccuracyPenalty: n('rainAccuracyPenalty', 0, 1),
+    rainFire: Object.freeze({ ignite: num(rf['ignite'], 'damage.weather.rainFire.ignite', 0, 1), fuel: num(rf['fuel'], 'damage.weather.rainFire.fuel', 0, 1), spread: num(rf['spread'], 'damage.weather.rainFire.spread', 0, 1) }),
+    muddyLayers: Object.freeze(muddyLayers),
+    mudCost: Object.freeze(record(w['mudCost'], MOVEMENT_PROFILES, 'damage.weather.mudCost', (v, p) => num(v, p, 1))),
+    fogSightM: n('fogSightM', 1),
+    nightRangeFactor: n('nightRangeFactor', 0, 1),
+    nightAccuracyPenalty: n('nightAccuracyPenalty', 0, 1),
+    lightRadiusM: n('lightRadiusM', 0),
+    windArtilleryPenalty: n('windArtilleryPenalty', 0, 1),
+  });
+}
+
 export interface RawRuleFiles {
   readonly terrain: unknown;
   readonly units: unknown;
@@ -264,5 +301,6 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     structures: readStructures(obj(raw.damage, 'damage')['structures']),
     fire: readFire(obj(raw.damage, 'damage')['fire']),
     battle: Object.freeze({ turnLimit: num(obj(obj(raw.damage, 'damage')['battle'], 'damage.battle')['turnLimit'], 'damage.battle.turnLimit', 1) }),
+    weather: readWeather(obj(raw.damage, 'damage')['weather']),
   });
 }

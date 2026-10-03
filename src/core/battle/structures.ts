@@ -15,8 +15,9 @@ import { TerrainLayer, type ArmorClass, type StructureRules } from '../rules/typ
 import { cellCenterHeight, type TerrainData } from '../terrain-data/terrain-data.ts';
 import { crossingCells, liftHingeM, liftTipM, passageCells } from '../worldgen/gatehouse.ts';
 import type { WorldLayout } from '../worldgen/types.ts';
-import type { BattleContext } from './context.ts';
+import { navCacheKey, type BattleContext } from './context.ts';
 import { fillCells, fillSurfaceM, FILL_SITE_PREFIX } from './moat.ts';
+import { rulesOnGround, type GroundCondition } from './conditions.ts';
 import type { StructureState, WorkState } from './types.ts';
 
 export type StructureKind = 'wall' | 'gate' | 'portcullis' | 'drawbridge';
@@ -200,14 +201,22 @@ function groundFor(ctx: BattleContext, structures: readonly StructureState[], wo
 }
 
 /** Points the context's navigation grid at the one matching `structures` and `works` (built once, then cached). */
+/** Sets the ground the nav grids are built for (the battle's weather); the next syncNav rebuilds. */
+export function setGround(ctx: BattleContext, ground: GroundCondition): void {
+  if (ctx.ground === ground) return;
+  ctx.ground = ground;
+  ctx.navFor = null;
+  ctx.navForWorks = null;
+}
+
 export function syncNav(ctx: BattleContext, structures: readonly StructureState[], works: readonly WorkState[] = NO_WORKS): void {
   if (ctx.navFor === structures && ctx.navForWorks === works) return;
-  const key = navSignature(structures, works);
+  const key = navCacheKey(ctx.ground, navSignature(structures, works));
   if (key !== ctx.navKey) {
     let entry = ctx.navCache.get(key);
     if (!entry) {
       const ground = groundFor(ctx, structures, works);
-      const nav = buildNavGrid(ground.terrain, ctx.rules, ground.deck);
+      const nav = buildNavGrid(ground.terrain, rulesOnGround(ctx.rules, ctx.ground), ground.deck);
       entry = { nav, paths: createPathContext(nav) };
       ctx.navCache.set(key, entry);
     }

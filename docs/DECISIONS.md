@@ -218,6 +218,26 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
   - L'approche d'un objectif vaut 10 points par PA gagné, au lieu de 3. Le PA d'un engin couvre 5 à 7 m, et l'objectif justifie l'exposition.
 **Conséquences** : les poids sont dans `TACTIC_WEIGHTS` et `AI_WEIGHTS`, réglés en J7 par des batailles simulées. Le replay reste identique. Un tour d'IA de l'armée prend 250 ms au premier tour, puis 20 à 150 ms ; la garnison prend 5 à 170 ms. Pas encore traité : la mine du sapeur, la sortie par la porte quand elle est fermée, et la coordination sapeur + tour au-delà d'une chaussée.
 
+## ADR-031 — Météo et moment de la journée dans le core (J5)
+**Contexte** : le brief (§9.11) demande une heure de départ tirée au sort qui avance à chaque tour, et quatre effets : la pluie (feu affaibli, −10 % de précision, boue), le brouillard (vision réduite, brouillard de guerre local), la nuit (portée −30 %, torches) et le vent (déviation de l'artillerie). La formule de combat (§9.7) prévoit des malus de météo et de nuit.
+**Décision** (`core/battle/conditions.ts`, réglages dans `damage.json` → `weather`) :
+- **État (version 8)** : il porte `weather` (`clear`, `rain` ou `fog`) et `startHour`. L'heure d'un round vaut `startHour + (tour − 1) × 20 min`.
+  - En partie, `BattleSession` tire météo et heure de la graine (sous-flux `weather`, de 6 h à 17 h au quart d'heure) et les écrit dans le scénario, que le replay rejoue tels quels.
+  - Un scénario qui ne les fixe pas se joue par temps clair à midi, ce qui garde les tests déterministes.
+- **Chaque tir** (attaque, tir de réaction, frappe d'engin, flèche enflammée) passe par `shotConditions`. Elle renvoie un bonus de précision, un facteur de portée, une portée maximale et la liste des modificateurs, que l'aperçu expose (`preview.conditions`) pour l'infobulle.
+  - **Pluie** : −0,10.
+  - **Nuit**, de 20 h 30 à 5 h 30 : portée × 0,7 et −0,10, sauf si la cible est à moins de 9 m d'une torche. Les torches sont placées aux portes, tours et donjons, et à chaque maison du village (`lightsOf`).
+  - **Brouillard** : portée plafonnée à 30 m.
+  - **Vent de travers sur l'artillerie** : −0,15 × force × |sin|.
+- **Feu sous la pluie** : chance d'embrasement × 0,5, durée × 0,5 (1 tour au moins), propagation × 0,3.
+- **Boue** :
+  - Sous la pluie, la plaine, la route et les champs coûtent plus de PA par mètre : × 1,2 à pied léger, × 1,25 à pied, × 1,4 à cheval, × 1,5 pour les engins.
+  - La grille de navigation est construite avec des règles dérivées (`rulesOnGround`). Le contexte porte `ground`, fixé par `createBattle` via `setGround`, et la clé du cache de grilles le préfixe (`mud#…`) ; sur sol sec, la clé est inchangée.
+  - `edgeCost` et `segmentCost` restent un seul et même métrique.
+- **Brouillard de guerre** : chaque camp ne connaît que les ennemis à moins de 30 m de l'un de ses hommes. L'IA décide sur cet état perçu (`perceivedState`), et ses ordres se jouent sur l'état réel : elle ne triche pas (§9.6).
+  - Sans ennemi en vue, les assaillants marchent quand même vers la porterie et leurs objectifs, et les défenseurs tiennent leurs postes.
+**Conséquences** : le rendu (lumière, ciel et LUT interpolés selon l'heure, pluie, brouillard, torches) et le HUD (heure, météo, vent, modificateurs dans l'aperçu) lisent ces champs. Le brouillard de guerre côté joueur masque les ennemis qu'il ne voit pas. Pas encore traité : la météo qui change en cours de bataille.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

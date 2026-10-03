@@ -4,6 +4,8 @@ import { Rng, type Seed } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 import type { BattleContext } from './context.ts';
 import { initialStructures, NO_WORKS, syncNav } from './structures.ts';
+import { conditionsOf, groundOf } from './conditions.ts';
+import { setGround } from './structures.ts';
 import { BATTLE_STATE_VERSION, type BattleState, type Scenario, type UnitState } from './types.ts';
 
 export const DEFAULT_MORALE = 70;
@@ -75,6 +77,8 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
   const windRng = root.fork(WIND_RNG_LABEL);
   const windAngle = windRng.next() * 2 * Math.PI;
   const wind = { x: Math.sin(windAngle), z: Math.cos(windAngle), strength: WIND_STRENGTH[0] + windRng.next() * (WIND_STRENGTH[1] - WIND_STRENGTH[0]) };
+  const { weather, startHour } = conditionsOf(ctx.rules, scenario);
+  setGround(ctx, groundOf(weather));
   return {
     version: BATTLE_STATE_VERSION,
     seedKey: root.seedKey,
@@ -87,6 +91,8 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     works: NO_WORKS,
     docks: [],
     wind,
+    weather,
+    startHour,
     fires: [],
     burnt: [],
     rng: root.fork(BATTLE_RNG_LABEL).getState(),

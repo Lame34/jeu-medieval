@@ -10,6 +10,8 @@ import type { GameRules } from '../rules/types.ts';
 import type { TerrainData } from '../terrain-data/terrain-data.ts';
 import type { MoatInfo } from './moat.ts';
 import type { StructureDef } from './structures.ts';
+import type { GroundCondition } from './conditions.ts';
+import type { Vec2 } from '../math/vec2.ts';
 import type { StructureState, WorkState } from './types.ts';
 
 /** Deck elevation (m above the relief) of the cell holding `p`. */
@@ -39,15 +41,32 @@ export interface BattleContext {
   navForWorks: readonly WorkState[] | null;
   /** The castle moats (sappers fill them slot by slot). */
   readonly moats: readonly MoatInfo[];
+  /** Torches and braziers (the castle's gates and towers, the village): lit at night. */
+  readonly lights: readonly Vec2[];
+  /** The ground under the battle's weather (mud in the rain): `nav` is built for it. */
+  ground: GroundCondition;
 }
 
 /**
  * `deck`: per-cell deck elevation (wall-walks, tower tops, stairs), from the map
  * (WorldLayout.deck); none on open maps. `structures`: the castle's breakable parts; `moats`: its ditches.
  */
-export function createBattleContext(terrain: TerrainData, rules: GameRules, deck?: Float32Array, structures: readonly StructureDef[] = [], moats: readonly MoatInfo[] = []): BattleContext {
+export function createBattleContext(
+  terrain: TerrainData,
+  rules: GameRules,
+  deck?: Float32Array,
+  structures: readonly StructureDef[] = [],
+  moats: readonly MoatInfo[] = [],
+  lights: readonly Vec2[] = [],
+): BattleContext {
   const baseDeck = deck ?? new Float32Array(terrain.width * terrain.depth);
   const nav = buildNavGrid(terrain, rules, baseDeck);
   const paths = createPathContext(nav);
-  return { rules, terrain, nav, paths, structures, baseTerrain: terrain, baseDeck, navKey: '', navCache: new Map([['', { nav, paths }]]), navFor: null, navForWorks: null, moats };
+  const key = navCacheKey('dry', '');
+  return { rules, terrain, nav, paths, structures, baseTerrain: terrain, baseDeck, navKey: key, navCache: new Map([[key, { nav, paths }]]), navFor: null, navForWorks: null, moats, lights, ground: 'dry' };
+}
+
+/** Cache key of a nav grid: the broken-structure and works signature, prefixed in mud. */
+export function navCacheKey(ground: GroundCondition, signature: string): string {
+  return ground === 'dry' ? signature : `${ground}#${signature}`;
 }
