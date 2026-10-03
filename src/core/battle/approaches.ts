@@ -104,11 +104,11 @@ export function viableApproaches(layout: WorldLayout, rules: GameRules): { viabl
     if (inRange) viable.push('breach');
   } else notes.breach = 'pas de catapulte';
 
-  // --- Ram: with the bridge down, a cell from which it strikes the gate.
-  if (gate && bridge) {
+  // --- Ram: a cell from which it strikes the gate (once the bridge is down, when there is one).
+  if (gate) {
     syncNav(
       ctx,
-      intact.map((s) => (s.id === bridge.id ? { ...s, broken: true } : s)),
+      bridge ? intact.map((s) => (s.id === bridge.id ? { ...s, broken: true } : s)) : intact,
       noWorks,
     );
     const rams = reach(ctx, 'engine', startOf('ram'));
