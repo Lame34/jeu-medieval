@@ -89,6 +89,10 @@ export default function BattleScreen() {
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   const [castle, setCastle] = useState<CastleHandle | null>(null);
   const [fire, setFire] = useState<FireHandle | null>(null);
+  // The battle's wind (smoke drift, painted sway) shows from the start, before any fire.
+  useEffect(() => {
+    if (fire && session) fire.syncFrom(session.state);
+  }, [fire, session]);
   const heightAt = useCallback((x: number, z: number) => session?.standHeight(x, z) ?? 0, [session]);
   const [projectiles, setProjectiles] = useState<ProjectileHandle | null>(null);
   const waterAt = useCallback(

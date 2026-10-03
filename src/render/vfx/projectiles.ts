@@ -6,7 +6,6 @@
  * drawn while nothing flies; the per-frame update only writes matrices and typed arrays.
  */
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
   Color,
@@ -15,6 +14,7 @@ import {
   DynamicDrawUsage,
   Group,
   IcosahedronGeometry,
+  NormalBlending,
   InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
@@ -44,7 +44,18 @@ const STONE_MIN_ARC_M = 9;
 const TRAIL_LENGTH_M = 3.4;
 /** Projectiles are drawn larger than life: an arrow must read at tactical zoom. */
 const ARROW_SCALE = 1.8;
-const TRAIL_WIDTH_M = 0.32;
+const TRAIL_WIDTH_M = 0.16;
+/** Trails (rgb, alpha): a plain arrow's pale streak; a fire arrow's (its hot head is in the shader). */
+const PLAIN_TRAIL = [0.85, 0.82, 0.74, 0.55] as const;
+const FIRE_TRAIL = [0.95, 0.42, 0.1, 0.8] as const;
+/** A catapult stone: a rough flattened boulder (radius, squash) and its ground shadow, tinted not black. */
+const STONE_RADIUS_M = 0.55;
+const STONE_SQUASH = [1, 0.82, 0.9] as const;
+const STONE_COLOR = '#9a8d78';
+const SHADOW_SIZE_M = 1.4;
+const SHADOW_SIZE_PER_M = 0.05;
+const SHADOW_ALPHA = [0.2, 0.5] as const;
+const SHADOW_FADE_PER_M = 0.02;
 
 interface Flight {
   active: boolean;
@@ -71,11 +82,16 @@ const TRAIL_FRAGMENT = /* glsl */ `
 varying vec2 vUv;
 varying vec4 vTrail;
 void main() {
-  float across = 1.0 - abs(vUv.x - 0.5) * 2.0;
+  // Tapering towards the tail; a fire trail (negative alpha) has a hot head over its front 12 %.
+  float w = 1.0 - 0.6 * vUv.y;
+  float across = 1.0 - abs(vUv.x - 0.5) * 2.0 / w;
+  if (across <= 0.0) discard;
   float along = 1.0 - vUv.y;
-  float a = vTrail.a * along * along * across;
+  float fire = step(vTrail.a, 0.0);
+  float a = abs(vTrail.a) * along * along * across;
   if (a < 0.01) discard;
-  gl_FragColor = vec4(vTrail.rgb * a, a);
+  vec3 col = mix(vTrail.rgb, vec3(1.0, 0.78, 0.35), fire * smoothstep(0.84, 0.92, along));
+  gl_FragColor = vec4(col, a);
 }
 `;
 const SHADOW_VERTEX = /* glsl */ `
@@ -95,7 +111,7 @@ void main() {
   float r = length(vUv - 0.5) * 2.0;
   float a = (1.0 - smoothstep(0.3, 1.0, r)) * vShade;
   if (a < 0.01) discard;
-  gl_FragColor = vec4(vec3(0.08, 0.07, 0.06), a);
+  gl_FragColor = vec4(vec3(0.20, 0.22, 0.36), a);
 }
 `;
 const SPLASH_VERTEX = /* glsl */ `
@@ -176,9 +192,9 @@ export class ProjectilePool {
     const trailQuad = mergeGeometries([ribbon(), ribbon().rotateZ(Math.PI / 2)], false);
     if (!trailQuad) throw new Error('trail merge failed');
     trailQuad.setAttribute('aTrail', new InstancedBufferAttribute(new Float32Array(MAX_ARROWS * 4), 4));
-    const trailMat = new ShaderMaterial({ name: 'Projectile:trail', vertexShader: TRAIL_VERTEX, fragmentShader: TRAIL_FRAGMENT, transparent: true, depthWrite: false, blending: AdditiveBlending });
+    const trailMat = new ShaderMaterial({ name: 'Projectile:trail', vertexShader: TRAIL_VERTEX, fragmentShader: TRAIL_FRAGMENT, transparent: true, depthWrite: false, blending: NormalBlending });
     this.trails = new InstancedMesh(trailQuad, trailMat, MAX_ARROWS);
-    const stoneGeometry = finish(new IcosahedronGeometry(0.6, 1).toNonIndexed(), -1, new Color(PALETTE.stone.lit));
+    const stoneGeometry = finish(new IcosahedronGeometry(STONE_RADIUS_M, 0).scale(...STONE_SQUASH), -1, new Color(STONE_COLOR));
     this.stones = new InstancedMesh(stoneGeometry, painted, MAX_STONES);
     const disc = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     disc.setAttribute('aShade', new InstancedBufferAttribute(new Float32Array(MAX_STONES), 1));
@@ -261,8 +277,8 @@ export class ProjectilePool {
       this.arrows.setMatrixAt(n, this.m);
       this.m.compose(this.p, this.q, this.s);
       this.trails.setMatrixAt(n, this.m);
-      if (f.fire) trailAttr.setXYZW(n, 1.0, 0.55, 0.18, 0.95);
-      else trailAttr.setXYZW(n, 0.85, 0.82, 0.74, 0.55);
+      if (f.fire) trailAttr.setXYZW(n, FIRE_TRAIL[0], FIRE_TRAIL[1], FIRE_TRAIL[2], -FIRE_TRAIL[3]);
+      else trailAttr.setXYZW(n, PLAIN_TRAIL[0], PLAIN_TRAIL[1], PLAIN_TRAIL[2], PLAIN_TRAIL[3]);
       n++;
     }
     this.arrows.count = n;
@@ -285,10 +301,10 @@ export class ProjectilePool {
       this.stones.setMatrixAt(k, this.m);
       const ground = this.options.groundAt(this.p.x, this.p.z);
       const height = Math.max(0, this.p.y - ground);
-      const size = 1.8 + height * 0.06;
+      const size = SHADOW_SIZE_M + height * SHADOW_SIZE_PER_M;
       this.m.makeScale(size, 1, size).setPosition(this.p.x, ground + 0.08, this.p.z);
       this.shadows.setMatrixAt(k, this.m);
-      shade.setX(k, Math.max(0.12, 0.6 - height * 0.025));
+      shade.setX(k, Math.max(SHADOW_ALPHA[0], SHADOW_ALPHA[1] - height * SHADOW_FADE_PER_M));
       k++;
     }
     this.stones.count = k;

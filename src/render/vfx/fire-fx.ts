@@ -24,11 +24,18 @@ import {
 import { hash01 } from '../castle/siege-fx.ts';
 
 const MAX_FLAMES = 600;
-const FLAMES_PER_CELL = 2;
+const FLAMES_PER_CELL = 3;
 const MAX_SCORCH = 3000;
 const SMOKE_POOL = 256;
 const SMOKE_LIFE_S = 5;
 const SMOKE_EVERY_S = 0.35;
+/** Smoke rise (m/s) and drift with the wind: (base + per unit of strength) m/s along it. */
+const SMOKE_RISE_MS = 2.2;
+const SMOKE_DRIFT_MS = 0.8;
+const SMOKE_DRIFT_PER_STRENGTH_MS = 1.5;
+/** Smoke darkest at birth, paler as it thins (seen from above it read as a cast shadow). */
+const SMOKE_YOUNG = '#4b4540';
+const SMOKE_OLD = '#a39a8e';
 const FLAME_SIZE_M = 1.5;
 
 const FLAME_VERTEX = /* glsl */ `
@@ -73,12 +80,13 @@ void main() {
   float a = body * tip;
   if (a < 0.03) discard;
   float heat = clamp(a * (1.15 - uv.y) + n * 0.25, 0.0, 1.0);
-  vec3 deep = vec3(0.72, 0.16, 0.05);
-  vec3 mid = vec3(0.98, 0.52, 0.12);
-  vec3 hot = vec3(1.0, 0.88, 0.55);
+  // Linear values (ACES follows): an orange body, a yellow heart, no cream-white core.
+  vec3 deep = vec3(0.55, 0.10, 0.03);
+  vec3 mid = vec3(0.90, 0.32, 0.06);
+  vec3 hot = vec3(1.0, 0.70, 0.30);
   vec3 col = mix(deep, mid, smoothstep(0.15, 0.55, heat));
-  col = mix(col, hot, smoothstep(0.6, 0.95, heat));
-  gl_FragColor = vec4(col * 1.25, a * 0.92);
+  col = mix(col, hot, smoothstep(0.78, 1.0, heat));
+  gl_FragColor = vec4(col, a * 0.92);
 }
 `;
 
@@ -121,19 +129,23 @@ attribute vec4 aSmoke; // size, alpha, seed, age
 uniform float uPixelsPerMeter;
 varying float vAlpha;
 varying float vSeed;
+varying float vAge;
 void main() {
   vec4 view = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * view;
   gl_PointSize = aSmoke.x * uPixelsPerMeter / max(1.0, -view.z);
   vAlpha = aSmoke.y;
   vSeed = aSmoke.z;
+  vAge = aSmoke.w;
 }
 `;
 
 const SMOKE_FRAGMENT = /* glsl */ `
 uniform vec3 uColor;
+uniform vec3 uColorOld;
 varying float vAlpha;
 varying float vSeed;
+varying float vAge;
 void main() {
   vec2 p = gl_PointCoord * 2.0 - 1.0;
   float r = length(p);
@@ -141,7 +153,8 @@ void main() {
   float rim = 0.8 + 0.1 * sin(ang * 5.0 + vSeed * 29.0) + 0.06 * sin(ang * 11.0 - vSeed * 13.0);
   float a = vAlpha * smoothstep(rim, rim * 0.3, r);
   if (a < 0.01) discard;
-  gl_FragColor = vec4(uColor * (0.9 + 0.2 * (1.0 - r)), a);
+  vec3 c = mix(uColor, uColorOld, smoothstep(0.2, 0.7, vAge));
+  gl_FragColor = vec4(c * (0.9 + 0.2 * (1.0 - r)), a);
 }
 `;
 
@@ -168,6 +181,7 @@ export class FireField {
   private smokeNext = 0;
   private smokeClock = 0;
   private smokeSerial = 0;
+  private readonly drift = { x: SMOKE_DRIFT_MS, z: 0 };
   private burning: readonly FireCell[] = [];
   private readonly m = new Matrix4();
 
@@ -201,7 +215,7 @@ export class FireField {
     smokeGeometry.setAttribute('position', new BufferAttribute(this.smokePositions, 3).setUsage(DynamicDrawUsage));
     smokeGeometry.setAttribute('aSmoke', new BufferAttribute(this.smokeParams, 4).setUsage(DynamicDrawUsage));
     smokeGeometry.setDrawRange(0, 0);
-    const smokeMat = new ShaderMaterial({ name: 'Fire:smoke', vertexShader: SMOKE_VERTEX, fragmentShader: SMOKE_FRAGMENT, uniforms: { uColor: { value: new Color('#4b4540') }, uPixelsPerMeter: { value: 1 } }, transparent: true, depthWrite: false });
+    const smokeMat = new ShaderMaterial({ name: 'Fire:smoke', vertexShader: SMOKE_VERTEX, fragmentShader: SMOKE_FRAGMENT, uniforms: { uColor: { value: new Color(SMOKE_YOUNG) }, uColorOld: { value: new Color(SMOKE_OLD) }, uPixelsPerMeter: { value: 1 } }, transparent: true, depthWrite: false });
     this.smoke = new Points(smokeGeometry, smokeMat);
     this.smoke.name = 'Fire:smoke';
     this.smoke.frustumCulled = false;
@@ -209,6 +223,14 @@ export class FireField {
     this.materials = [flameMat, glowMat, scorchMat, smokeMat];
     this.group.add(this.scorch, this.glows, this.flames, this.smoke);
     this.group.name = 'Fire';
+  }
+
+  /** The battle's wind (direction x, z and strength 0–1): the smoke drifts with it. */
+  setWind(x: number, z: number, strength: number): void {
+    const len = Math.hypot(x, z) || 1;
+    const speed = SMOKE_DRIFT_MS + SMOKE_DRIFT_PER_STRENGTH_MS * strength;
+    this.drift.x = (x / len) * speed;
+    this.drift.z = (z / len) * speed;
   }
 
   /** The cells burning and burnt now. */
@@ -277,10 +299,13 @@ export class FireField {
       const next = age + dt;
       this.smokeLife[i] = next;
       const k = Math.min(1, next / SMOKE_LIFE_S);
-      this.smokePositions[i * 3 + 1] = (this.smokePositions[i * 3 + 1] as number) + dt * (1.4 - k * 0.6);
-      this.smokePositions[i * 3] = (this.smokePositions[i * 3] as number) + dt * 0.35;
+      this.smokePositions[i * 3 + 1] = (this.smokePositions[i * 3 + 1] as number) + dt * SMOKE_RISE_MS * (1 - k * 0.4);
+      // Drift picks up as the puff leaves the shelter of the ground.
+      this.smokePositions[i * 3] = (this.smokePositions[i * 3] as number) + dt * this.drift.x * (0.4 + 0.6 * k);
+      this.smokePositions[i * 3 + 2] = (this.smokePositions[i * 3 + 2] as number) + dt * this.drift.z * (0.4 + 0.6 * k);
       this.smokeParams[i * 4] = (this.smokeSizes[i] as number) * (0.6 + 1.8 * k);
       this.smokeParams[i * 4 + 1] = 0.5 * Math.min(1, k * 6) * (1 - k);
+      this.smokeParams[i * 4 + 3] = k;
     }
     const g = this.smoke.geometry;
     g.setDrawRange(0, live > 0 ? SMOKE_POOL : 0);

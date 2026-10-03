@@ -18,6 +18,7 @@ import type { FieldPatch } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
+import { burnTufts, fieldBurn } from './field-burn.ts';
 
 const SPACING_M = 0.34;
 const EDGE_FADE_M = 2.2;
@@ -133,6 +134,9 @@ interface CropChunk {
   readonly y: number;
   readonly z: number;
   tufts: ChunkTufts | null;
+  /** The tufts as the fire left them, and the fire version they were made for. */
+  burnt: ChunkTufts | null;
+  burntVersion: number;
 }
 
 const scratch = { m: new Matrix4(), q: new Quaternion(), s: new Vector3(), p: new Vector3() };
@@ -210,7 +214,7 @@ function chunksOf(fields: readonly FieldPatch[], terrain: TerrainData): CropChun
     const z = (e.cz + 0.5) * CHUNK_M;
     const W = terrain.width * terrain.cellSize;
     const D = terrain.depth * terrain.cellSize;
-    return { ...e, x, z, y: sampleHeight(terrain, Math.min(W, Math.max(0, x)), Math.min(D, Math.max(0, z))), tufts: null };
+    return { ...e, x, z, y: sampleHeight(terrain, Math.min(W, Math.max(0, x)), Math.min(D, Math.max(0, z))), tufts: null, burnt: null, burntVersion: -1 };
   });
 }
 
@@ -248,6 +252,8 @@ interface Built {
   readonly material: PaintedMaterial;
   readonly geometries: BufferGeometry[];
   readonly last: { focus: Vector3; camera: Vector3 };
+  /** The fire version the streamed set was built with. */
+  readonly fireVersion: { value: number };
 }
 
 function makeLevel(geometry: BufferGeometry, material: PaintedMaterial, capacity: number, name: string): Level {
@@ -294,7 +300,7 @@ function build(fields: readonly FieldPatch[], terrain: TerrainData): Built {
     };
   }
   const inf = Number.POSITIVE_INFINITY;
-  return { chunks: chunksOf(fields, terrain), levels, material, geometries, last: { focus: new Vector3(inf, 0, 0), camera: new Vector3(inf, 0, 0) } };
+  return { chunks: chunksOf(fields, terrain), levels, material, geometries, last: { focus: new Vector3(inf, 0, 0), camera: new Vector3(inf, 0, 0) }, fireVersion: { value: fieldBurn.version } };
 }
 
 /** Copies one chunk level into an instanced level; returns the new fill count. */
@@ -307,6 +313,17 @@ function append(level: Level, filled: number, matrices: Float32Array, colors: Fl
 }
 
 const byDistance: { chunk: CropChunk; d2: number }[] = [];
+
+/** A chunk's tufts through the fire (field-burn.ts), cached per fire version. */
+function burntTuftsOf(chunk: CropChunk, tufts: ChunkTufts): ChunkTufts {
+  if (chunk.burntVersion !== fieldBurn.version) {
+    const near = burnTufts(tufts.near, tufts.nearColor);
+    const far = burnTufts(tufts.far, tufts.farColor);
+    chunk.burnt = near.matrices === tufts.near && far.matrices === tufts.far ? null : { near: near.matrices, nearColor: near.colors, far: far.matrices, farColor: far.colors };
+    chunk.burntVersion = fieldBurn.version;
+  }
+  return chunk.burnt ?? tufts;
+}
 
 /** Returns false when some chunks are still to be generated (rebuild again next frame). */
 function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: TerrainData): boolean {
@@ -334,8 +351,9 @@ function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: Terrain
     const level = built.levels[chunk.crop];
     const f = fill[chunk.crop];
     const near = Math.hypot(chunk.x - camera.x, chunk.y - camera.y, chunk.z - camera.z) < NEAR_DISTANCE_M;
-    if (near) f.near = append(level.near, f.near, chunk.tufts.near, chunk.tufts.nearColor);
-    else f.far = append(level.far, f.far, chunk.tufts.far, chunk.tufts.farColor);
+    const tufts = burntTuftsOf(chunk, chunk.tufts);
+    if (near) f.near = append(level.near, f.near, tufts.near, tufts.nearColor);
+    else f.far = append(level.far, f.far, tufts.far, tufts.farColor);
   }
   for (const crop of CROPS) {
     for (const key of ['near', 'far'] as const) {
@@ -362,7 +380,9 @@ export function Fields({ fields, terrain }: { readonly fields: readonly FieldPat
   useFrame(({ camera }) => {
     const focus = paintedGlobals.uFocus.value;
     const { last } = built;
-    if (last.focus.distanceToSquared(focus) < REBUILD_STEP_M ** 2 && last.camera.distanceToSquared(camera.position) < REBUILD_STEP_M ** 2) return;
+    const fireMoved = built.fireVersion.value !== fieldBurn.version;
+    if (!fireMoved && last.focus.distanceToSquared(focus) < REBUILD_STEP_M ** 2 && last.camera.distanceToSquared(camera.position) < REBUILD_STEP_M ** 2) return;
+    built.fireVersion.value = fieldBurn.version;
     last.focus.copy(focus);
     last.camera.copy(camera.position);
     // Unfinished (chunks still to generate): force another pass next frame.

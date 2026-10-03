@@ -6,6 +6,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import type { PerspectiveCamera } from 'three';
 import type { BattleState } from '../../core/battle/types.ts';
+import { clearFieldBurn, setFieldBurn } from '../fields/field-burn.ts';
+import { paintedGlobals } from '../materials/painted-globals.ts';
 import { FireField, type FireCell } from './fire-fx.ts';
 
 export interface FireHandle {
@@ -25,8 +27,21 @@ export function Fire({ width, heightAt, onHandle }: { readonly width: number; re
       const z = Math.floor(cell / width) + 0.5;
       return { x, y: heightAt(x, z), z, seed: cell };
     };
-    onHandle({ syncFrom: (state) => field.sync(state.fires.map((f) => cellOf(f.cell)), state.burnt.map(cellOf)) });
-    return () => onHandle(null);
+    const defaultWind = paintedGlobals.uWindDir.value.clone();
+    onHandle({
+      syncFrom: (state) => {
+        field.sync(state.fires.map((f) => cellOf(f.cell)), state.burnt.map(cellOf));
+        field.setWind(state.wind.x, state.wind.z, state.wind.strength);
+        // The painted wind (foliage, crops) blows the battle's way.
+        if (Math.hypot(state.wind.x, state.wind.z) > 0) paintedGlobals.uWindDir.value.set(state.wind.x, state.wind.z).normalize();
+        setFieldBurn(width, state.burnt, state.fires.map((f) => f.cell));
+      },
+    });
+    return () => {
+      onHandle(null);
+      paintedGlobals.uWindDir.value.copy(defaultWind);
+      clearFieldBurn();
+    };
   }, [field, width, heightAt, onHandle]);
   useEffect(() => () => field.dispose(), [field]);
   useFrame((state, delta) => {
