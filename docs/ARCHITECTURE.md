@@ -29,6 +29,24 @@
 | Contours peints, chemin, anneaux, cônes de garde | `render/battle/{BattleOverlays.tsx,move-field.ts}`, `terrain-material.ts` |
 | HUD | `ui/battle/BattleHud.tsx`, `describe.ts` |
 
+## Siège (J4, ADR-024 à ADR-028)
+Le château se casse, se comble, s'escalade et brûle sans quitter le cadre du core : l'état de bataille ne porte que des faits sérialisables (PV et chute des ouvrages, chantiers, amarrages, foyers, vent), et la grille de navigation est une fonction pure de la carte et de ces faits. `syncNav` la reconstruit une fois par combinaison, puis la garde en cache ; elle est appelée autour de chaque commande et à l'entrée de chaque aperçu.
+
+| Rôle | Où |
+|---|---|
+| Ouvrages : segments de courtine, porte, herse, pont-levis ; grille qui suit les ouvrages tombés | `core/battle/structures.ts`, porterie partagée `core/worldgen/gatehouse.ts` |
+| Engins contre ouvrages : aperçu et tirage, effondrement, chute du pont-levis | `core/battle/siege.ts` |
+| Douve en tranches, fascines et sape | `core/battle/{moat,siege-works}.ts` |
+| Tour de siège : amarrage, montée sur le chemin de ronde | `core/battle/siege-tower.ts` |
+| Feu : flèches enflammées, propagation au vent, brûlures, extinction | `core/battle/fire.ts`, réglages `data/damage.json` → `fire` |
+| Les cinq approches jugées avec les règles (validateur de carte) | `core/battle/approaches.ts`, `core/worldgen/validate-map.ts` |
+| Château à l'écran et sa poignée (`hit`, `bringDown`, `setWork`) : fissures, blocs, gravats, poussière, porterie mobile, fascines, abri de sape | `render/castle/{Castle.tsx,siege-fx.ts,siege-works-fx.ts}` |
+| Engins : maillages skinnés (Blender headless), animés en code | `scripts/blender/build_siege_engines.py`, `render/units/engines.ts` |
+| Feu peint, projectiles (flèches à traînée, boulets et leur ombre, éclaboussures) | `render/vfx/{Fire.tsx,fire-fx.ts,Projectiles.tsx,projectiles.ts}` |
+| Captures scriptées du siège (vraies commandes via `?e2e`) | `scripts/{capture-siege,capture-works}.ts` |
+
+Le directeur de bataille reçoit les poignées du château, du feu et des projectiles comme celles des unités. Un coup tiré attend l'arrivée de son projectile avant de jouer la réaction de la cible. Les effets au repos ont une plage de dessin nulle : leurs programmes sont compilés derrière l'écran de chargement, sans coûter d'appel.
+
 ## Monde logique et monde visuel
 `- La **même `TerrainData`** (heightfield aux coins et couche par cellule de 1 m) alimente la navigation et le rendu : relief du mesh de terrain, splatmap, placement de la végétation. Le joueur ne voit jamais la grille.
 `- Le rendu peut ajouter du détail purement visuel (bruit de couleur, touffes d'herbe, cailloux), mais ne modifie jamais la navigation.
