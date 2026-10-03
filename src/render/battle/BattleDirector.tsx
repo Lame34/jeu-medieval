@@ -29,6 +29,8 @@ import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import type { CastleHandle, CastleWork } from '../castle/Castle.tsx';
 import type { FireHandle } from '../vfx/Fire.tsx';
+import type { ProjectileHandle } from '../vfx/Projectiles.tsx';
+import { INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
 import { FIRE_ARROWS_TAG } from '../../core/battle/fire.ts';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
@@ -62,6 +64,16 @@ const RAY_MAX_M = 900;
 /** A unit is under the pointer when the ray passes this close to its axis (m). */
 const PICK_RADIUS_M = 0.8;
 const UNIT_PICK_HEIGHT_M = 2.2;
+/** Shots: release heights above the shooter's feet, where they strike a body, how far a miss lands (m). */
+const BOW_HEIGHT_M = 1.5;
+const CATAPULT_RELEASE_M = 3.2;
+const BODY_AIM_M = 1.1;
+const MISS_OFFSET_M: readonly [number, number] = [1.2, 2.6];
+/** A catapult stone strikes this far below a segment's text anchor (the wall face). */
+const STRUCTURE_FACE_DROP_M = 4;
+const FIRE_ARROW_AIM_M = 0.6;
+/** A beat after a projectile lands before the next event. */
+const LANDING_PAUSE_S = 0.2;
 /** A structure is under the pointer when the ground hit lies this close to its cells (m). */
 const STRUCTURE_PICK_M = 1.6;
 /** Climbing a docked tower: walk to its foot, rise inside it, step onto the wall-walk (s). */
@@ -203,6 +215,7 @@ export function BattleDirector({
   handles,
   castle = null,
   fire = null,
+  projectiles = null,
   terrain,
   focusOn,
 }: {
@@ -212,6 +225,8 @@ export function BattleDirector({
   readonly castle?: CastleHandle | null;
   /** The fires' handle. */
   readonly fire?: FireHandle | null;
+  /** Arrows, bolts and stones in flight. */
+  readonly projectiles?: ProjectileHandle | null;
   readonly terrain: TerrainData;
   /** Recentres the camera (Tab, double-click on a unit of ours). */
   readonly focusOn?: (p: Vec2) => void;
@@ -221,7 +236,7 @@ export function BattleDirector({
   const queue = useRef<GameEvent[]>([]);
   const step = useRef<{ step: Step; t: number } | null>(null);
   const floats = useRef<FloatText[]>([]);
-  const scratch = useRef({ v: new Vector3(), ground: new Vector3(), ndc: new Vector2(), ray: new Raycaster(), p: new Vector3() });
+  const scratch = useRef({ v: new Vector3(), ground: new Vector3(), ndc: new Vector2(), ray: new Raycaster(), p: new Vector3(), aim: new Vector3(), launch: new Vector3(), landing: new Vector3() });
   const pointer = useRef({ x: 0, y: 0, downX: 0, downY: 0, down: false, inside: false });
   const hoverKey = useRef('');
   const aiPending = useRef(false);
@@ -272,6 +287,32 @@ export function BattleDirector({
 
   const handleOf = (id: string) => handles?.get(id) ?? null;
 
+  /** A shot from `from` (a unit's feet) to a point; returns its flight time (0 without projectiles). */
+  const shootAt = (lob: boolean, from: Vector3, to: Vector3, hit: boolean, seedKey: string, burning: boolean): number => {
+    if (!projectiles) return 0;
+    const s = scratch.current;
+    s.launch.copy(from);
+    s.launch.y += lob ? CATAPULT_RELEASE_M : BOW_HEIGHT_M;
+    s.landing.copy(to);
+    if (!hit) {
+      // A miss lands beside the target, on the ground.
+      let h = 0;
+      for (let i = 0; i < seedKey.length; i++) h = (Math.imul(h, 31) + seedKey.charCodeAt(i)) | 0;
+      const a = ((h >>> 0) % 360) * (Math.PI / 180);
+      const r = MISS_OFFSET_M[0] + (((h >>> 9) % 100) / 100) * (MISS_OFFSET_M[1] - MISS_OFFSET_M[0]);
+      s.landing.x += Math.cos(a) * r;
+      s.landing.z += Math.sin(a) * r;
+      s.landing.y = session.standHeight(s.landing.x, s.landing.z);
+    }
+    return lob ? projectiles.stone(s.launch, s.landing, null) : projectiles.arrow(s.launch, s.landing, burning, null);
+  };
+  /** A shot at a unit's body. */
+  const shoot = (lob: boolean, from: Vector3, target: Vector3, hit: boolean, seedKey: string, burning: boolean): number => {
+    const aim = scratch.current.aim.copy(target);
+    aim.y += BODY_AIM_M;
+    return shootAt(lob, from, aim, hit, seedKey, burning);
+  };
+
   const makeStep = (event: GameEvent): Step | null => {
     switch (event.type) {
       case 'unitMoved': {
@@ -313,14 +354,26 @@ export function BattleDirector({
         const target = handleOf(event.targetId);
         if (!attacker || !target) return null;
         const clip = attacker.play('attack', true);
-        const duration = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip));
+        const release = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)) * IMPACT_AT;
         const facing = yawOf(target.root.position.x - attacker.root.position.x, target.root.position.z - attacker.root.position.z);
+        const type = DEFAULT_RULES.units[findUnit(session.state, event.attackerId)?.typeKey ?? ''];
+        const ranged = !event.riposte && (type?.attack?.rangeM ?? 0) > 0;
+        const lob = type?.tags.includes(INDIRECT_FIRE_TAG) ?? false;
+        let released = false;
+        let landAt = Number.POSITIVE_INFINITY;
         let landed = false;
-        return {
-          duration,
+        const step: Step = {
+          duration: Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)),
           update(t, dt) {
             attacker.root.rotation.y = approachAngle(attacker.root.rotation.y, facing, TURN_RATE * dt);
-            if (!landed && t >= duration * IMPACT_AT) {
+            if (!released && t >= release) {
+              released = true;
+              // Shots fly to the target (or beside it when they miss); blows land at once.
+              const flight = ranged ? shoot(lob, attacker.root.position, target.root.position, event.hit, event.attackerId + event.targetId, false) : 0;
+              landAt = t + flight;
+              step.duration = Math.max(step.duration, landAt + LANDING_PAUSE_S);
+            }
+            if (!landed && t >= landAt) {
               landed = true;
               const p = target.root.position;
               if (event.hit) {
@@ -334,20 +387,37 @@ export function BattleDirector({
             if (event.hpAfter > 0 && event.hit) target.play('idle');
           },
         };
+        return step;
       }
       case 'structureDamaged': {
         const attacker = handleOf(event.attackerId);
         const def = structureDef(session.ctx, event.structureId);
         if (!def) return null;
         const clip = attacker ? attacker.play('attack', true) : ATTACK_DURATION_S[0];
-        const duration = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip));
+        const release = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)) * IMPACT_AT;
         const facing = attacker ? yawOf(def.center.x - attacker.root.position.x, def.center.z - attacker.root.position.z) : 0;
+        const type = DEFAULT_RULES.units[findUnit(session.state, event.attackerId)?.typeKey ?? ''];
+        const lob = type?.tags.includes(INDIRECT_FIRE_TAG) ?? false;
+        let released = false;
+        let landAt = Number.POSITIVE_INFINITY;
         let landed = false;
-        return {
-          duration,
+        const step: Step = {
+          duration: Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)),
           update(t, dt) {
             if (attacker) attacker.root.rotation.y = approachAngle(attacker.root.rotation.y, facing, TURN_RATE * dt);
-            if (!landed && t >= duration * IMPACT_AT) {
+            if (!released && t >= release) {
+              released = true;
+              // The catapult's stone strikes the wall face; the ram's blow lands at once.
+              let flight = 0;
+              const aim = scratch.current.aim;
+              if (lob && attacker && castle?.anchorOf(event.structureId, aim)) {
+                aim.y -= STRUCTURE_FACE_DROP_M;
+                flight = shootAt(true, attacker.root.position, aim, event.hit, event.attackerId + event.structureId + event.hpAfter, false);
+              }
+              landAt = t + flight;
+              step.duration = Math.max(step.duration, landAt + LANDING_PAUSE_S);
+            }
+            if (!landed && t >= landAt) {
               landed = true;
               if (event.hit) castle?.hit(event.structureId, def.maxHp > 0 ? event.hpAfter / def.maxHp : 1);
               const p = scratch.current.p;
@@ -358,6 +428,7 @@ export function BattleDirector({
             attacker?.play('idle');
           },
         };
+        return step;
       }
       case 'structureBroken': {
         const duration = castle?.bringDown(event.structureId) ?? 0;
@@ -441,14 +512,24 @@ export function BattleDirector({
       }
       case 'fireArrowShot': {
         const h = handleOf(event.unitId);
-        const duration = h ? Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], h.play('attack', true))) : ATTACK_DURATION_S[0];
+        const clip = h ? h.play('attack', true) : ATTACK_DURATION_S[0];
+        const release = Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)) * IMPACT_AT;
         const facing = h ? yawOf(event.at.x - h.root.position.x, event.at.z - h.root.position.z) : 0;
+        let released = false;
+        let landAt = Number.POSITIVE_INFINITY;
         let landed = false;
-        return {
-          duration,
+        const step: Step = {
+          duration: Math.min(ATTACK_DURATION_S[1], Math.max(ATTACK_DURATION_S[0], clip)),
           update(t, dt) {
             if (h) h.root.rotation.y = approachAngle(h.root.rotation.y, facing, TURN_RATE * dt);
-            if (landed || t < duration * IMPACT_AT) return;
+            if (!released && t >= release) {
+              released = true;
+              const aim = scratch.current.aim.set(event.at.x, session.standHeight(event.at.x, event.at.z) + FIRE_ARROW_AIM_M, event.at.z);
+              const flight = h ? shootAt(false, h.root.position, aim, true, event.unitId, true) : 0;
+              landAt = t + flight;
+              step.duration = Math.max(step.duration, landAt + LANDING_PAUSE_S);
+            }
+            if (landed || t < landAt) return;
             landed = true;
             if (event.caught) fire?.syncFrom(session.state);
             showFloat(event.caught ? 'Ça prend !' : 'Éteinte', event.caught ? 'crit' : 'miss', event.at.x, session.standHeight(event.at.x, event.at.z) + 1.2, event.at.z);
@@ -457,6 +538,7 @@ export function BattleDirector({
             h?.play('idle');
           },
         };
+        return step;
       }
       case 'fireStarted':
       case 'fireOut':

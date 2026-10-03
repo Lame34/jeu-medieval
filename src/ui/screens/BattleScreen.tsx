@@ -3,6 +3,8 @@ import { structureDef } from '../../core/battle/structures.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
+import { Projectiles, type ProjectileHandle } from '../../render/vfx/Projectiles.tsx';
+import { TerrainLayer } from '../../core/rules/types.ts';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
 import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
 import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
@@ -87,6 +89,16 @@ export default function BattleScreen() {
   const [castle, setCastle] = useState<CastleHandle | null>(null);
   const [fire, setFire] = useState<FireHandle | null>(null);
   const heightAt = useCallback((x: number, z: number) => session?.standHeight(x, z) ?? 0, [session]);
+  const [projectiles, setProjectiles] = useState<ProjectileHandle | null>(null);
+  const waterAt = useCallback(
+    (x: number, z: number) => {
+      const t = layout?.terrain;
+      if (!t || x < 0 || z < 0 || x >= t.width || z >= t.depth) return false;
+      const layer = t.layers[Math.floor(z) * t.width + Math.floor(x)];
+      return layer === TerrainLayer.Moat || layer === TerrainLayer.River;
+    },
+    [layout],
+  );
   const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
 
@@ -141,7 +153,8 @@ export default function BattleScreen() {
       <GameCanvas>
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
-        {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} terrain={layout.terrain} focusOn={focusOn} />}
+        {session && <Projectiles waterAt={waterAt} groundAt={heightAt} onHandle={setProjectiles} />}
+        {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} projectiles={projectiles} terrain={layout.terrain} focusOn={focusOn} />}
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
