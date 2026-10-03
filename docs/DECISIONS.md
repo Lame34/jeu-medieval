@@ -258,6 +258,40 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Placement** : les héros rejoignent l'armée sur les cases libres les plus proches de son centre, dans le scénario de la session. Les tests de génération ne changent pas.
 - **IA** : la garnison vise les héros en priorité (×1,5). L'IA des assaillants (simulations) n'utilise pas encore leurs capacités.
 
+## ADR-033 — Audio de base (J5)
+**Contexte** : le brief (§11) demande :
+- une musique en couches dynamiques (calme, tension, bataille) avec fondus enchaînés ;
+- des effets spatialisés : pas selon le terrain, arcs, impacts, pont-levis, bélier, effondrements, feu, pluie, vent ;
+- des ambiances de jour et de nuit ;
+- des sources CC0 ou CC-BY créditées.
+
+L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes : des WAV à 192 kHz en 24 bits, une FLAC, des OGG et des MP3. La machine n'a pas ffmpeg.
+**Décision** :
+- **Chaîne de traitement** (`npm run assets:audio`) :
+  - Blender, en mode headless, sert d'encodeur : son module audaspace (`aud`) décode, rééchantillonne et encode en Ogg Vorbis. Aucun nouvel outil n'est installé.
+  - `scripts/audio-manifest.json` liste chaque son du jeu, ses variantes et leur traitement : début, durée maximale avec coupe du silence et fondu, vitesse, correction de gain.
+  - Le niveau est ramené à une cible RMS par catégorie (effets −16 dB, interface −20, ambiances −24, musique −18), sous un plafond crête de −1 dB.
+  - Sortie à 44,1 kHz : effets en mono, ambiances et musique en stéréo. Au total, 41 sons et 93 variantes pour 7,7 Mio dans `public/assets/audio`, plus un manifeste d'exécution (`src/audio/audio-manifest.json`).
+- **Moteur** (`src/audio/engine.ts`, sur Howler, choix du brief) :
+  - Il joue des sons ponctuels avec variantes et une petite variation de hauteur.
+  - Il les place en 2,5D par rapport au foyer de la caméra : atténuation au-delà d'un rayon qui grandit avec le recul, panoramique selon la droite de la caméra. C'est plus simple et plus lisible que l'audio 3D de Three pour une vue tactique.
+  - Il gère des boucles nommées qui s'enchaînent en fondu.
+  - Le chargement se fait après la scène et ne la bloque jamais ; le son est coupé par la touche M.
+- **Paysage sonore** (`BattleSoundscape`) :
+  - Ambiances : oiseaux et vent le jour, grillons la nuit (selon l'heure de la bataille), pluie, vent selon sa force, feux et eau près du foyer.
+  - Musique : couche *bataille* si des coups sont tombés ce round ou le précédent, *tension* si un ennemi est à moins de 60 m de l'un de nos hommes, *calme* sinon. Fondu enchaîné de 3,5 s.
+- **Effets** (`BattleDirector`), joués au moment de l'image :
+  - décoche et impact selon l'armure (chair, métal, bois), lame ou masse ;
+  - relâche de catapulte, boulet contre la pierre, bélier ;
+  - effondrement puis gravats ; pont-levis : chaîne puis choc à la fin de sa chute ;
+  - sape, embrasement, éclaboussure ;
+  - pas selon le sol (herbe, chemin, bois, pierre des chemins de ronde) et roulement des engins ;
+  - cor au tour du joueur, cloche à celui de l'adversaire ; clics d'interface.
+**Conséquences** :
+- Les affectations ont été faites d'après les noms de fichiers ; personne n'a encore écouté. Elles sont à valider à l'oreille (retours du ⛳ J5).
+- Les boucles de musique ne sont pas sans couture : les versions « Loop » pèsent 10 Mo, à reprendre en J7.
+- Il manque des sons dédiés de catapulte et de bélier : ce sont des sons génériques ralentis.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

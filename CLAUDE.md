@@ -27,6 +27,7 @@ La bible du projet est **`docs/GAME_BRIEF.md`**, qui fait foi. La direction arti
 | `node scripts/capture-siege.ts [<tag>] [--seed siege-1]` | Siège scripté via `?e2e` (pont-levis, fissures, effondrement, parc d'engins) capturé dans `docs/captures/` |
 | `node scripts/capture-weather.ts [<tag>]` | Bataille de nuit, au crépuscule, sous la pluie et dans le brouillard (`?weather=&hour=`) capturée dans `docs/captures/` |
 | `npm run assets:engines` | Blender headless : bélier et catapulte (maillages skinnés, couleurs de sommet) dans `assets-src/work/engines` |
+| `npm run assets:audio` | Blender headless (audaspace) : sons de `scripts/audio-manifest.json` normalisés et encodés en Ogg dans `public/assets/audio` |
 | `npm run assets:characters` | Blender headless : RPG Characters → GLB (proportions, atlas, tabard, clips) dans `assets-src/work/rpg` |
 | `npm run assets:process` | Pipeline d'assets (gltf-transform, meshopt, KTX2) vers `public/assets` |
 | `node scripts/<x>.ts` | Scripts TypeScript exécutés nativement par Node 24 (ADR-013) |

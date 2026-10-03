@@ -1,0 +1,636 @@
+{
+  "generated": "scripts/blender/process_audio.py",
+  "sounds": {
+    "bow_shot": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/bow_shot_0.ogg",
+          "durationS": 1.1
+        },
+        {
+          "url": "/assets/audio/bow_shot_1.ogg",
+          "durationS": 1.1
+        }
+      ]
+    },
+    "crossbow_shot": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/crossbow_shot_0.ogg",
+          "durationS": 1.0
+        }
+      ]
+    },
+    "arrow_hit_wood": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/arrow_hit_wood_0.ogg",
+          "durationS": 0.115
+        },
+        {
+          "url": "/assets/audio/arrow_hit_wood_1.ogg",
+          "durationS": 0.263
+        },
+        {
+          "url": "/assets/audio/arrow_hit_wood_2.ogg",
+          "durationS": 0.124
+        },
+        {
+          "url": "/assets/audio/arrow_hit_wood_3.ogg",
+          "durationS": 0.126
+        }
+      ]
+    },
+    "arrow_hit_stone": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/arrow_hit_stone_0.ogg",
+          "durationS": 0.072
+        },
+        {
+          "url": "/assets/audio/arrow_hit_stone_1.ogg",
+          "durationS": 0.15
+        },
+        {
+          "url": "/assets/audio/arrow_hit_stone_2.ogg",
+          "durationS": 0.213
+        }
+      ]
+    },
+    "arrow_hit_flesh": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/arrow_hit_flesh_0.ogg",
+          "durationS": 0.115
+        },
+        {
+          "url": "/assets/audio/arrow_hit_flesh_1.ogg",
+          "durationS": 0.18
+        },
+        {
+          "url": "/assets/audio/arrow_hit_flesh_2.ogg",
+          "durationS": 0.132
+        }
+      ]
+    },
+    "hit_metal": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/hit_metal_0.ogg",
+          "durationS": 0.248
+        },
+        {
+          "url": "/assets/audio/hit_metal_1.ogg",
+          "durationS": 0.212
+        },
+        {
+          "url": "/assets/audio/hit_metal_2.ogg",
+          "durationS": 0.269
+        },
+        {
+          "url": "/assets/audio/hit_metal_3.ogg",
+          "durationS": 0.505
+        }
+      ]
+    },
+    "sword_clash": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/sword_clash_0.ogg",
+          "durationS": 1.2
+        },
+        {
+          "url": "/assets/audio/sword_clash_1.ogg",
+          "durationS": 1.2
+        }
+      ]
+    },
+    "blunt_hit": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/blunt_hit_0.ogg",
+          "durationS": 0.492
+        },
+        {
+          "url": "/assets/audio/blunt_hit_1.ogg",
+          "durationS": 0.407
+        },
+        {
+          "url": "/assets/audio/blunt_hit_2.ogg",
+          "durationS": 0.284
+        }
+      ]
+    },
+    "hurt": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/hurt_0.ogg",
+          "durationS": 0.238
+        },
+        {
+          "url": "/assets/audio/hurt_1.ogg",
+          "durationS": 0.252
+        },
+        {
+          "url": "/assets/audio/hurt_2.ogg",
+          "durationS": 0.171
+        },
+        {
+          "url": "/assets/audio/hurt_3.ogg",
+          "durationS": 0.223
+        },
+        {
+          "url": "/assets/audio/hurt_4.ogg",
+          "durationS": 0.385
+        },
+        {
+          "url": "/assets/audio/hurt_5.ogg",
+          "durationS": 0.205
+        }
+      ]
+    },
+    "catapult_release": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/catapult_release_0.ogg",
+          "durationS": 1.202
+        },
+        {
+          "url": "/assets/audio/catapult_release_1.ogg",
+          "durationS": 1.361
+        },
+        {
+          "url": "/assets/audio/catapult_release_2.ogg",
+          "durationS": 0.891
+        }
+      ]
+    },
+    "engine_creak": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/engine_creak_0.ogg",
+          "durationS": 0.567
+        },
+        {
+          "url": "/assets/audio/engine_creak_1.ogg",
+          "durationS": 0.733
+        },
+        {
+          "url": "/assets/audio/engine_creak_2.ogg",
+          "durationS": 0.27
+        }
+      ]
+    },
+    "stone_hit_wall": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/stone_hit_wall_0.ogg",
+          "durationS": 2.2
+        },
+        {
+          "url": "/assets/audio/stone_hit_wall_1.ogg",
+          "durationS": 0.765
+        },
+        {
+          "url": "/assets/audio/stone_hit_wall_2.ogg",
+          "durationS": 0.676
+        },
+        {
+          "url": "/assets/audio/stone_hit_wall_3.ogg",
+          "durationS": 0.69
+        }
+      ]
+    },
+    "wall_collapse": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/wall_collapse_0.ogg",
+          "durationS": 4.5
+        }
+      ]
+    },
+    "rubble": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/rubble_0.ogg",
+          "durationS": 0.49
+        },
+        {
+          "url": "/assets/audio/rubble_1.ogg",
+          "durationS": 0.826
+        },
+        {
+          "url": "/assets/audio/rubble_2.ogg",
+          "durationS": 0.476
+        }
+      ]
+    },
+    "ram_hit": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/ram_hit_0.ogg",
+          "durationS": 0.413
+        },
+        {
+          "url": "/assets/audio/ram_hit_1.ogg",
+          "durationS": 0.413
+        },
+        {
+          "url": "/assets/audio/ram_hit_2.ogg",
+          "durationS": 0.413
+        },
+        {
+          "url": "/assets/audio/ram_hit_3.ogg",
+          "durationS": 0.623
+        },
+        {
+          "url": "/assets/audio/ram_hit_4.ogg",
+          "durationS": 0.692
+        }
+      ]
+    },
+    "gate_break": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/gate_break_0.ogg",
+          "durationS": 0.284
+        }
+      ]
+    },
+    "drawbridge_fall": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/drawbridge_fall_0.ogg",
+          "durationS": 0.481
+        },
+        {
+          "url": "/assets/audio/drawbridge_fall_1.ogg",
+          "durationS": 0.598
+        }
+      ]
+    },
+    "chain": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/chain_0.ogg",
+          "durationS": 0.402
+        },
+        {
+          "url": "/assets/audio/chain_1.ogg",
+          "durationS": 0.36
+        },
+        {
+          "url": "/assets/audio/chain_2.ogg",
+          "durationS": 0.737
+        },
+        {
+          "url": "/assets/audio/chain_3.ogg",
+          "durationS": 0.878
+        }
+      ]
+    },
+    "portcullis": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/portcullis_0.ogg",
+          "durationS": 1.043
+        }
+      ]
+    },
+    "dig": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/dig_0.ogg",
+          "durationS": 0.909
+        },
+        {
+          "url": "/assets/audio/dig_1.ogg",
+          "durationS": 0.659
+        },
+        {
+          "url": "/assets/audio/dig_2.ogg",
+          "durationS": 0.625
+        },
+        {
+          "url": "/assets/audio/dig_3.ogg",
+          "durationS": 0.521
+        }
+      ]
+    },
+    "engine_roll": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/engine_roll_0.ogg",
+          "durationS": 1.056
+        }
+      ]
+    },
+    "fire_ignite": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/fire_ignite_0.ogg",
+          "durationS": 1.52
+        },
+        {
+          "url": "/assets/audio/fire_ignite_1.ogg",
+          "durationS": 1.156
+        },
+        {
+          "url": "/assets/audio/fire_ignite_2.ogg",
+          "durationS": 1.08
+        }
+      ]
+    },
+    "splash": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/splash_0.ogg",
+          "durationS": 1.16
+        },
+        {
+          "url": "/assets/audio/splash_1.ogg",
+          "durationS": 0.532
+        },
+        {
+          "url": "/assets/audio/splash_2.ogg",
+          "durationS": 0.981
+        },
+        {
+          "url": "/assets/audio/splash_3.ogg",
+          "durationS": 1.211
+        }
+      ]
+    },
+    "step_grass": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/step_grass_0.ogg",
+          "durationS": 0.158
+        },
+        {
+          "url": "/assets/audio/step_grass_1.ogg",
+          "durationS": 0.145
+        },
+        {
+          "url": "/assets/audio/step_grass_2.ogg",
+          "durationS": 0.15
+        }
+      ]
+    },
+    "step_stone": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/step_stone_0.ogg",
+          "durationS": 0.103
+        },
+        {
+          "url": "/assets/audio/step_stone_1.ogg",
+          "durationS": 0.105
+        },
+        {
+          "url": "/assets/audio/step_stone_2.ogg",
+          "durationS": 0.11
+        }
+      ]
+    },
+    "step_wood": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/step_wood_0.ogg",
+          "durationS": 0.251
+        },
+        {
+          "url": "/assets/audio/step_wood_1.ogg",
+          "durationS": 0.249
+        },
+        {
+          "url": "/assets/audio/step_wood_2.ogg",
+          "durationS": 0.248
+        }
+      ]
+    },
+    "step_dirt": {
+      "category": "sfx",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/step_dirt_0.ogg",
+          "durationS": 0.661
+        },
+        {
+          "url": "/assets/audio/step_dirt_1.ogg",
+          "durationS": 0.179
+        }
+      ]
+    },
+    "ui_click": {
+      "category": "ui",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/ui_click_0.ogg",
+          "durationS": 0.037
+        },
+        {
+          "url": "/assets/audio/ui_click_1.ogg",
+          "durationS": 0.011
+        },
+        {
+          "url": "/assets/audio/ui_click_2.ogg",
+          "durationS": 0.007
+        }
+      ]
+    },
+    "ui_select": {
+      "category": "ui",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/ui_select_0.ogg",
+          "durationS": 0.04
+        },
+        {
+          "url": "/assets/audio/ui_select_1.ogg",
+          "durationS": 0.04
+        }
+      ]
+    },
+    "ui_confirm": {
+      "category": "ui",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/ui_confirm_0.ogg",
+          "durationS": 0.287
+        },
+        {
+          "url": "/assets/audio/ui_confirm_1.ogg",
+          "durationS": 0.526
+        }
+      ]
+    },
+    "turn_horn": {
+      "category": "ui",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/turn_horn_0.ogg",
+          "durationS": 3.2
+        }
+      ]
+    },
+    "turn_bell": {
+      "category": "ui",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/turn_bell_0.ogg",
+          "durationS": 1.218
+        }
+      ]
+    },
+    "amb_day": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_day_0.ogg",
+          "durationS": 83.782
+        }
+      ]
+    },
+    "amb_night": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_night_0.ogg",
+          "durationS": 11.452
+        }
+      ]
+    },
+    "amb_rain": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_rain_0.ogg",
+          "durationS": 27.0
+        }
+      ]
+    },
+    "amb_wind": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_wind_0.ogg",
+          "durationS": 5.959
+        }
+      ]
+    },
+    "amb_fire": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_fire_0.ogg",
+          "durationS": 29.264
+        }
+      ]
+    },
+    "amb_water": {
+      "category": "ambience",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/amb_water_0.ogg",
+          "durationS": 7.014
+        }
+      ]
+    },
+    "music_calm": {
+      "category": "music",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/music_calm_0.ogg",
+          "durationS": 158.589
+        }
+      ]
+    },
+    "music_tension": {
+      "category": "music",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/music_tension_0.ogg",
+          "durationS": 160.731
+        }
+      ]
+    },
+    "music_battle": {
+      "category": "music",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/music_battle_0.ogg",
+          "durationS": 78.916
+        }
+      ]
+    }
+  },
+  "totalBytes": 8083301
+}

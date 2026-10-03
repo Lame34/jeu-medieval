@@ -7,6 +7,7 @@ import { Rain } from '../../render/vfx/Rain.tsx';
 import { MiniMap } from '../battle/MiniMap.tsx';
 import { triggerAbility } from '../battle/abilities.ts';
 import { Torches } from '../../render/vfx/Torches.tsx';
+import { BattleSoundscape } from '../../render/battle/BattleSoundscape.tsx';
 import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
 import { useSceneConditions } from '../../state/scene-conditions.ts';
 import type { BattleState } from '../../core/battle/types.ts';
@@ -199,6 +200,7 @@ export default function BattleScreen() {
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
         {session && <Torches layout={layout} />}
+        {session && sceneReady && <BattleSoundscape session={session} terrain={layout.terrain} />}
         {session?.state.weather === 'rain' && <Rain windX={session.state.wind.x} windZ={session.state.wind.z} windStrength={session.state.wind.strength} />}
         {session && <Projectiles waterAt={waterAt} groundAt={heightAt} onHandle={setProjectiles} />}
         {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} projectiles={projectiles} terrain={layout.terrain} focusOn={focusOn} />}

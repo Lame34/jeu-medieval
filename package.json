@@ -22,7 +22,8 @@
     "capture:lookdev": "node scripts/capture-lookdev.ts",
     "assets:characters": "blender -b --factory-startup --python scripts/blender/convert_rpg_characters.py -- \"assets-src/raw/lowpoly-rpg-characters/RPG Characters - Nov 2020\" assets-src/work/rpg",
     "assets:engines": "blender -b --factory-startup --python scripts/blender/build_siege_engines.py -- assets-src/work/engines",
-    "assets:process": "node scripts/process-assets.ts"
+    "assets:process": "node scripts/process-assets.ts",
+    "assets:audio": "blender -b --factory-startup --python scripts/blender/process_audio.py -- scripts/audio-manifest.json assets-src/raw/audio public/assets/audio src/audio/audio-manifest.json"
   },
   "dependencies": {
     "@fontsource/alegreya": "5.3.0",

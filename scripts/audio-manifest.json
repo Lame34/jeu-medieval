@@ -1,0 +1,54 @@
+{
+  "$comment": "Pipeline audio (J5, brief §11) : chaque son du jeu, ses variantes (fichiers de assets-src/raw/audio/) et leur traitement par scripts/blender/process_audio.py (npm run assets:audio). Catégories : sfx, ui, ambience (boucles), music (copiée telle quelle). maxS : durée gardée (silence de fin coupé, fondu de sortie fadeS) ; startS : début ; rate : vitesse de lecture (hauteur) ; gainDb : correction après normalisation. Cibles de niveau (RMS) par catégorie dans 'targets'.",
+  "targets": { "sfx": -16, "ui": -20, "ambience": -24, "music": -18 },
+  "peakDb": -1,
+  "sounds": {
+    "bow_shot": { "category": "sfx", "maxS": 1.1, "fadeS": 0.25, "sources": ["still-north-media/English Longbow Shoot.wav", "still-north-media/Scythian Recurve Shoot.wav"] },
+    "crossbow_shot": { "category": "sfx", "maxS": 1.0, "fadeS": 0.25, "sources": ["still-north-media/Crossbow Shoot.wav"] },
+    "arrow_hit_wood": { "category": "sfx", "sources": ["kenney/impact-sounds/Audio/impactWood_light_000.ogg", "kenney/impact-sounds/Audio/impactWood_light_001.ogg", "kenney/impact-sounds/Audio/impactWood_light_002.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_hit_01.ogg"] },
+    "arrow_hit_stone": { "category": "sfx", "gainDb": -4, "sources": ["rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_hit_01.ogg", "rubberduck-80-cc0-rpg-sfx/x/item_stone_02.ogg", "rubberduck-80-cc0-rpg-sfx/x/item_stone_04.ogg"] },
+    "arrow_hit_flesh": { "category": "sfx", "sources": ["kenney/impact-sounds/Audio/impactSoft_medium_000.ogg", "kenney/impact-sounds/Audio/impactSoft_medium_001.ogg", "kenney/impact-sounds/Audio/impactSoft_medium_002.ogg"] },
+    "hit_metal": { "category": "sfx", "gainDb": -3, "sources": ["kenney/impact-sounds/Audio/impactMetal_light_000.ogg", "kenney/impact-sounds/Audio/impactMetal_light_001.ogg", "kenney/impact-sounds/Audio/impactMetal_medium_000.ogg", "kenney/impact-sounds/Audio/impactPlate_medium_000.ogg"] },
+    "sword_clash": { "category": "sfx", "maxS": 1.2, "fadeS": 0.4, "sources": ["still-north-media/Axe Norse Sword Blade on Blade.wav", "still-north-media/Mace Norse Sword Blade.wav"] },
+    "blunt_hit": { "category": "sfx", "sources": ["kenney/impact-sounds/Audio/impactPunch_heavy_000.ogg", "kenney/impact-sounds/Audio/impactPunch_heavy_001.ogg", "kenney/impact-sounds/Audio/impactPunch_medium_000.ogg"] },
+    "hurt": { "category": "sfx", "gainDb": -3, "sources": ["hurt-ezduzziteh/hurt_01.mp3", "hurt-ezduzziteh/hurt_02.mp3", "hurt-ezduzziteh/hurt_03.mp3", "hurt-ezduzziteh/hurt_04.mp3", "hurt-ezduzziteh/hurt_05.mp3", "hurt-ezduzziteh/hurt_06.mp3"] },
+
+    "catapult_release": { "category": "sfx", "rate": 0.8, "sources": ["rubberduck-100-cc0-sfx/x/spring_01.ogg", "rubberduck-100-cc0-sfx/x/spring_02.ogg", "rubberduck-100-cc0-sfx/x/spring_06.ogg"] },
+    "engine_creak": { "category": "sfx", "gainDb": -4, "sources": ["kenney/rpg-audio/Audio/creak1.ogg", "kenney/rpg-audio/Audio/creak2.ogg", "kenney/rpg-audio/Audio/creak3.ogg"] },
+    "stone_hit_wall": { "category": "sfx", "gainDb": 2, "maxS": 2.2, "fadeS": 0.6, "sources": ["cannon-hit-wall/cannon_hit_wall.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_01.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_03.ogg", "rubberduck-80-cc0-rpg-sfx/x/stones_03.ogg"] },
+    "wall_collapse": { "category": "sfx", "gainDb": 3, "maxS": 4.5, "fadeS": 1.5, "sources": ["earthquake-mieki256/shake.flac"] },
+    "rubble": { "category": "sfx", "sources": ["rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_breaking_01.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_breaking_02.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_09.ogg"] },
+    "ram_hit": { "category": "sfx", "gainDb": 2, "rate": 0.75, "sources": ["kenney/impact-sounds/Audio/impactWood_heavy_000.ogg", "kenney/impact-sounds/Audio/impactWood_heavy_001.ogg", "kenney/impact-sounds/Audio/impactWood_heavy_002.ogg", "rubberduck-100-cc0-sfx/x/slam_01.ogg", "rubberduck-100-cc0-sfx/x/slam_02.ogg"] },
+    "gate_break": { "category": "sfx", "gainDb": 2, "sources": ["rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_breaking_03.ogg"] },
+    "drawbridge_fall": { "category": "sfx", "gainDb": 2, "sources": ["rubberduck-100-cc0-sfx/x/slam_07.ogg", "rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_falling_01.ogg"] },
+    "chain": { "category": "sfx", "gainDb": -3, "sources": ["rubberduck-80-cc0-rpg-sfx/x/chain_01.ogg", "rubberduck-80-cc0-rpg-sfx/x/chain_02.ogg", "rubberduck-80-cc0-rpg-sfx/x/chain_03.ogg", "winch/x/winch - Marker #3.wav"] },
+    "portcullis": { "category": "sfx", "rate": 0.8, "sources": ["iron-door/iron_door.ogg"] },
+    "dig": { "category": "sfx", "gainDb": -2, "sources": ["shovel/shovel.ogg", "kenney/impact-sounds/Audio/impactMining_000.ogg", "kenney/impact-sounds/Audio/impactMining_001.ogg", "kenney/impact-sounds/Audio/impactMining_002.ogg"] },
+    "engine_roll": { "category": "sfx", "gainDb": -4, "sources": ["rubberduck-30-cc0-sfx-loops/x/rolling.ogg"] },
+
+    "fire_ignite": { "category": "sfx", "gainDb": -2, "sources": ["rubberduck-80-cc0-rpg-sfx/x/spell_fire_03.ogg", "rubberduck-80-cc0-rpg-sfx/x/spell_fire_04.ogg", "rubberduck-80-cc0-rpg-sfx/x/spell_fire_05.ogg"] },
+    "splash": { "category": "sfx", "gainDb": -2, "sources": ["rubberduck-40-cc0-water-splash-slime/x/splash_01.ogg", "rubberduck-40-cc0-water-splash-slime/x/splash_03.ogg", "rubberduck-40-cc0-water-splash-slime/x/splash_05.ogg", "rubberduck-40-cc0-water-splash-slime/x/splash_07.ogg"] },
+
+    "step_grass": { "category": "sfx", "gainDb": -8, "sources": ["kenney/impact-sounds/Audio/footstep_grass_000.ogg", "kenney/impact-sounds/Audio/footstep_grass_001.ogg", "kenney/impact-sounds/Audio/footstep_grass_002.ogg"] },
+    "step_stone": { "category": "sfx", "gainDb": -8, "sources": ["kenney/impact-sounds/Audio/footstep_concrete_000.ogg", "kenney/impact-sounds/Audio/footstep_concrete_001.ogg", "kenney/impact-sounds/Audio/footstep_concrete_002.ogg"] },
+    "step_wood": { "category": "sfx", "gainDb": -8, "sources": ["kenney/impact-sounds/Audio/footstep_wood_000.ogg", "kenney/impact-sounds/Audio/footstep_wood_001.ogg", "kenney/impact-sounds/Audio/footstep_wood_002.ogg"] },
+    "step_dirt": { "category": "sfx", "gainDb": -8, "sources": ["kdd-different-steps/x/gravel.ogg", "kdd-different-steps/x/mud02.ogg"] },
+
+    "ui_click": { "category": "ui", "sources": ["kenney/interface-sounds/Audio/click_001.ogg", "kenney/interface-sounds/Audio/click_002.ogg", "kenney/interface-sounds/Audio/click_003.ogg"] },
+    "ui_select": { "category": "ui", "sources": ["kenney/interface-sounds/Audio/select_001.ogg", "kenney/interface-sounds/Audio/select_002.ogg"] },
+    "ui_confirm": { "category": "ui", "sources": ["kenney/interface-sounds/Audio/confirmation_001.ogg", "kenney/interface-sounds/Audio/confirmation_002.ogg"] },
+    "turn_horn": { "category": "ui", "gainDb": 2, "maxS": 3.2, "fadeS": 1.0, "sources": ["horn-stumpystrust/theircoming3.ogg"] },
+    "turn_bell": { "category": "ui", "sources": ["kenney/impact-sounds/Audio/impactBell_heavy_000.ogg"] },
+
+    "amb_day": { "category": "ambience", "loop": true, "sources": ["birds-and-wind-spring/Birds-and-Wind-Ambient.ogg"] },
+    "amb_night": { "category": "ambience", "loop": true, "sources": ["crickets/crickets.mp3"] },
+    "amb_rain": { "category": "ambience", "loop": true, "gainDb": 2, "sources": ["rain-ylmir/x/1.ogg"] },
+    "amb_wind": { "category": "ambience", "loop": true, "sources": ["wind-whoosh-loop/wind-woosh-loop.ogg"] },
+    "amb_fire": { "category": "ambience", "loop": true, "sources": ["fireplace-loop/fire_loop_16bit_mono.wav"] },
+    "amb_water": { "category": "ambience", "loop": true, "sources": ["rubberduck-40-cc0-water-splash-slime/x/loop_water_02.ogg"] },
+
+    "music_calm": { "category": "music", "loop": true, "sources": ["randommind-music/The_Bards_Tale.mp3"] },
+    "music_tension": { "category": "music", "loop": true, "sources": ["randommind-music/Lament_for_a_Warriors_Soul.mp3"] },
+    "music_battle": { "category": "music", "loop": true, "sources": ["randommind-music/Medieval_Battle.mp3"] }
+  }
+}

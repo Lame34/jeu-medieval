@@ -40,11 +40,14 @@ import { threatsAt } from '../../core/battle/overwatch.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
+import { TerrainLayer } from '../../core/rules/types.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
 import { triggerAbility } from '../../ui/battle/abilities.ts';
+import { audio, type SoundId } from '../../audio/engine.ts';
+import { useSettings } from '../../state/settings.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
 
@@ -58,6 +61,12 @@ const TURN_RATE = 10;
 const IMPACT_AT = 0.45;
 const ATTACK_DURATION_S: readonly [number, number] = [0.7, 1.4];
 const GUARD_PAUSE_S = 0.5;
+/** Footsteps every so often while walking, running; an engine's wheels creak more slowly (s). */
+const STEP_WALK_S = 0.45;
+const STEP_RUN_S = 0.32;
+const ENGINE_ROLL_S = 1.0;
+/** Quieter sounds: a miss, a parried blow, a spreading fire. */
+const SOFT = 0.5;
 /** A hero's ability: the pause on its name. */
 const ABILITY_PAUSE_S = 0.7;
 const TURN_BANNER_S = 0.9;
@@ -190,6 +199,25 @@ function abilityCommand(session: BattleSession, unitId: string, abilityId: strin
   }
 }
 
+/** Footstep sound for the ground at (x, z): timber decks, stone walks, roads, grass. */
+function surfaceSound(session: BattleSession, x: number, z: number): SoundId {
+  const t = session.ctx.terrain;
+  const cell = Math.floor(z) * t.width + Math.floor(x);
+  const layer = session.ctx.nav.terrain.layers[cell];
+  if (layer === TerrainLayer.Bridge || layer === TerrainLayer.Fascine) return 'step_wood';
+  if ((session.ctx.nav.deck[cell] ?? 0) > 0 || layer === TerrainLayer.Rampart || layer === TerrainLayer.Stair || layer === TerrainLayer.Rubble) return 'step_stone';
+  if (layer === TerrainLayer.Road || layer === TerrainLayer.Mud || layer === TerrainLayer.Ford) return 'step_dirt';
+  return 'step_grass';
+}
+
+/** The sound of a blow landing: arrows by the target's armour, a stone, a blade or a mace. */
+function blowSound(ranged: boolean, lob: boolean, attackType: string, targetType: string, hit: boolean): SoundId {
+  if (lob) return 'blunt_hit';
+  const armor = DEFAULT_RULES.units[targetType]?.armor ?? 'light';
+  if (ranged) return !hit ? 'arrow_hit_wood' : armor === 'heavy' || armor === 'medium' ? 'hit_metal' : 'arrow_hit_flesh';
+  return attackType === 'blunt' ? 'blunt_hit' : 'sword_clash';
+}
+
 function isSiegeEngine(typeKey: string): boolean {
   const type = DEFAULT_RULES.units[typeKey];
   return Boolean(type?.attack && type.tags.includes(SIEGE_ENGINE_TAG));
@@ -306,6 +334,7 @@ export function BattleDirector({
       store.setBattle(state);
       const lines = events.map((e) => describeEvent(e, state)).filter((l): l is string => l !== null);
       if (lines.length > 0) store.pushLog(lines);
+      if (events.some((e) => e.type === 'commandRejected')) audio.play('ui_click');
       const ending = events.find((e) => e.type === 'battleEnded');
       if (ending) store.setEnding(ending);
       // Any order given disarms the end-of-turn warning.
@@ -357,9 +386,16 @@ export function BattleDirector({
         const speed = engine ? ENGINE_SPEED_MS : run ? RUN_SPEED : WALK_SPEED;
         h.play(run ? 'run' : 'walk');
         let segment = 0;
+        const stepEvery = engine ? ENGINE_ROLL_S : run ? STEP_RUN_S : STEP_WALK_S;
+        let nextStep = 0;
+        if (engine) audio.play('engine_creak', { at: h.root.position });
         return {
           duration: total / speed,
           update(t, dt) {
+            if (t >= nextStep) {
+              nextStep = t + stepEvery;
+              audio.play(engine ? 'engine_roll' : surfaceSound(session, h.root.position.x, h.root.position.z), { at: h.root.position });
+            }
             const s = Math.min(total, t * speed);
             while (segment < path.length - 2 && (lengths[segment + 1] as number) < s) segment++;
             const a = path[segment] as Vec2;
@@ -397,6 +433,7 @@ export function BattleDirector({
             attacker.root.rotation.y = approachAngle(attacker.root.rotation.y, facing, TURN_RATE * dt);
             if (!released && t >= release) {
               released = true;
+              if (ranged) audio.play(lob ? 'catapult_release' : type?.tags.includes('slowReload') ? 'crossbow_shot' : 'bow_shot', { at: attacker.root.position });
               // Shots fly to the target (or beside it when they miss); blows land at once.
               const flight = ranged ? shoot(lob, attacker.root.position, target.root.position, event.hit, event.attackerId + event.targetId, false) : 0;
               landAt = t + flight;
@@ -405,6 +442,8 @@ export function BattleDirector({
             if (!landed && t >= landAt) {
               landed = true;
               const p = target.root.position;
+              audio.play(blowSound(ranged, lob, type?.attack?.type ?? 'blunt', findUnit(session.state, event.targetId)?.typeKey ?? '', event.hit), { at: p, volume: event.hit ? 1 : SOFT });
+              if (event.hit && event.hpAfter === 0) audio.play('hurt', { at: p });
               if (event.hit) {
                 if (event.hpAfter > 0) target.play('hit', true);
                 showFloat(`${event.crit ? 'Critique ! ' : ''}−${event.damage}`, event.crit ? 'crit' : 'hit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
@@ -437,6 +476,10 @@ export function BattleDirector({
             if (!released && t >= release) {
               released = true;
               // The catapult's stone strikes the wall face; the ram's blow lands at once.
+              if (lob && attacker) {
+                audio.play('catapult_release', { at: attacker.root.position });
+                audio.play('engine_creak', { at: attacker.root.position, volume: SOFT });
+              }
               let flight = 0;
               const aim = scratch.current.aim;
               if (lob && attacker && castle?.anchorOf(event.structureId, aim)) {
@@ -449,6 +492,7 @@ export function BattleDirector({
             if (!landed && t >= landAt) {
               landed = true;
               if (event.hit) castle?.hit(event.structureId, def.maxHp > 0 ? event.hpAfter / def.maxHp : 1);
+              audio.play(lob ? (event.hit ? 'stone_hit_wall' : 'rubble') : 'ram_hit', { at: def.center, volume: event.hit ? 1 : SOFT });
               const p = scratch.current.p;
               if (castle?.anchorOf(event.structureId, p)) showFloat(event.hit ? `${event.crit ? 'Critique ! ' : ''}−${event.damage}` : 'Raté', event.hit ? (event.crit ? 'crit' : 'hit') : 'miss', p.x, p.y, p.z);
             }
@@ -461,6 +505,10 @@ export function BattleDirector({
       }
       case 'structureBroken': {
         const duration = castle?.bringDown(event.structureId) ?? 0;
+        const where = structureDef(session.ctx, event.structureId)?.center;
+        const fall: SoundId = event.kind === 'wall' ? 'rubble' : 'drawbridge_fall';
+        let thud = event.kind !== 'wall' && event.kind !== 'drawbridge';
+        if (where) audio.play(event.kind === 'wall' ? 'wall_collapse' : event.kind === 'gate' ? 'gate_break' : event.kind === 'portcullis' ? 'portcullis' : 'chain', { at: where });
         // Units on a collapsing wall-walk come down with it (their deaths follow as events).
         const falling = event.fallen
           .map((f) => ({ f, h: handleOf(f.unitId) }))
@@ -470,6 +518,11 @@ export function BattleDirector({
         return {
           duration: Math.max(duration, TURN_BANNER_S),
           update(t) {
+            // The drawbridge slams down at the end of its fall; rubble settles after a collapse.
+            if (!thud && t >= duration * FALL_FRACTION) {
+              thud = true;
+              if (where) audio.play(fall, { at: where });
+            }
             const k = Math.min(1, t / Math.max(0.01, duration * FALL_FRACTION));
             for (const x of falling) x.h.root.position.y = x.from + (x.to - x.from) * k * k;
           },
@@ -493,6 +546,7 @@ export function BattleDirector({
           update(t) {
             if (done || t < duration * IMPACT_AT || !unit) return;
             done = true;
+            audio.play('dig', { at: unit.position });
             const work = castleWork(session, event.workId, event.kind, event.progress / event.required, unit.position);
             if (work) castle?.setWork(work);
             const p = h?.root.position;
@@ -505,6 +559,10 @@ export function BattleDirector({
       }
       case 'towerDocked': {
         const h = handleOf(event.towerId);
+        if (h) {
+          audio.play('chain', { at: h.root.position });
+          audio.play('drawbridge_fall', { at: h.root.position });
+        }
         const duration = h ? h.play('attack', true) : 0;
         return { duration: Math.max(duration, GUARD_PAUSE_S), update() {}, finish() {} };
       }
@@ -554,6 +612,7 @@ export function BattleDirector({
             if (!released && t >= release) {
               released = true;
               const aim = scratch.current.aim.set(event.at.x, session.standHeight(event.at.x, event.at.z) + FIRE_ARROW_AIM_M, event.at.z);
+              if (h) audio.play('bow_shot', { at: h.root.position });
               const flight = h ? shootAt(false, h.root.position, aim, true, event.unitId, true) : 0;
               landAt = t + flight;
               step.duration = Math.max(step.duration, landAt + LANDING_PAUSE_S);
@@ -561,6 +620,7 @@ export function BattleDirector({
             if (landed || t < landAt) return;
             landed = true;
             if (event.caught) fire?.syncFrom(session.state);
+            if (event.caught) audio.play('fire_ignite', { at: event.at });
             showFloat(event.caught ? 'Ça prend !' : 'Éteinte', event.caught ? 'crit' : 'miss', event.at.x, session.standHeight(event.at.x, event.at.z) + 1.2, event.at.z);
           },
           finish() {
@@ -570,12 +630,20 @@ export function BattleDirector({
         return step;
       }
       case 'fireStarted':
-      case 'fireOut':
+      case 'fireOut': {
         fire?.syncFrom(session.state);
+        const cell = event.cells[0];
+        if (cell !== undefined) {
+          const at = { x: (cell % terrain.width) + 0.5, z: Math.floor(cell / terrain.width) + 0.5 };
+          if (event.type === 'fireStarted') audio.play('fire_ignite', { at, volume: SOFT });
+          else if (event.byId) audio.play('splash', { at, volume: SOFT });
+        }
         return null;
+      }
       case 'unitBurned': {
         const h = handleOf(event.unitId);
         if (!h) return null;
+        audio.play('hurt', { at: h.root.position, volume: SOFT });
         if (event.hpAfter > 0) h.play('hit', true);
         const p = h.root.position;
         showFloat(`−${event.damage}`, 'crit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
@@ -597,6 +665,7 @@ export function BattleDirector({
       case 'abilityUsed': {
         const h = handleOf(event.unitId);
         if (!h) return null;
+        audio.play('ui_confirm');
         const hero = DEFAULT_RULES.heroes[findUnit(session.state, event.unitId)?.typeKey ?? ''];
         const ability = hero?.abilities.find((a) => a.id === event.abilityId);
         const p = h.root.position;
@@ -626,6 +695,7 @@ export function BattleDirector({
         return { duration: GUARD_PAUSE_S, update() {}, finish() {} };
       }
       case 'turnStarted':
+        audio.play(event.faction === PLAYER_FACTION ? 'turn_horn' : 'turn_bell');
         return { duration: TURN_BANNER_S, update() {}, finish() {} };
       default:
         return null;
@@ -770,6 +840,11 @@ export function BattleDirector({
     const onKey = (e: KeyboardEvent) => {
       const ui = useBattleUi.getState();
       const state = session.state;
+      if (e.code === 'KeyM') {
+        const settings = useSettings.getState();
+        settings.setMuted(!settings.muted);
+        return;
+      }
       if (e.code === 'Escape') {
         if (ui.armedAbility) ui.armAbility(null);
         else ui.select(null);
@@ -830,6 +905,7 @@ export function BattleDirector({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('keydown', onKey);
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
+      if (s.selectedId && s.selectedId !== prev.selectedId) audio.play('ui_select');
       if (s.selectedId !== prev.selectedId || s.busy !== prev.busy || s.armedAbility !== prev.armedAbility) {
         hoverKey.current = '';
         refreshHover();

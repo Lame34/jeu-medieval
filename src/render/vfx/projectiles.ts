@@ -29,6 +29,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { finish } from '../castle/castle-geometry.ts';
 import { hash01 } from '../castle/siege-fx.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import { audio } from '../../audio/engine.ts';
 import { PALETTE } from '../materials/palette.ts';
 
 const MAX_ARROWS = 24;
@@ -322,7 +323,10 @@ export class ProjectilePool {
     f.t += dt;
     if (f.t < f.duration) return false;
     f.active = false;
-    if (this.options.waterAt(f.to.x, f.to.z)) this.splashAt(f.to, f.arc > STONE_MIN_ARC_M - 1 ? 26 : 8);
+    if (this.options.waterAt(f.to.x, f.to.z)) {
+      this.splashAt(f.to, f.arc > STONE_MIN_ARC_M - 1 ? 26 : 8);
+      audio.play('splash', { at: f.to, volume: f.arc > STONE_MIN_ARC_M - 1 ? 1 : 0.4 });
+    }
     const land = f.onLand;
     f.onLand = null;
     land?.();
