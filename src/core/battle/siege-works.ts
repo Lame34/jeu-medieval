@@ -110,6 +110,6 @@ export function resolveWork(ctx: BattleContext, state: BattleState, preview: Wor
     }
   }
   const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
   return { state: { ...state, units, structures, works, status }, events };
 }

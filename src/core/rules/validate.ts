@@ -263,5 +263,6 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     morale: readMorale(obj(raw.damage, 'damage')['morale']),
     structures: readStructures(obj(raw.damage, 'damage')['structures']),
     fire: readFire(obj(raw.damage, 'damage')['fire']),
+    battle: Object.freeze({ turnLimit: num(obj(obj(raw.damage, 'damage')['battle'], 'damage.battle')['turnLimit'], 'damage.battle.turnLimit', 1) }),
   });
 }

@@ -79,6 +79,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     version: BATTLE_STATE_VERSION,
     seedKey: root.seedKey,
     turn: 1,
+    turnLimit: scenario.turnLimit ?? ctx.rules.battle.turnLimit,
     activeFaction: firstFaction,
     status: 'ongoing',
     units,

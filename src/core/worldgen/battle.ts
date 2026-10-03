@@ -55,6 +55,12 @@ const FIELDS = { spacingM: 30, cellRadiusM: 24, insetM: 1.6, minAreaM2: 220 };
 const FOREST_TARGET = 0.3;
 const CASTLE_CLEAR_M = 45;
 const DEPLOY = { depthM: 60 };
+/**
+ * J5: the attackers start at the bridgehead, on the castle side of the river (the southern band
+ * stays clear farmland): two rows across the road, this far up from the bridge, so the march to the
+ * walls takes a few turns rather than ten. The deployment zone recorded in the layout wraps them.
+ */
+const VANGUARD = { offsetM: 16, rowGapM: 7, spacingM: 6, perRow: 4, zoneMarginM: 18 };
 const MOAT_BED_BELOW_M = 1.6;
 /** Houses are not built across more than this height difference (diagonal of the plot). */
 const MAX_HOUSE_SLOPE_DROP_M = 2.2;
@@ -316,11 +322,12 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
   for (const f of fields) exclusion.markPolygon(f.polygon, 1);
 
   // --- Layers -------------------------------------------------------------------------------------
-  const deployment = { minX: 40, minZ: MAP_M - DEPLOY.depthM - lo, maxX: MAP_M - 40, maxZ: hi };
+  // Farmland along the southern edge (the J2–J4 deployment band) stays clear of forest.
+  const southBand = { minX: 40, minZ: MAP_M - DEPLOY.depthM - lo, maxX: MAP_M - 40, maxZ: hi };
   const forestBlock = new CellMask(t.width, t.depth);
   forestBlock.data.set(exclusion.data);
   forestBlock.markDisc(castleCenter, plateauR + CASTLE_CLEAR_M);
-  forestBlock.markRect({ minX: deployment.minX + 60, minZ: deployment.minZ + 10, maxX: deployment.maxX - 60, maxZ: deployment.maxZ });
+  forestBlock.markRect({ minX: southBand.minX + 60, minZ: southBand.minZ + 10, maxX: southBand.maxX - 60, maxZ: southBand.maxZ });
   for (const h of hedges) forestBlock.markPolyline(h.points, 2);
   const forestValue = new Float32Array(t.width * t.depth);
   const candidates: number[] = [];
@@ -404,11 +411,31 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
   // --- Units (J2: markers for readability tests) ------------------------------------------------
   const units: UnitMarker[] = [];
   const attackTypes = ['knight', 'soldier', 'archer', 'archer', 'soldier', 'knight', 'archer'];
+  // The vanguard at the bridgehead: up the road from the bridge, two rows across it.
+  const upRoad = (() => {
+    const dx = villageCenter.x - bridgeNorth.x;
+    const dz = villageCenter.z - bridgeNorth.z;
+    const len = Math.hypot(dx, dz) || 1;
+    return { x: dx / len, z: dz / len };
+  })();
+  const acrossRoad = { x: -upRoad.z, z: upRoad.x };
+  const vanguardTaken = new Set<string>();
   attackTypes.forEach((typeKey, i) => {
-    const x = MAP_M / 2 - 28 + (i % 4) * 14 + 0.5;
-    const z = deployment.minZ + 18 + Math.floor(i / 4) * 10 + 0.5;
-    units.push({ id: `att-${i}`, faction: 'attacker', typeKey, position: { x: Math.floor(x) + 0.5, z: Math.floor(z) + 0.5 }, facingTurns: 0.5 });
+    const row = Math.floor(i / VANGUARD.perRow);
+    const col = (i % VANGUARD.perRow) - (VANGUARD.perRow - 1) / 2;
+    const along = VANGUARD.offsetM + row * VANGUARD.rowGapM;
+    const target = { x: bridgeNorth.x + upRoad.x * along + acrossRoad.x * col * VANGUARD.spacingM, z: bridgeNorth.z + upRoad.z * along + acrossRoad.z * col * VANGUARD.spacingM };
+    const spot = nearestOpenCell(t, target, vanguardTaken) ?? { x: Math.floor(target.x) + 0.5, z: Math.floor(target.z) + 0.5 };
+    vanguardTaken.add(`${spot.x},${spot.z}`);
+    units.push({ id: `att-${i}`, faction: 'attacker', typeKey, position: spot, facingTurns: turnsFacing(upRoad) });
   });
+  const vanguard = units.filter((u) => u.faction === 'attacker');
+  const deployment = {
+    minX: Math.max(lo, Math.min(...vanguard.map((u) => u.position.x)) - VANGUARD.zoneMarginM),
+    minZ: Math.max(lo, Math.min(...vanguard.map((u) => u.position.z)) - VANGUARD.zoneMarginM),
+    maxX: Math.min(hi, Math.max(...vanguard.map((u) => u.position.x)) + VANGUARD.zoneMarginM),
+    maxZ: Math.min(hi, Math.max(...vanguard.map((u) => u.position.z)) + VANGUARD.zoneMarginM),
+  };
   // Garrison: shooters and guards on the wall-walk, tower archers above the gate, an officer and
   // the militia in the courtyard.
   const mainWall = castle.walls[0];

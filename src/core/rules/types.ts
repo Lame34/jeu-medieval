@@ -163,6 +163,12 @@ export interface MoraleRules {
   readonly recoveryPerTurn: number;
 }
 
+/** How a battle is won and lost (J5). */
+export interface BattleRules {
+  /** The defenders hold out this many rounds: relief arrives and they win. */
+  readonly turnLimit: number;
+}
+
 /** Fire (J4, brief §9.9). */
 export interface FireRules {
   /** Rounds a cell burns: timber (bridges, fascines, gates), vegetation (fields, hedges). */
@@ -219,4 +225,5 @@ export interface GameRules {
   readonly morale: MoraleRules;
   readonly structures: StructureRules;
   readonly fire: FireRules;
+  readonly battle: BattleRules;
 }

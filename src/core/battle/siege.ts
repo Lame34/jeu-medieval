@@ -132,7 +132,7 @@ export function resolveStructureAttack(ctx: BattleContext, state: BattleState, p
   const structures = state.structures.map((s) => (s.id === def.id ? { id: s.id, hp: hpAfter, broken: hpAfter === 0 } : s));
   if (hpAfter === 0) units = bringDown(ctx, units, def, attacker.id, events);
   const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
   return { state: { ...state, units, structures, status, rng: rng.getState() }, events };
 }
 

@@ -193,6 +193,14 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Rendu peint, sans lumière dynamique.** Les flammes sont des quads face à la caméra, dessinés en procédural dans le shader (bruit montant, rampe du rouge au jaune, bord déchiré). Une lueur additive au sol, des colonnes de fumée (réserve de 256 sprites) et des brûlures au sol complètent : trois appels au plus, aucun au repos, programmes compilés au chargement. Le brief borne les lumières dynamiques à quatre et prévoit la lueur peinte en repli. On garde ce repli : chaque lumière ajouterait une variante de programme et un coût par fragment sur toute la scène.
 - **À reprendre (J5/J7)** : la pluie (J5, météo) ; l'IA qui éteint les feux et incendie les champs (J5) ; les épis encore debout sur les cellules brûlées (les brûlures passent dessous) ; des flammes plus nombreuses au plan large.
 
+## ADR-029 — Une bataille de bout en bout : victoire, renforts, avant-garde (J5)
+**Contexte** : le brief ne fixe pas de condition de victoire. Jusqu'en J4, une bataille ne finissait qu'à l'anéantissement d'un camp, et l'armée partait à 300 m du château, soit une dizaine de tours de marche avant le premier contact.
+**Décision** :
+- **Victoire des assaillants** : la garnison est anéantie, ou elle se débande, c'est-à-dire que tous ses survivants fuient au début de son tour.
+- **Victoire des défenseurs** : l'armée est anéantie ou se débande, ou bien les renforts arrivent. Passé `turnLimit` rounds (30 par défaut, `damage.json` → `battle`, ou fixé par le scénario), le siège est levé. L'état (version 7) porte `turnLimit`, et l'événement `battleEnded` donne sa raison (`eliminated`, `routed`, `relieved`).
+- **Avant-garde à la tête de pont.** Les sept hommes de l'armée partent en deux rangs en travers de la route, 16 m au-dessus du pont, du côté du château, soit environ 160 m de la porte sur `siege-1`. L'avant-poste du village est 50 m plus loin, et les engins attendent au parc de siège. La bande du sud reste dégagée de forêt : le paysage ne change pas.
+- **Interface.** La bannière affiche « Tour N / limite ». Fin du tour : si des unités peuvent encore agir, le premier appui, sur le bouton ou sur Entrée, arme l'avertissement (« N unités peuvent encore agir : confirmer ? »), et le second termine le tour ; tout ordre donné entre-temps désarme l'avertissement. Le panneau de fin donne le résultat et sa raison, les tours joués, les pertes de chaque camp et les ouvrages tombés, avec « Rejouer » et « Retour ».
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

@@ -351,7 +351,7 @@ describe('moveThroughOverwatch: reaction shots', () => {
     expect(events.filter((e) => e.type === 'unitDied')).toEqual([{ type: 'unitDied', unitId: 'mover', byId: 'watcher' }]);
     expect(findUnit(after, 'mover')!.alive).toBe(false);
     expect(after.status).toBe('defenderWon'); // "mover" (attacker) was the only attacker unit
-    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'defenderWon' }]);
+    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'defenderWon', reason: 'eliminated' }]);
     // The mover never reaches the planned destination: it stops where the shot landed.
     expect(findUnit(after, 'mover')!.position).not.toEqual(plan.destination);
   });

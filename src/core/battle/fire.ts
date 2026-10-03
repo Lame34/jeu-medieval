@@ -241,6 +241,6 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
   if (lit.length > 0) events.push({ type: 'fireStarted', cells: [...lit].sort((a, b) => a - b) });
   if (out.length > 0) events.push({ type: 'fireOut', cells: out.sort((a, b) => a - b), byId: null });
   const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
   return { ...state, units, structures, fires: sortFires(fires), burnt: [...burnt].sort((a, b) => a - b), status, rng: rng.getState() };
 }

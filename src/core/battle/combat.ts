@@ -250,6 +250,6 @@ export function resolveAttack(ctx: BattleContext, state: BattleState, preview: A
   const struck = state.units.map((u) => (u.id === attacker.id ? updatedAttacker : u.id === target.id ? updatedTarget : u));
   const units = moraleAfterBlows(ctx, struck, blows, events);
   const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
   return { state: { ...state, units, status, rng: rng.getState() }, events };
 }

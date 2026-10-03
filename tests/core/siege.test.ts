@@ -258,7 +258,7 @@ describe('wall collapse', () => {
     state = withUnit({ ...state, structures: state.structures.map((s) => (s.id === IDS.wallA ? { ...s, hp: 1 } : s)) }, IDS.guardA, { hp: 1 });
     const res = applyCommand(f.ctx, state, { type: 'attackStructure', unitId: IDS.catapult, structureId: IDS.wallA });
     expect(res.state.status).toBe('attackerWon');
-    expect(res.events).toContainEqual({ type: 'battleEnded', status: 'attackerWon' });
+    expect(res.events).toContainEqual({ type: 'battleEnded', status: 'attackerWon', reason: 'eliminated' });
     expect(applyCommand(f.ctx, res.state, { type: 'endTurn' }).rejection).toBe('battleOver');
   });
 

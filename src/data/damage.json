@@ -42,6 +42,10 @@
     "towerClimbAp": 2,
     "towerCapacity": 4
   },
+  "battle": {
+    "$comment": "J5 : les assaillants gagnent en anéantissant ou en mettant en fuite la garnison ; les défenseurs, en faisant de même, ou en tenant jusqu'à l'arrivée des renforts (limite de tours). Valeur de départ (J7 : équilibrage).",
+    "turnLimit": 30
+  },
   "fire": {
     "$comment": "Brief §9.9 : le feu dure plusieurs tours, se propage selon le vent, blesse les unités proches ; on l'éteint ; flèches enflammées +1 PA (§9.4). Valeurs de départ (J7 : équilibrage).",
     "woodTurns": 3,

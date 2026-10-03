@@ -2,8 +2,8 @@ import type { Vec2 } from '../math/vec2.ts';
 import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 
-/** 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 6;
+/** 7: turn limit (relief). 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 7;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -66,6 +66,8 @@ export interface BattleState {
   readonly version: typeof BATTLE_STATE_VERSION;
   readonly seedKey: number;
   readonly turn: number;
+  /** Past this round the defenders are relieved and win. */
+  readonly turnLimit: number;
   readonly activeFaction: Faction;
   readonly status: BattleStatus;
   /** Sorted by id: iteration order is part of determinism. */
@@ -95,4 +97,6 @@ export interface Scenario {
   readonly units: readonly UnitSpawn[];
   readonly firstFaction?: Faction;
   readonly initialMorale?: number;
+  /** Rounds the defenders must hold (rules.battle.turnLimit when absent). */
+  readonly turnLimit?: number;
 }

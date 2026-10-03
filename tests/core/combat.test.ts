@@ -723,7 +723,7 @@ describe('resolveAttack: deterministic outcomes under guaranteed hit / no crit',
     const attacked = events.filter((e) => e.type === 'unitAttacked');
     expect(attacked).toHaveLength(1); // no riposte: the target died
     expect(events.filter((e) => e.type === 'unitDied')).toEqual([{ type: 'unitDied', unitId: 'def', byId: 'atk' }]);
-    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'attackerWon' }]);
+    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'attackerWon', reason: 'eliminated' }]);
     expect(after.status).toBe('attackerWon');
   });
 
@@ -737,7 +737,7 @@ describe('resolveAttack: deterministic outcomes under guaranteed hit / no crit',
     const { state: after, events } = resolveAttack(ctx, lowHp, preview.preview);
     expect(findUnit(after, 'atk')!.hp).toBe(0);
     expect(events.filter((e) => e.type === 'unitDied')).toEqual([{ type: 'unitDied', unitId: 'atk', byId: 'def' }]);
-    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'defenderWon' }]);
+    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'defenderWon', reason: 'eliminated' }]);
   });
 });
 

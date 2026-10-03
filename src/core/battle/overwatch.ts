@@ -147,6 +147,6 @@ export function moveThroughOverwatch(ctx: BattleContext, state: BattleState, mov
   units = units.map((u) => (u.id === mover.id ? current : u));
   // Only a death can end the battle (a scenario may start with one side absent).
   const status = current.alive ? state.status : battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status });
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
   return { state: { ...state, units, status, rng: rng ? rng.getState() : state.rng }, events };
 }

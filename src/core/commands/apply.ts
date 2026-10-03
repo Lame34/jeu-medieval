@@ -153,10 +153,22 @@ function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnC
     { type: 'turnStarted', faction: next, turn },
   ];
   // Recovery, AP and attacks restored (shaken penalty), routed units run.
+  // Past the turn limit the defenders are relieved.
+  if (turn > state.turnLimit) {
+    events.push({ type: 'battleEnded', status: 'defenderWon', reason: 'relieved' });
+    return { state: { ...state, activeFaction: next, turn, status: 'defenderWon' }, events, rejection: null };
+  }
   // A new round: the fires burn and spread before the attackers move again.
   const burnt = next === FACTION_ORDER[0] ? fireRound(ctx, { ...state, activeFaction: next, turn }, events) : { ...state, activeFaction: next, turn };
   if (burnt.status !== 'ongoing') return { state: burnt, events, rejection: null };
   const started = startTurn(ctx, refillDocks(burnt), next, events);
+  // A side whose every survivor is fleeing has lost.
+  const standing = started.units.filter((u) => u.alive && u.faction === next);
+  if (standing.length > 0 && standing.every((u) => moraleStanding(ctx.rules.morale, u.morale) === 'fleeing')) {
+    const status = next === 'attacker' ? 'defenderWon' : 'attackerWon';
+    events.push({ type: 'battleEnded', status, reason: 'routed' });
+    return { state: { ...started, status }, events, rejection: null };
+  }
   return { state: started, events, rejection: null };
 }
 

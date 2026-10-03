@@ -188,9 +188,13 @@ export interface MoraleChangedEvent {
   readonly reason: MoraleReason;
 }
 
+/** How a battle ended: a side wiped out, a side routed, or the defenders relieved (turn limit). */
+export type BattleEndReason = 'eliminated' | 'routed' | 'relieved';
+
 export interface BattleEndedEvent {
   readonly type: 'battleEnded';
   readonly status: Exclude<BattleStatus, 'ongoing'>;
+  readonly reason: BattleEndReason;
 }
 
 export interface TurnEndedEvent {
