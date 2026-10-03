@@ -9,7 +9,7 @@ import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
-import { END_LABEL, FACTION_LABEL, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
+import { END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import './battle-hud.css';
 
@@ -39,6 +39,8 @@ function ConditionsLine({ modifiers }: { readonly modifiers: readonly ShotModifi
         return `brouillard : ${fogRange} m au plus`;
       case 'wind':
         return `vent de travers ${pct(m.accuracy)}`;
+      case 'hero':
+        return `${heroSkillName(m.source ?? '')} +${pct(m.accuracy)}`;
     }
   });
   return <p className="hud-detail hud-conditions">Conditions : {parts.join(' · ')}</p>;

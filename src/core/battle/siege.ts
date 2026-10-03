@@ -21,10 +21,11 @@ import { moraleAfterBlows, moraleAfterCollapse, type BlowOutcome } from './moral
 import { findUnit, unitType } from './movement.ts';
 import { isBroken, structureDef, syncNav, type StructureDef } from './structures.ts';
 import { conditionedRange, NO_CONDITIONS, shotConditions, type ShotModifier } from './conditions.ts';
+import { SIEGE_ENGINE_TAG } from './tags.ts';
 import type { BattleState, StructureState, UnitState } from './types.ts';
 
 /** Only siege engines harm structures; rams strike gates only. */
-export const SIEGE_ENGINE_TAG = 'siegeEngine';
+export { SIEGE_ENGINE_TAG };
 export const GATES_ONLY_TAG = 'gatesOnly';
 /** The castle and its walls belong to the defenders. */
 const CASTLE_FACTION: UnitState['faction'] = 'defender';
@@ -87,7 +88,7 @@ export function previewStructureAttack(ctx: BattleContext, state: BattleState, a
   const d = ctx.rules.damage;
   if (attacker.ap < d.attackApCost) return { ok: false, reason: 'insufficientAp' };
   const distanceM = distanceToCells(ctx, def.cells, attacker.position);
-  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, def.center, true);
+  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, def.center, true, attacker);
   const rangeM = melee ? d.meleeReachM : conditionedRange(attack.rangeM, conditions);
   if (distanceM > rangeM) return { ok: false, reason: 'outOfRange' };
   const blow = oddsAgainst(ctx, attack, def.material, 1, 0, 'none', 0, ctx.rules.structures.hitBonus + conditions.accuracy);

@@ -238,6 +238,26 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
   - Sans ennemi en vue, les assaillants marchent quand même vers la porterie et leurs objectifs, et les défenseurs tiennent leurs postes.
 **Conséquences** : le rendu (lumière, ciel et LUT interpolés selon l'heure, pluie, brouillard, torches) et le HUD (heure, météo, vent, modificateurs dans l'aperçu) lisent ces champs. Le brouillard de guerre côté joueur masque les ennemis qu'il ne voit pas. Pas encore traité : la météo qui change en cours de bataille.
 
+## ADR-032 — Héros (J5)
+**Contexte** : le brief (§9.5) demande trois héros nommés (une capitaine d'archers, un maître ingénieur, un chevalier vétéran), chacun avec 2 capacités actives à temps de recharge et 1 passive, des répliques en combat, et une blessure grave à 0 PV au lieu de la mort.
+**Décision** :
+- **Données** :
+  - Les héros sont des types d'unités de `units.json`, marqués de l'étiquette `hero`.
+  - `heroes.json` décrit pour chacun ses capacités, sa passive, ses répliques et sa personnalité. Le comportement d'une capacité est fixé par son identifiant dans le code ; ses chiffres sont des données validées au chargement.
+- **Aude** : *Volée* (elle et les tireurs à moins de 12 m : +15 % jusqu'à la fin du tour, recharge 3), *Flèche perçante* (ignore le couvert et l'armure, recharge 2), passive *Œil d'aigle* (+5 % pour les tireurs à moins de 10 m).
+- **Bertrand** : *Réglage du tir* (un engin à moins de 6 m : +20 % et insensible au vent, recharge 2), *Chantier forcé* (un tour de travail compte double, recharge 3), passive *Maître d'œuvre* (+10 % pour les engins à moins de 10 m).
+- **Guillaume** : *Ralliement* (+30 de moral à moins de 12 m, recharge 3), *Charge héroïque* (+10 %, ×1,5 dégâts, sans riposte, recharge 3), passive *Inébranlable* (pertes de moral divisées par deux à moins de 8 m).
+- **Mécanique** :
+  - Une seule commande `ability` (`targetId`, `at` ou `structureId` selon la capacité). L'aperçu et la résolution partagent les vérifications.
+  - Les coups de héros passent par `previewAttack` et ses options (`ignoreCover`, `armorPierce`, `accuracyBonus`, `damageFactor`, `noRiposte`, `extraAp`).
+  - L'état (version 9) porte les recharges par unité, décomptées au début du tour du camp, et des *buffs* qui expirent à la fin de son tour.
+  - Les buffs et les auras de précision s'ajoutent aux modificateurs de tir (`shotConditions`, type `hero`) et apparaissent dans l'aperçu. L'aura *Inébranlable* passe par la fonction centrale du moral (et par celui du feu).
+  - Les auras vivent dans un module léger (`hero-auras.ts`) et les étiquettes partagées dans `tags.ts`, pour éviter les imports circulaires.
+- **Blessure grave** : un héros à 0 PV quitte la bataille. Le journal dit « gravement blessé(e) » avec l'une de ses répliques ; le report sur la bataille suivante viendra avec la campagne (J6).
+- **Répliques** : à chaque capacité, victoire en combat et blessure, choisies selon le tour (identiques au replay).
+- **Placement** : les héros rejoignent l'armée sur les cases libres les plus proches de son centre, dans le scénario de la session. Les tests de génération ne changent pas.
+- **IA** : la garnison vise les héros en priorité (×1,5). L'IA des assaillants (simulations) n'utilise pas encore leurs capacités.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

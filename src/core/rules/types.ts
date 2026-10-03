@@ -244,6 +244,52 @@ export interface WeatherRules {
   readonly windArtilleryPenalty: number;
 }
 
+/** Heroes (J5, brief §9.5): what their abilities do is fixed by id, the figures are data. */
+export const HERO_ABILITY_IDS = ['volley', 'piercingShot', 'calibrate', 'rushWorks', 'rally', 'heroicCharge'] as const;
+export type HeroAbilityId = (typeof HERO_ABILITY_IDS)[number];
+export const HERO_PASSIVE_IDS = ['eagleEye', 'masterBuilder', 'steadfast'] as const;
+export type HeroPassiveId = (typeof HERO_PASSIVE_IDS)[number];
+export const ABILITY_TARGETS = ['self', 'enemy', 'allyEngine', 'site'] as const;
+export type AbilityTarget = (typeof ABILITY_TARGETS)[number];
+
+export interface HeroAbilityRule {
+  readonly id: HeroAbilityId;
+  readonly name: string;
+  readonly description: string;
+  /** Own turns before it can be used again. */
+  readonly cooldown: number;
+  /** AP it costs (on top of the attack's for a blow). */
+  readonly apCost: number;
+  readonly target: AbilityTarget;
+  readonly radiusM: number;
+  readonly accuracyBonus: number;
+  readonly damageFactor: number;
+  readonly moraleGain: number;
+  readonly workFactor: number;
+}
+
+export interface HeroPassiveRule {
+  readonly id: HeroPassiveId;
+  readonly name: string;
+  readonly description: string;
+  readonly radiusM: number;
+  readonly accuracyBonus: number;
+  readonly moraleLossFactor: number;
+}
+
+export interface HeroRule {
+  /** The unit type the hero fights as. */
+  readonly typeKey: string;
+  readonly name: string;
+  readonly title: string;
+  readonly feminine: boolean;
+  readonly personality: string;
+  readonly abilities: readonly HeroAbilityRule[];
+  readonly passive: HeroPassiveRule;
+  /** Short lines in battle. */
+  readonly lines: { readonly ability: readonly string[]; readonly kill: readonly string[]; readonly wounded: readonly string[] };
+}
+
 export interface GameRules {
   /** Indexed by TerrainLayerId. */
   readonly terrainLayers: readonly TerrainLayerRule[];
@@ -255,4 +301,6 @@ export interface GameRules {
   readonly fire: FireRules;
   readonly battle: BattleRules;
   readonly weather: WeatherRules;
+  /** By unit type key. */
+  readonly heroes: Readonly<Record<string, HeroRule>>;
 }

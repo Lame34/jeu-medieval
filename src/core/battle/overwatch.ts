@@ -34,7 +34,7 @@ export function shotOddsAt(ctx: BattleContext, shooter: UnitState, targetUnit: U
   if (!attack || attack.rangeM === 0) return null;
   const d = ctx.rules.damage;
   const steps = heightSteps(ctx, shooter.position, at);
-  const conditions = state ? shotConditions(ctx, state, shooter.position, at, false) : NO_CONDITIONS;
+  const conditions = state ? shotConditions(ctx, state, shooter.position, at, false, shooter) : NO_CONDITIONS;
   if (distance(shooter.position, at) > conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions)) return null;
   const sight = lineOfSight(ctx.nav, {
     from: shooter.position,

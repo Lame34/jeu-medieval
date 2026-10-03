@@ -3,8 +3,8 @@ import type { RngState } from '../rng.ts';
 import type { Faction } from '../rules/types.ts';
 import type { Weather } from './conditions.ts';
 
-/** 8: weather and start hour. 7: turn limit (relief). 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
-export const BATTLE_STATE_VERSION = 8;
+/** 9: heroes' cooldowns and buffs. 8: weather and start hour. 7: turn limit (relief). 6: wind and fire. 5: siege-tower docks. 4: sappers' works. 3: castle structures (J4). 2: units carry the attacks left this turn (J3 combat). */
+export const BATTLE_STATE_VERSION = 9;
 
 export type BattleStatus = 'ongoing' | 'attackerWon' | 'defenderWon';
 
@@ -24,6 +24,19 @@ export interface UnitState {
   readonly overwatch: Vec2 | null;
   readonly morale: number;
   readonly alive: boolean;
+  /** Heroes: own turns left before each ability can be used again (absent: all ready). */
+  readonly cooldowns?: Readonly<Record<string, number>>;
+  /** Until the end of the side's turn (a hero's volley, calibration). */
+  readonly buffs?: readonly UnitBuff[];
+}
+
+/** A hero ability's effect on a unit until the end of its side's turn. */
+export interface UnitBuff {
+  readonly source: string;
+  /** Added to the hit chance of its shots. */
+  readonly accuracy: number;
+  /** Its shots are not deflected by the wind (an engine calibrated by the master engineer). */
+  readonly windImmune: boolean;
 }
 
 /** A castle structure's condition (definitions live in the context). */

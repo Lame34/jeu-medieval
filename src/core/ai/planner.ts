@@ -27,6 +27,7 @@ import { distanceToCells, GATES_ONLY_TAG, shieldOf, SIEGE_ENGINE_TAG, structures
 import { isBroken, syncNav } from '../battle/structures.ts';
 import { dockOf, TOWER_TAG } from '../battle/siege-tower.ts';
 import { FILL_MOAT_TAG } from '../battle/siege-works.ts';
+import { HERO_TAG } from '../battle/tags.ts';
 import { perceivedState } from '../battle/conditions.ts';
 import { breachGuardValue, cellsWithinReach, climbOrigins, dockOrigins, fireDecisions, sallyTarget, stagingOrigins, towerDecisions, worksDecisions, worthyFillSites } from './tactics.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
@@ -46,6 +47,8 @@ export const AI_WEIGHTS = {
   /** Priority factor of siege engines and of wounded targets (below half HP). */
   siegeEnginePriority: 2,
   woundedPriority: 1.4,
+  /** Priority factor of the enemy's heroes. */
+  heroPriority: 1.5,
   /** Weight of the damage the unit itself would take (riposte, enemy shots next turn). */
   selfDamage: 0.8,
   /** Value per point of cover penalty the spot imposes on the nearest enemy's shots. */
@@ -103,6 +106,7 @@ function attackValue(ctx: BattleContext, state: BattleState, preview: AttackPrev
   let priority = 1;
   if (type.tags.includes(SIEGE_ENGINE_TAG)) priority *= AI_WEIGHTS.siegeEnginePriority;
   if (target.hp <= type.hp * ctx.rules.morale.woundedHpFraction) priority *= AI_WEIGHTS.woundedPriority;
+  if (type.tags.includes(HERO_TAG)) priority *= AI_WEIGHTS.heroPriority;
   const gain = (expectedDamage(preview.blow) + killChance(preview.blow, target.hp) * AI_WEIGHTS.killBonus) * priority;
   const risk = preview.riposte ? expectedDamage(preview.riposte) * AI_WEIGHTS.selfDamage : 0;
   return gain - risk;

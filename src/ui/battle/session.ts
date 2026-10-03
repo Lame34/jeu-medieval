@@ -4,6 +4,7 @@
  * is `seed + scenario + commands`: the log replays it exactly.
  */
 import { playTurn } from '../../core/ai/planner.ts';
+import { heroSpawnCells } from '../../core/battle/heroes.ts';
 import { drawConditions, lightsOf, type BattleConditions } from '../../core/battle/conditions.ts';
 import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
 import { createBattle } from '../../core/battle/create.ts';
@@ -36,6 +37,19 @@ function scenarioFrom(ctx: BattleContext, layout: WorldLayout): Scenario {
     if (!isPassable(ctx.nav, type.movement, cx, cz)) continue;
     const a = marker.facingTurns * 2 * Math.PI;
     units.push({ id: marker.id, typeKey: marker.typeKey, position: marker.position, facing: { x: Math.sin(a), z: Math.cos(a) } });
+  }
+  // The three heroes join the army, on the free cells nearest to its centre.
+  const army = units.filter((u) => ctx.rules.units[u.typeKey]?.faction === PLAYER_FACTION);
+  const heroKeys = Object.keys(ctx.rules.heroes);
+  if (army.length > 0 && heroKeys.length > 0) {
+    const centre = { x: army.reduce((s, u) => s + u.position.x, 0) / army.length, z: army.reduce((s, u) => s + u.position.z, 0) / army.length };
+    const taken = units.map((u) => u.position);
+    const free = (p: { x: number; z: number }) =>
+      heroKeys.every((k) => isPassable(ctx.nav, ctx.rules.units[k]?.movement ?? 'foot', Math.floor(p.x), Math.floor(p.z))) && taken.every((q) => Math.hypot(q.x - p.x, q.z - p.z) >= 1.5);
+    heroSpawnCells(centre, free, heroKeys.length).forEach((position, i) => {
+      const typeKey = heroKeys[i] as string;
+      units.push({ id: `att-hero-${typeKey}`, typeKey, position, facing: army[0]?.facing ?? { x: 0, z: -1 } });
+    });
   }
   return { units, firstFaction: PLAYER_FACTION };
 }

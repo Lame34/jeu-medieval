@@ -14,7 +14,8 @@ import type { MovementProfile, TerrainLayerRule, GameRules } from '../rules/type
 import { Rng, type Seed } from '../rng.ts';
 import { distance, type Vec2 } from '../math/vec2.ts';
 import type { BattleContext } from './context.ts';
-import type { BattleState, Scenario } from './types.ts';
+import { auraAccuracy } from './hero-auras.ts';
+import type { BattleState, Scenario, UnitState } from './types.ts';
 import type { WorldLayout } from '../worldgen/types.ts';
 
 export type Weather = 'clear' | 'rain' | 'fog';
@@ -25,7 +26,9 @@ export type GroundCondition = 'dry' | 'mud';
 
 /** One modifier of a shot, for the preview's tooltip. */
 export interface ShotModifier {
-  readonly kind: 'rain' | 'fog' | 'night' | 'wind';
+  readonly kind: 'rain' | 'fog' | 'night' | 'wind' | 'hero';
+  /** For a hero's: the ability or passive behind it. */
+  readonly source?: string;
   /** Added to the hit chance (negative: a penalty). */
   readonly accuracy: number;
   /** Multiplies the range (1: none). */
@@ -96,9 +99,14 @@ export function isLit(ctx: BattleContext, p: Vec2): boolean {
 }
 
 /** The conditions of a shot from `from` at `to`; `artillery` for indirect fire (the wind deflects it). */
-export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec2, to: Vec2, artillery: boolean): ShotConditions {
+export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec2, to: Vec2, artillery: boolean, shooter?: UnitState): ShotConditions {
   const w = ctx.rules.weather;
   const modifiers: ShotModifier[] = [];
+  // The heroes' help: a buff on the shooter (volley, calibration), an aura around it.
+  const windImmune = shooter?.buffs?.some((b) => b.windImmune) ?? false;
+  for (const b of shooter?.buffs ?? []) if (b.accuracy !== 0) modifiers.push({ kind: 'hero', source: b.source, accuracy: b.accuracy, rangeFactor: 1 });
+  const aura = shooter ? auraAccuracy(ctx, state.units, shooter) : null;
+  if (aura) modifiers.push({ kind: 'hero', source: aura.id, accuracy: aura.accuracy, rangeFactor: 1 });
   let maxRangeM = Number.POSITIVE_INFINITY;
   if (state.weather === 'rain') modifiers.push({ kind: 'rain', accuracy: -w.rainAccuracyPenalty, rangeFactor: 1 });
   if (state.weather === 'fog') {
@@ -106,7 +114,7 @@ export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec
     modifiers.push({ kind: 'fog', accuracy: 0, rangeFactor: 1 });
   }
   if (isNight(ctx.rules, hourOf(ctx.rules, state)) && !isLit(ctx, to)) modifiers.push({ kind: 'night', accuracy: -w.nightAccuracyPenalty, rangeFactor: w.nightRangeFactor });
-  if (artillery && state.wind.strength > 0) {
+  if (artillery && !windImmune && state.wind.strength > 0) {
     const dx = to.x - from.x;
     const dz = to.z - from.z;
     const len = Math.hypot(dx, dz);

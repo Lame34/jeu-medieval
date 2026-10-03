@@ -29,7 +29,8 @@ export type GameEvent =
   | BattleEndedEvent
   | TurnEndedEvent
   | TurnStartedEvent
-  | CommandRejectedEvent;
+  | CommandRejectedEvent
+  | AbilityUsedEvent;
 
 export interface UnitMovedEvent {
   readonly type: 'unitMoved';
@@ -177,7 +178,7 @@ export interface OverwatchSetEvent {
   readonly direction: Vec2;
 }
 
-export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery' | 'wallCollapsed' | 'fire';
+export type MoraleReason = 'allyDied' | 'wounded' | 'kill' | 'recovery' | 'wallCollapsed' | 'fire' | 'rally';
 
 export interface MoraleChangedEvent {
   readonly type: 'moraleChanged';
@@ -213,4 +214,12 @@ export interface CommandRejectedEvent {
   readonly type: 'commandRejected';
   readonly command: Command;
   readonly reason: CommandRejection;
+}
+
+/** A hero used an ability (J5): `affected` are the units it touched (buffed, rallied, struck). */
+export interface AbilityUsedEvent {
+  readonly type: 'abilityUsed';
+  readonly unitId: string;
+  readonly abilityId: string;
+  readonly affected: readonly string[];
 }

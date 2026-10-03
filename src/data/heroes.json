@@ -1,0 +1,53 @@
+{
+  "$comment": "Brief §9.5 : trois héros nommés, chacun avec 2 capacités actives à temps de recharge (en tours du camp) et 1 passive ; répliques courtes en combat. À 0 PV, un héros est gravement blessé (il manquera la bataille suivante, J6). Valeurs de départ (J7 : équilibrage).",
+  "heroes": {
+    "heroArcher": {
+      "name": "Aude",
+      "title": "capitaine d'archers",
+      "feminine": true,
+      "personality": "Vive et moqueuse ; elle compte les flèches des autres et ne rate jamais l'occasion de le faire savoir.",
+      "abilities": [
+        { "id": "volley", "name": "Volée", "description": "Elle et les tireurs à moins de 12 m gagnent +15 % de précision jusqu'à la fin du tour.", "cooldown": 3, "apCost": 1, "target": "self", "radiusM": 12, "accuracyBonus": 0.15 },
+        { "id": "piercingShot", "name": "Flèche perçante", "description": "Un tir qui ignore le couvert et l'armure de la cible.", "cooldown": 2, "apCost": 1, "target": "enemy" }
+      ],
+      "passive": { "id": "eagleEye", "name": "Œil d'aigle", "description": "Les tireurs à moins de 10 m d'elle, elle comprise, gagnent +5 % de précision.", "radiusM": 10, "accuracyBonus": 0.05 },
+      "lines": {
+        "ability": ["Sur mon signal… lâchez !", "Visez les créneaux, pas les nuages.", "Une flèche, un homme. Comptez."],
+        "kill": ["Et d'un.", "Au suivant !", "Je vous l'avais bien dit."],
+        "wounded": ["Ramenez-moi… je compterai plus tard."]
+      }
+    },
+    "heroEngineer": {
+      "name": "Bertrand",
+      "title": "maître ingénieur",
+      "feminine": false,
+      "personality": "Méthodique et bougon ; il parle aux engins plus volontiers qu'aux hommes, et les engins l'écoutent.",
+      "abilities": [
+        { "id": "calibrate", "name": "Réglage du tir", "description": "Un engin à moins de 6 m gagne +20 % de précision et ne craint plus le vent jusqu'à la fin du tour.", "cooldown": 2, "apCost": 1, "target": "allyEngine", "radiusM": 6, "accuracyBonus": 0.2 },
+        { "id": "rushWorks", "name": "Chantier forcé", "description": "Un tour de travail compte double, dans la douve comme sous le mur.", "cooldown": 3, "apCost": 0, "target": "site", "workFactor": 2 }
+      ],
+      "passive": { "id": "masterBuilder", "name": "Maître d'œuvre", "description": "Les engins à moins de 10 m de lui gagnent +10 % de précision.", "radiusM": 10, "accuracyBonus": 0.1 },
+      "lines": {
+        "ability": ["Deux pouces à gauche. Voilà.", "Du bois, des cordes, et de la patience.", "Creusez, je vous dis où."],
+        "kill": ["Hm. Efficace.", "Ce n'était pas dans mes plans, mais soit."],
+        "wounded": ["Que personne ne touche à mes engins !"]
+      }
+    },
+    "heroKnight": {
+      "name": "Guillaume",
+      "title": "chevalier vétéran",
+      "feminine": false,
+      "personality": "Taciturne et inébranlable ; trente ans de sièges, et il n'en a perdu aucun qu'il ait commencé.",
+      "abilities": [
+        { "id": "rally", "name": "Ralliement", "description": "Les alliés à moins de 12 m, lui compris, regagnent 30 points de moral.", "cooldown": 3, "apCost": 1, "target": "self", "radiusM": 12, "moraleGain": 30 },
+        { "id": "heroicCharge", "name": "Charge héroïque", "description": "Une attaque au contact à +10 % de précision et ×1,5 dégâts, sans riposte.", "cooldown": 3, "apCost": 0, "target": "enemy", "accuracyBonus": 0.1, "damageFactor": 1.5 }
+      ],
+      "passive": { "id": "steadfast", "name": "Inébranlable", "description": "Les alliés à moins de 8 m de lui ne perdent que la moitié de leur moral.", "radiusM": 8, "moraleLossFactor": 0.5 },
+      "lines": {
+        "ability": ["À moi ! Tenez la ligne !", "Pour le roi, et pour la soupe chaude.", "Encore un effort."],
+        "kill": ["Suivant.", "Il n'aurait pas dû rester là."],
+        "wounded": ["Ce n'est… qu'une égratignure."]
+      }
+    }
+  }
+}

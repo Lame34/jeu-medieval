@@ -10,6 +10,7 @@
  * flammable neighbour (more likely downwind), then loses a turn of fuel.
  */
 import type { CommandRejection } from '../commands/types.ts';
+import { moraleLossFactor } from './hero-auras.ts';
 import type { GameEvent } from '../events/types.ts';
 import { distance, normalize, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
@@ -102,7 +103,7 @@ export function previewFireArrow(ctx: BattleContext, state: BattleState, unitId:
   if (fuelOf(ctx, state, cell) <= 0) return { ok: false, reason: 'notFlammable' };
   const centre = { x: (cell % nav.width) + 0.5, z: Math.floor(cell / nav.width) + 0.5 };
   const steps = heightSteps(ctx, unit.position, centre);
-  const conditions = shotConditions(ctx, state, unit.position, centre, false);
+  const conditions = shotConditions(ctx, state, unit.position, centre, false, unit);
   const range = conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions);
   if (distance(unit.position, centre) > range) return { ok: false, reason: 'outOfRange' };
   // Aimed at the top of what burns there (the crop, the hedge, the roof).
@@ -196,7 +197,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
     const hpAfter = Math.max(0, u.hp - damage);
     events.push({ type: 'unitBurned', unitId: u.id, damage, hpAfter });
     if (hpAfter === 0) events.push({ type: 'unitDied', unitId: u.id, byId: u.id });
-    const morale = Math.max(0, u.morale - f.moraleLoss);
+    const morale = Math.max(0, u.morale - Math.round(f.moraleLoss * moraleLossFactor(ctx, state.units, u)));
     if (hpAfter > 0 && morale !== u.morale) events.push({ type: 'moraleChanged', unitId: u.id, morale, delta: morale - u.morale, reason: 'fire' });
     return { ...u, hp: hpAfter, alive: hpAfter > 0, morale: hpAfter > 0 ? morale : u.morale, overwatch: hpAfter > 0 ? u.overwatch : null };
   });

@@ -5,6 +5,7 @@
  * command (a breach or a lowered drawbridge reshapes the ground).
  */
 import { previewAttack, resolveAttack } from '../battle/combat.ts';
+import { expireBuffs, previewAbility, resolveAbility } from '../battle/heroes.ts';
 import { moraleStanding, startTurn } from '../battle/morale.ts';
 import { canOverwatch, moveThroughOverwatch } from '../battle/overwatch.ts';
 import type { BattleContext } from '../battle/context.ts';
@@ -32,6 +33,7 @@ import type {
   MoveCommand,
   OverwatchCommand,
   UndermineCommand,
+  AbilityCommand,
 } from './types.ts';
 
 export interface CommandResult {
@@ -144,7 +146,9 @@ function applyExtinguish(ctx: BattleContext, state: BattleState, command: Exting
   return { state: next, events, rejection: null };
 }
 
-function applyEndTurn(ctx: BattleContext, state: BattleState, _command: EndTurnCommand): CommandResult {
+function applyEndTurn(ctx: BattleContext, ended: BattleState, _command: EndTurnCommand): CommandResult {
+  // The side's buffs (a volley, a calibration) last until the end of its turn.
+  const state = expireBuffs(ended, ended.activeFaction);
   const index = FACTION_ORDER.indexOf(state.activeFaction);
   const next = FACTION_ORDER[(index + 1) % FACTION_ORDER.length] as Faction;
   const turn = next === FACTION_ORDER[0] ? state.turn + 1 : state.turn;
@@ -193,9 +197,20 @@ function dispatch(ctx: BattleContext, state: BattleState, command: Command): Com
       return applyClimb(ctx, state, command);
     case 'overwatch':
       return applyOverwatch(ctx, state, command);
+    case 'ability':
+      return applyAbility(ctx, state, command);
     case 'endTurn':
       return applyEndTurn(ctx, state, command);
   }
+}
+
+function applyAbility(ctx: BattleContext, state: BattleState, command: AbilityCommand): CommandResult {
+  const unit = findUnit(state, command.unitId);
+  if (unit?.alive && unit.faction === state.activeFaction && moraleStanding(ctx.rules.morale, unit.morale) === 'fleeing') return reject(state, command, 'unitFleeing');
+  const result = previewAbility(ctx, state, command);
+  if (!result.ok) return reject(state, command, result.reason);
+  const { state: next, events } = resolveAbility(ctx, state, result.preview);
+  return { state: next, events, rejection: null };
 }
 
 export function applyCommand(ctx: BattleContext, state: BattleState, command: Command): CommandResult {

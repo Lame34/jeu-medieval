@@ -123,6 +123,7 @@ export function oddsAgainst(
   cover: CoverLevel,
   obscurance: number,
   hitBonus: number,
+  mods: { readonly armorPierce: boolean; readonly damageFactor: number } = { armorPierce: false, damageFactor: 1 },
 ): BlowOdds {
   const d = ctx.rules.damage;
   const hitChance = clamp(
@@ -130,7 +131,7 @@ export function oddsAgainst(
     d.hitChanceMin,
     d.hitChanceMax,
   );
-  const base = attack.power * (1 - d.armorReduction[armor]) * d.multipliers[attack.type][armor];
+  const base = attack.power * (1 - (mods.armorPierce ? 0 : d.armorReduction[armor])) * d.multipliers[attack.type][armor] * mods.damageFactor;
   return {
     hitChance,
     critChance: d.critChance,
@@ -138,7 +139,21 @@ export function oddsAgainst(
   };
 }
 
-export function previewAttack(ctx: BattleContext, state: BattleState, attackerId: string, targetId: string): AttackPreviewResult {
+/** A hero's blow (J5): what it ignores and adds to an ordinary attack. */
+export interface AttackOptions {
+  /** Cover counts for nothing (piercing shot). */
+  readonly ignoreCover?: boolean;
+  /** The target's armour reduces nothing. */
+  readonly armorPierce?: boolean;
+  readonly accuracyBonus?: number;
+  readonly damageFactor?: number;
+  /** The target cannot answer (heroic charge). */
+  readonly noRiposte?: boolean;
+  /** AP on top of the attack's. */
+  readonly extraAp?: number;
+}
+
+export function previewAttack(ctx: BattleContext, state: BattleState, attackerId: string, targetId: string, options: AttackOptions = {}): AttackPreviewResult {
   syncNav(ctx, state.structures, state.works);
   const attacker = findUnit(state, attackerId);
   if (!attacker) return { ok: false, reason: 'unknownUnit' };
@@ -154,20 +169,21 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   if (!attack) return { ok: false, reason: 'noAttack' };
   if (attacker.actions <= 0) return { ok: false, reason: 'noActionLeft' };
   const d = ctx.rules.damage;
-  if (attacker.ap < d.attackApCost) return { ok: false, reason: 'insufficientAp' };
+  const apCost = d.attackApCost + (options.extraAp ?? 0);
+  if (attacker.ap < apCost) return { ok: false, reason: 'insufficientAp' };
 
   const melee = attack.rangeM === 0;
   const indirect = aType.tags.includes(INDIRECT_FIRE_TAG);
   const distanceM = distance(attacker.position, target.position);
   const steps = indirect ? 0 : heightSteps(ctx, attacker.position, target.position);
-  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, target.position, indirect);
+  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, target.position, indirect, attacker);
   const effectiveRangeM = melee ? d.meleeReachM : conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions);
   if (distanceM > effectiveRangeM) return { ok: false, reason: 'outOfRange' };
 
   let cover: CoverLevel = 'none';
   let obscurance = 0;
   if (!melee) {
-    cover = coverAgainst(ctx, attacker.position, target.position);
+    cover = options.ignoreCover ? 'none' : coverAgainst(ctx, attacker.position, target.position);
     if (!indirect) {
       const sight = lineOfSight(ctx.nav, {
         from: attacker.position,
@@ -181,12 +197,12 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
       obscurance = sight.obscurance;
     }
   }
-  const blow = blowOdds(ctx, attack, tType, 1, steps, cover, obscurance, conditions.accuracy);
+  const blow = oddsAgainst(ctx, attack, tType.armor, 1, steps, cover, obscurance, conditions.accuracy + (options.accuracyBonus ?? 0), { armorPierce: options.armorPierce ?? false, damageFactor: options.damageFactor ?? 1 });
   const answer = tType.attack;
-  const riposte = melee && answer && answer.rangeM === 0 ? blowOdds(ctx, answer, aType, d.riposteAccuracyFactor, -steps, 'none', 0) : null;
+  const riposte = melee && !options.noRiposte && answer && answer.rangeM === 0 ? blowOdds(ctx, answer, aType, d.riposteAccuracyFactor, -steps, 'none', 0) : null;
   return {
     ok: true,
-    preview: { attackerId, targetId, melee, distanceM, effectiveRangeM, heightSteps: steps, cover, obscurance, apCost: d.attackApCost, blow, riposte, conditions: conditions.modifiers },
+    preview: { attackerId, targetId, melee, distanceM, effectiveRangeM, heightSteps: steps, cover, obscurance, apCost, blow, riposte, conditions: conditions.modifiers },
   };
 }
 

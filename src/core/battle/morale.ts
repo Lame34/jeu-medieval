@@ -12,6 +12,7 @@ import { IMPASSABLE } from '../nav-grid/nav-grid.ts';
 import type { MoraleRules } from '../rules/types.ts';
 import { cellCenter } from '../terrain-data/terrain-data.ts';
 import type { BattleContext } from './context.ts';
+import { moraleLossFactor } from './hero-auras.ts';
 import { movementArea, planMove, unitType } from './movement.ts';
 import type { BattleState, UnitState } from './types.ts';
 
@@ -31,8 +32,13 @@ export interface BlowOutcome {
   readonly hpAfter: number;
 }
 
-function shift(rules: MoraleRules, unit: UnitState, delta: number, reason: MoraleReason, events: GameEvent[]): UnitState {
-  const morale = Math.min(rules.max, Math.max(0, unit.morale + delta));
+/** Moves a unit's morale by `delta` (clamped), announcing it. */
+export function moraleShift(rules: MoraleRules, unit: UnitState, delta: number, reason: MoraleReason, events: GameEvent[]): UnitState {
+  return shift(rules, unit, delta, reason, events);
+}
+
+function shift(rules: MoraleRules, unit: UnitState, delta: number, reason: MoraleReason, events: GameEvent[], lossFactor = 1): UnitState {
+  const morale = Math.min(rules.max, Math.max(0, unit.morale + (delta < 0 ? Math.round(delta * lossFactor) : delta)));
   if (morale === unit.morale) return unit;
   events.push({ type: 'moraleChanged', unitId: unit.id, morale, delta: morale - unit.morale, reason });
   return { ...unit, morale };
@@ -47,12 +53,12 @@ export function moraleAfterBlows(ctx: BattleContext, units: readonly UnitState[]
     const ti = at(blow.targetId);
     const target = out[ti] as UnitState;
     const woundedHp = unitType(ctx, target).hp * rules.woundedHpFraction;
-    if (blow.hpAfter > 0 && blow.hpBefore > woundedHp && blow.hpAfter <= woundedHp) out[ti] = shift(rules, target, -rules.woundedLoss, 'wounded', events);
+    if (blow.hpAfter > 0 && blow.hpBefore > woundedHp && blow.hpAfter <= woundedHp) out[ti] = shift(rules, target, -rules.woundedLoss, 'wounded', events, moraleLossFactor(ctx, out, target));
     if (blow.hpAfter > 0) continue;
     for (let k = 0; k < out.length; k++) {
       const ally = out[k] as UnitState;
       if (!ally.alive || ally.id === target.id || ally.faction !== target.faction) continue;
-      if (distance(ally.position, target.position) <= rules.allyDeathRadiusM) out[k] = shift(rules, ally, -rules.allyDeathLoss, 'allyDied', events);
+      if (distance(ally.position, target.position) <= rules.allyDeathRadiusM) out[k] = shift(rules, ally, -rules.allyDeathLoss, 'allyDied', events, moraleLossFactor(ctx, out, ally));
     }
     const ki = at(blow.attackerId);
     const killer = out[ki] as UnitState;
@@ -65,7 +71,7 @@ export function moraleAfterBlows(ctx: BattleContext, units: readonly UnitState[]
 export function moraleAfterCollapse(ctx: BattleContext, units: readonly UnitState[], at: Vec2, faction: UnitState['faction'], events: GameEvent[]): UnitState[] {
   const s = ctx.rules.structures;
   return units.map((u) =>
-    u.alive && u.faction === faction && distance(u.position, at) <= s.collapseMoraleRadiusM ? shift(ctx.rules.morale, u, -s.collapseMoraleLoss, 'wallCollapsed', events) : u,
+    u.alive && u.faction === faction && distance(u.position, at) <= s.collapseMoraleRadiusM ? shift(ctx.rules.morale, u, -s.collapseMoraleLoss, 'wallCollapsed', events, moraleLossFactor(ctx, units, u)) : u,
   );
 }
 
@@ -104,7 +110,7 @@ export function startTurn(ctx: BattleContext, state: BattleState, faction: UnitS
   const rules = ctx.rules.morale;
   let units = state.units.map((u) => {
     if (u.faction !== faction || !u.alive) return u;
-    const recovered = shift(rules, u, rules.recoveryPerTurn, 'recovery', events);
+    const recovered = tickCooldowns(shift(rules, u, rules.recoveryPerTurn, 'recovery', events));
     const penalty = moraleStanding(rules, recovered.morale) === 'shaken' ? rules.shakenApPenalty : 0;
     // A guard set last turn expires when the unit's own turn comes back.
     return { ...recovered, ap: Math.max(0, unitType(ctx, u).ap - penalty), actions: ctx.rules.damage.actionsPerTurn, overwatch: null };
@@ -127,4 +133,14 @@ export function startTurn(ctx: BattleContext, state: BattleState, faction: UnitS
     next = { ...next, units };
   }
   return next;
+}
+
+/** Start of a side's turn: its heroes' cooldowns tick down. */
+export function tickCooldowns(u: UnitState): UnitState {
+  if (!u.cooldowns) return u;
+  const cooldowns: Record<string, number> = {};
+  for (const [id, n] of Object.entries(u.cooldowns)) if (n > 1) cooldowns[id] = n - 1;
+  if (Object.keys(cooldowns).length > 0) return { ...u, cooldowns };
+  const { cooldowns: _done, ...rest } = u;
+  return rest;
 }

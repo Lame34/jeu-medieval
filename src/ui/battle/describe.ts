@@ -1,5 +1,6 @@
 /** Journal lines (French) for core events. */
 import type { BattleState } from '../../core/battle/types.ts';
+import type { HeroRule } from '../../core/rules/types.ts';
 import type { CommandRejection } from '../../core/commands/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -53,6 +54,10 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   alreadyBurning: 'Cela brûle déjà.',
   notFlammable: 'Rien ne brûle là.',
   notBurning: 'Pas de feu à éteindre ici.',
+  notAHero: 'Seul un héros a cette capacité.',
+  unknownAbility: 'Capacité inconnue.',
+  abilityCooling: 'Capacité en recharge.',
+  invalidAbilityTarget: 'Cible invalide pour cette capacité.',
 };
 
 /** What a structure is called in the journal and the HUD. */
@@ -72,8 +77,35 @@ export function unitLabel(state: BattleState, id: string): string {
   return DEFAULT_RULES.units[unit.typeKey]?.name ?? unit.typeKey;
 }
 
+/** A hero's name and rule, if the unit is one. */
+function heroRule(state: BattleState, id: string): HeroRule | null {
+  const unit = state.units.find((u) => u.id === id);
+  return unit ? (DEFAULT_RULES.heroes[unit.typeKey] ?? null) : null;
+}
+
+/** One of a hero's lines, picked from the battle's turn (the same on replay). */
+function heroLine(state: BattleState, lines: readonly string[], salt: number): string {
+  return lines.length === 0 ? '' : (lines[(state.turn * 7 + salt) % lines.length] as string);
+}
+
+/** Name of a hero ability or passive, by id. */
+export function heroSkillName(id: string): string {
+  for (const h of Object.values(DEFAULT_RULES.heroes)) {
+    const a = h.abilities.find((x) => x.id === id);
+    if (a) return a.name;
+    if (h.passive.id === id) return h.passive.name;
+  }
+  return id;
+}
+
 export function describeEvent(event: GameEvent, state: BattleState): string | null {
   switch (event.type) {
+    case 'abilityUsed': {
+      const hero = heroRule(state, event.unitId);
+      if (!hero) return null;
+      const ability = hero.abilities.find((a) => a.id === event.abilityId);
+      return `${hero.name} : ${ability?.name ?? event.abilityId} ! « ${heroLine(state, hero.lines.ability, event.affected.length)} »`;
+    }
     case 'unitAttacked': {
       const who = unitLabel(state, event.attackerId);
       const whom = unitLabel(state, event.targetId);
@@ -113,8 +145,12 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       return `${unitLabel(state, event.unitId)} brûle : ${event.damage} dégâts.`;
     case 'structureBurned':
       return `Le feu ronge ${structureObject(event.structureId)} (${event.hpAfter} PV).`;
-    case 'unitDied':
-      return `${unitLabel(state, event.unitId)} tombe.`;
+    case 'unitDied': {
+      const hero = heroRule(state, event.unitId);
+      if (hero) return `${hero.name} est gravement ${hero.feminine ? 'blessée' : 'blessé'} et quitte le champ de bataille. « ${heroLine(state, hero.lines.wounded, 0)} »`;
+      const killer = event.byId && event.byId !== event.unitId ? heroRule(state, event.byId) : null;
+      return `${unitLabel(state, event.unitId)} tombe.${killer ? ` ${killer.name} : « ${heroLine(state, killer.lines.kill, event.unitId.length)} »` : ''}`;
+    }
     case 'overwatchSet':
       return `${unitLabel(state, event.unitId)} monte la garde.`;
     case 'unitMoved':

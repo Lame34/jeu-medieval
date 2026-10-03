@@ -12,7 +12,21 @@ export type Command =
   | FireArrowCommand
   | ExtinguishCommand
   | OverwatchCommand
+  | AbilityCommand
   | EndTurnCommand;
+
+/** A hero's ability (J5): its target depends on the ability (none, a unit, a work site). */
+export interface AbilityCommand {
+  readonly type: 'ability';
+  readonly unitId: string;
+  readonly abilityId: string;
+  /** An enemy (piercing shot, charge) or a friendly engine (calibration). */
+  readonly targetId?: string;
+  /** A moat slot to fill (rushed works)… */
+  readonly at?: Vec2;
+  /** …or a curtain segment to undermine. */
+  readonly structureId?: string;
+}
 
 export interface MoveCommand {
   readonly type: 'move';
@@ -129,6 +143,10 @@ export const COMMAND_REJECTIONS = [
   'alreadyBurning',
   'notFlammable',
   'notBurning',
+  'notAHero',
+  'unknownAbility',
+  'abilityCooling',
+  'invalidAbilityTarget',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

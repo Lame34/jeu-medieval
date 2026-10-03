@@ -22,6 +22,14 @@ import {
   type FireRules,
   type TerrainLayerKey,
   type WeatherRules,
+  type HeroRule,
+  type HeroAbilityRule,
+  type HeroAbilityId,
+  type HeroPassiveId,
+  type AbilityTarget,
+  HERO_ABILITY_IDS,
+  HERO_PASSIVE_IDS,
+  ABILITY_TARGETS,
   type MovementRules,
   type TerrainLayerRule,
   type UnitAttackRule,
@@ -284,18 +292,86 @@ function readWeather(raw: unknown): WeatherRules {
   });
 }
 
+function strings(value: unknown, path: string): string[] {
+  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) throw new RulesValidationError(path, 'expected an array of strings');
+  return value as string[];
+}
+
+function text(value: unknown, path: string): string {
+  if (typeof value !== 'string' || value.length === 0) throw new RulesValidationError(path, 'expected a non-empty string');
+  return value;
+}
+
+function readHeroes(raw: unknown, units: Readonly<Record<string, UnitTypeRule>>): Record<string, HeroRule> {
+  if (raw === undefined) return {};
+  const heroes = obj(obj(raw, 'heroes')['heroes'], 'heroes.heroes');
+  const out: Record<string, HeroRule> = {};
+  for (const [typeKey, value] of Object.entries(heroes)) {
+    const path = `heroes.heroes.${typeKey}`;
+    const h = obj(value, path);
+    const unit = units[typeKey];
+    if (!unit) throw new RulesValidationError(path, `no unit type "${typeKey}"`);
+    if (!unit.tags.includes('hero')) throw new RulesValidationError(path, `unit type "${typeKey}" lacks the "hero" tag`);
+    const rawAbilities = h['abilities'];
+    if (!Array.isArray(rawAbilities) || rawAbilities.length !== 2) throw new RulesValidationError(`${path}.abilities`, 'expected two abilities');
+    const abilities = rawAbilities.map((a, i): HeroAbilityRule => {
+      const p = `${path}.abilities[${i}]`;
+      const r = obj(a, p);
+      const opt = (k: string, fallback: number, min = 0, max = Infinity) => (r[k] === undefined ? fallback : num(r[k], `${p}.${k}`, min, max));
+      return Object.freeze({
+        id: oneOf<HeroAbilityId>(r['id'], HERO_ABILITY_IDS, `${p}.id`),
+        name: text(r['name'], `${p}.name`),
+        description: text(r['description'], `${p}.description`),
+        cooldown: num(r['cooldown'], `${p}.cooldown`, 0),
+        apCost: num(r['apCost'], `${p}.apCost`, 0),
+        target: oneOf<AbilityTarget>(r['target'], ABILITY_TARGETS, `${p}.target`),
+        radiusM: opt('radiusM', 0),
+        accuracyBonus: opt('accuracyBonus', 0, 0, 1),
+        damageFactor: opt('damageFactor', 1, 0),
+        moraleGain: opt('moraleGain', 0),
+        workFactor: opt('workFactor', 1, 1),
+      });
+    });
+    const pr = obj(h['passive'], `${path}.passive`);
+    const popt = (k: string, fallback: number, min = 0, max = Infinity) => (pr[k] === undefined ? fallback : num(pr[k], `${path}.passive.${k}`, min, max));
+    const lines = obj(h['lines'], `${path}.lines`);
+    out[typeKey] = Object.freeze({
+      typeKey,
+      name: text(h['name'], `${path}.name`),
+      title: text(h['title'], `${path}.title`),
+      feminine: h['feminine'] === true,
+      personality: text(h['personality'], `${path}.personality`),
+      abilities: Object.freeze(abilities),
+      passive: Object.freeze({
+        id: oneOf<HeroPassiveId>(pr['id'], HERO_PASSIVE_IDS, `${path}.passive.id`),
+        name: text(pr['name'], `${path}.passive.name`),
+        description: text(pr['description'], `${path}.passive.description`),
+        radiusM: popt('radiusM', 0),
+        accuracyBonus: popt('accuracyBonus', 0, 0, 1),
+        moraleLossFactor: popt('moraleLossFactor', 1, 0, 1),
+      }),
+      lines: Object.freeze({ ability: strings(lines['ability'], `${path}.lines.ability`), kill: strings(lines['kill'], `${path}.lines.kill`), wounded: strings(lines['wounded'], `${path}.lines.wounded`) }),
+    });
+  }
+  return out;
+}
+
 export interface RawRuleFiles {
   readonly terrain: unknown;
   readonly units: unknown;
   readonly damage: unknown;
+  /** Heroes (J5); none when absent. */
+  readonly heroes?: unknown;
 }
 
 export function validateRules(raw: RawRuleFiles): GameRules {
   const terrain = obj(raw.terrain, 'terrain');
+  const units = Object.freeze(readUnits(raw.units));
   return Object.freeze({
     terrainLayers: Object.freeze(readTerrainLayers(terrain['layers'])),
     movement: readMovement(terrain['movement']),
-    units: Object.freeze(readUnits(raw.units)),
+    units,
+    heroes: Object.freeze(readHeroes(raw.heroes, units)),
     damage: readDamage(raw.damage),
     morale: readMorale(obj(raw.damage, 'damage')['morale']),
     structures: readStructures(obj(raw.damage, 'damage')['structures']),
