@@ -4,6 +4,7 @@
  * journal. Reads the battle UI store only; orders go through the session.
  */
 import type { ReactNode } from 'react';
+import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -15,6 +16,33 @@ import './battle-hud.css';
 const pct = (p: number) => `${Math.round(p * 100)} %`;
 const COVER_LABEL = { none: 'aucun', light: 'léger', partial: 'partiel', heavy: 'lourd' } as const;
 const STANDING_LABEL = { steady: 'Ferme', shaken: 'Ébranlée', fleeing: 'En fuite' } as const;
+const WEATHER_LABEL = { clear: 'Ciel clair', rain: 'Pluie', fog: 'Brouillard' } as const;
+/** Wind strength (0.3–1) in words. */
+const windLabel = (s: number) => (s < 0.5 ? 'Vent faible' : s < 0.8 ? 'Vent modéré' : 'Vent fort');
+/** "22 h 40". */
+const clock = (h: number) => {
+  const m = Math.round(h * 60) % (24 * 60);
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
+};
+
+/** The weather, night and wind modifiers of a shot, in a line. */
+function ConditionsLine({ modifiers }: { readonly modifiers: readonly ShotModifier[] }): ReactNode {
+  if (modifiers.length === 0) return null;
+  const fogRange = DEFAULT_RULES.weather.fogSightM;
+  const parts = modifiers.map((m) => {
+    switch (m.kind) {
+      case 'rain':
+        return `pluie ${pct(m.accuracy)}`;
+      case 'night':
+        return `nuit ${pct(m.accuracy)}, portée ×${m.rangeFactor.toLocaleString('fr-FR')}`;
+      case 'fog':
+        return `brouillard : ${fogRange} m au plus`;
+      case 'wind':
+        return `vent de travers ${pct(m.accuracy)}`;
+    }
+  });
+  return <p className="hud-detail hud-conditions">Conditions : {parts.join(' · ')}</p>;
+}
 
 function Pips({ value, max }: { readonly value: number; readonly max: number }) {
   return (
@@ -86,6 +114,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
           <p className="hud-detail">
             {hover.hp} / {hover.maxHp} PV · encore {blows} coup{blows > 1 ? 's' : ''} au moins · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
           </p>
+          <ConditionsLine modifiers={p.conditions} />
         </>
       );
     }
@@ -107,6 +136,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
               {p.heightSteps !== 0 ? ` · hauteur ${p.heightSteps > 0 ? '+' : ''}${p.heightSteps}` : ''} · {Math.round(p.distanceM)} / {Math.round(p.effectiveRangeM)} m
             </p>
           )}
+          <ConditionsLine modifiers={p.conditions} />
           {p.riposte && (
             <p className="hud-warn">
               Riposte : {pct(p.riposte.hitChance)}, {p.riposte.damage.min}–{p.riposte.damage.max} dégâts
@@ -189,6 +219,9 @@ export function BattleHud({
       <header className="hud-banner" data-faction={battle.activeFaction}>
         <span>
           Tour {battle.turn} / {battle.turnLimit} · {FACTION_LABEL[battle.activeFaction]}
+        </span>
+        <span className="hud-conditions-chip" data-night={isNight(DEFAULT_RULES, hourOf(DEFAULT_RULES, battle)) || undefined}>
+          {clock(hourOf(DEFAULT_RULES, battle))} · {WEATHER_LABEL[battle.weather]} · {windLabel(battle.wind.strength)}
         </span>
         {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
       </header>

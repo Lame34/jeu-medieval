@@ -330,3 +330,43 @@ kbd {
   justify-content: center;
   margin-top: 16px;
 }
+
+/* Hour, weather and wind under the turn banner. */
+.hud-conditions-chip {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.85;
+}
+
+.hud-conditions-chip[data-night] {
+  color: #c8d4f5;
+}
+
+.hud-conditions {
+  color: #e2c48e;
+}
+
+/* Mini-map: under the back button, framed like a parchment inset. */
+.hud-minimap {
+  position: absolute;
+  top: 64px;
+  left: 16px;
+  overflow: hidden;
+  border: 2px solid var(--ink, #2b2326);
+  border-radius: 4px;
+  box-shadow: var(--shadow-deep);
+  pointer-events: auto;
+}
+
+.hud-minimap canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.hud-minimap canvas + canvas {
+  cursor: crosshair;
+}

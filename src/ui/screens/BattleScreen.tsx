@@ -4,6 +4,7 @@ import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
 import { Rain } from '../../render/vfx/Rain.tsx';
+import { MiniMap } from '../battle/MiniMap.tsx';
 import { Torches } from '../../render/vfx/Torches.tsx';
 import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
 import { useSceneConditions } from '../../state/scene-conditions.ts';
@@ -184,6 +185,7 @@ export default function BattleScreen() {
 
   const playerUnits = session ? session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position) : [];
   const initial = session && layout ? openingView(layout, playerUnits) : (views[OPENING_VIEW] ?? views[0]);
+  const getView = useCallback(() => camera.current?.getView() ?? null, []);
   const focusOn = (p: { x: number; z: number }) => {
     const view = camera.current?.getView();
     if (view) camera.current?.setView({ ...view, focus: { x: p.x, z: p.z } });
@@ -203,6 +205,7 @@ export default function BattleScreen() {
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
       </GameCanvas>
       {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
+      {session && sceneReady && <MiniMap layout={layout} session={session} getView={getView} onFocus={focusOn} />}
       {session && (
         <BattleHud
           onEndTurn={() => requestEndTurn(session)}
