@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
+import { cooldownOf } from '../../core/battle/heroes.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -56,13 +57,44 @@ function Pips({ value, max }: { readonly value: number; readonly max: number }) 
   );
 }
 
-function UnitCard({ unit }: { readonly unit: UnitState }) {
+/** A hero's abilities (buttons, keys 1 and 2, cooldowns) and passive. */
+function HeroPanel({ unit, onAbility }: { readonly unit: UnitState; readonly onAbility: (index: number) => void }) {
+  const hero = DEFAULT_RULES.heroes[unit.typeKey];
+  const armed = useBattleUi((s) => s.armedAbility);
+  if (!hero) return null;
+  return (
+    <div className="hud-hero">
+      <ul className="hud-abilities">
+        {hero.abilities.map((a, i) => {
+          const wait = cooldownOf(unit, a.id);
+          return (
+            <li key={a.id}>
+              <button type="button" onClick={() => onAbility(i)} disabled={wait > 0 || unit.ap < a.apCost} data-armed={armed === a.id || undefined} title={a.description}>
+                <kbd>{i + 1}</kbd> {a.name}
+                {wait > 0 ? <em> · recharge {wait}</em> : a.apCost > 0 ? <em> · {a.apCost} PA</em> : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="hud-detail" title={hero.passive.description}>
+        <strong>{hero.passive.name}</strong> : {hero.passive.description}
+      </p>
+    </div>
+  );
+}
+
+function UnitCard({ unit, onAbility }: { readonly unit: UnitState; readonly onAbility: (index: number) => void }) {
   const type = DEFAULT_RULES.units[unit.typeKey];
   if (!type) return null;
   const standing = moraleStanding(DEFAULT_RULES.morale, unit.morale);
+  const hero = DEFAULT_RULES.heroes[unit.typeKey];
   return (
-    <section className="hud-card hud-unit" aria-label="Unité sélectionnée">
-      <h2>{type.name}</h2>
+    <section className="hud-card hud-unit" data-hero={hero ? true : undefined} aria-label="Unité sélectionnée">
+      <h2>
+        {type.name}
+        {hero && <small>, {hero.title}</small>}
+      </h2>
       <div className="hud-bar" role="meter" aria-valuemin={0} aria-valuemax={type.hp} aria-valuenow={unit.hp} aria-label="Points de vie">
         <span style={{ width: `${(100 * unit.hp) / type.hp}%` }} />
         <em>
@@ -79,6 +111,7 @@ function UnitCard({ unit }: { readonly unit: UnitState }) {
       <p>
         Moral {Math.round(unit.morale)} · <span data-standing={standing}>{STANDING_LABEL[standing]}</span>
       </p>
+      <HeroPanel unit={unit} onAbility={onAbility} />
     </section>
   );
 }
@@ -118,6 +151,38 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
           </p>
           <ConditionsLine modifiers={p.conditions} />
         </>
+      );
+    }
+    case 'ability': {
+      const p = hover.preview;
+      if (p.kind === 'attack') {
+        const a = p.attack;
+        const target = battleUnits.find((u) => u.id === a.targetId);
+        return (
+          <>
+            <p>
+              <strong>{p.ability.name}</strong> sur {target ? (DEFAULT_RULES.units[target.typeKey]?.name ?? target.typeKey) : a.targetId} : <strong>{pct(a.blow.hitChance)}</strong> de toucher
+            </p>
+            <p>
+              Dégâts {a.blow.damage.min}–{a.blow.damage.max} · {a.apCost} PA{a.riposte ? '' : ' · sans riposte'}
+            </p>
+            <ConditionsLine modifiers={a.conditions} />
+          </>
+        );
+      }
+      if (p.kind === 'work') {
+        const after = Math.min(p.work.required, p.work.progress + p.ability.workFactor);
+        return (
+          <p>
+            <strong>{p.ability.name}</strong> : {p.work.kind === 'fill' ? 'fascines' : 'sape'} {p.work.progress}/{p.work.required} → {after}/{p.work.required}
+          </p>
+        );
+      }
+      const names = p.affected.map((id) => DEFAULT_RULES.units[battleUnits.find((u) => u.id === id)?.typeKey ?? '']?.name ?? id);
+      return (
+        <p>
+          <strong>{p.ability.name}</strong> : {names.join(', ')} · {p.ability.description}
+        </p>
       );
     }
     case 'attack': {
@@ -200,12 +265,15 @@ export function BattleHud({
   stillActing,
   onReplay,
   onLeave,
+  onAbility,
 }: {
   readonly onEndTurn: () => void;
   /** Units of ours that could still act (the end-of-turn warning). */
   readonly stillActing: () => number;
   readonly onReplay: () => void;
   readonly onLeave: () => void;
+  /** A hero's ability, by index (the card's buttons). */
+  readonly onAbility: (index: number) => void;
 }) {
   const battle = useBattleUi((s) => s.battle);
   const armed = useBattleUi((s) => s.endTurnArmed);
@@ -230,12 +298,12 @@ export function BattleHud({
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} unité${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : confirmer ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
-      {selected && <UnitCard unit={selected} />}
+      {selected && <UnitCard unit={selected} onAbility={onAbility} />}
       {selected && playerTurn && !busy && (
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           <p className="hud-hint">
-            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>F</kbd> ouvrage : combler, saper, amarrer la tour, y monter · <kbd>B</kbd> flèche enflammée · <kbd>E</kbd> éteindre · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>F</kbd> ouvrage : combler, saper, amarrer la tour, y monter · <kbd>B</kbd> flèche enflammée · <kbd>E</kbd> éteindre · <kbd>1</kbd> <kbd>2</kbd> capacités du héros · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
           </p>
         </section>
       )}

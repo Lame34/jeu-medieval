@@ -33,7 +33,8 @@ import type { ProjectileHandle } from '../vfx/Projectiles.tsx';
 import { INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
 import { FIRE_ARROWS_TAG } from '../../core/battle/fire.ts';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
-import type { BattleState } from '../../core/battle/types.ts';
+import type { BattleState, UnitState } from '../../core/battle/types.ts';
+import { previewAbility } from '../../core/battle/heroes.ts';
 import type { Command } from '../../core/commands/types.ts';
 import { threatsAt } from '../../core/battle/overwatch.ts';
 import type { GameEvent } from '../../core/events/types.ts';
@@ -43,6 +44,7 @@ import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
+import { triggerAbility } from '../../ui/battle/abilities.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
 
@@ -56,6 +58,8 @@ const TURN_RATE = 10;
 const IMPACT_AT = 0.45;
 const ATTACK_DURATION_S: readonly [number, number] = [0.7, 1.4];
 const GUARD_PAUSE_S = 0.5;
+/** A hero's ability: the pause on its name. */
+const ABILITY_PAUSE_S = 0.7;
 const TURN_BANNER_S = 0.9;
 /** Pointer travel (px) above which a press is a drag, not a click. */
 const CLICK_SLOP_PX = 6;
@@ -164,6 +168,26 @@ function castleWork(session: BattleSession, workId: string, kind: 'fill' | 'mine
   const dz = sapper.z - def.center.z;
   const len = Math.hypot(dx, dz) || 1;
   return { kind: 'mine', id: workId, fraction, at: sapper, out: { x: dx / len, z: dz / len }, groundM: session.standHeight(sapper.x, sapper.z), wallM: distanceToCells(ctx, def.cells, sapper) };
+}
+
+/** The ability command aimed at `target` (a unit) or `ground`, for the armed ability, or null when it has no target there. */
+function abilityCommand(session: BattleSession, unitId: string, abilityId: string, target: UnitState | undefined, ground: Vec2 | null): Extract<Command, { type: 'ability' }> | null {
+  const unit = DEFAULT_RULES.heroes[session.state.units.find((u) => u.id === unitId)?.typeKey ?? ''];
+  const ability = unit?.abilities.find((a) => a.id === abilityId);
+  if (!ability) return null;
+  switch (ability.target) {
+    case 'self':
+      return { type: 'ability', unitId, abilityId };
+    case 'enemy':
+    case 'allyEngine':
+      return target ? { type: 'ability', unitId, abilityId, targetId: target.id } : null;
+    case 'site': {
+      if (!ground) return null;
+      const def = structureAt(session.ctx, session.state, ground);
+      if (def?.kind === 'wall') return { type: 'ability', unitId, abilityId, structureId: def.id };
+      return fillSiteAt(session.ctx, ground) ? { type: 'ability', unitId, abilityId, at: ground } : null;
+    }
+  }
 }
 
 function isSiegeEngine(typeKey: string): boolean {
@@ -570,6 +594,29 @@ export function BattleDirector({
         const duration = h.play('death', true);
         return { duration, update() {}, finish: () => h.setAlive(false) };
       }
+      case 'abilityUsed': {
+        const h = handleOf(event.unitId);
+        if (!h) return null;
+        const hero = DEFAULT_RULES.heroes[findUnit(session.state, event.unitId)?.typeKey ?? ''];
+        const ability = hero?.abilities.find((a) => a.id === event.abilityId);
+        const p = h.root.position;
+        h.play('attack', true);
+        showFloat(`${ability?.name ?? event.abilityId} !`, 'crit', p.x, p.y + FLOAT_HEIGHT_M + 0.4, p.z);
+        if (ability && (ability.target === 'self' || ability.target === 'allyEngine')) {
+          for (const id of event.affected) {
+            if (id === event.unitId) continue;
+            const t = handleOf(id)?.root.position;
+            if (t) showFloat(ability.id === 'rally' ? `+${ability.moraleGain} moral` : `+${Math.round(ability.accuracyBonus * 100)} %`, 'guard', t.x, t.y + FLOAT_HEIGHT_M, t.z);
+          }
+        }
+        return {
+          duration: ABILITY_PAUSE_S,
+          update() {},
+          finish() {
+            h.play('idle');
+          },
+        };
+      }
       case 'overwatchSet': {
         const h = handleOf(event.unitId);
         if (!h) return null;
@@ -639,7 +686,13 @@ export function BattleDirector({
       const target = unitId ? findUnit(state, unitId) : undefined;
       let key: string;
       let hover: HoverPreview;
-      if (target && target.faction !== selected.faction) {
+      const armed = ui.armedAbility ? abilityCommand(session, selected.id, ui.armedAbility, target, ground) : null;
+      if (ui.armedAbility) {
+        key = armed ? `ability:${ui.armedAbility}:${armed.targetId ?? ''}:${armed.structureId ?? ''}:${armed.at ? `${Math.floor(armed.at.x)},${Math.floor(armed.at.z)}` : ''}` : `ability:${ui.armedAbility}:none`;
+        if (key === hoverKey.current) return;
+        const result = armed ? previewAbility(session.ctx, state, armed) : null;
+        hover = !result ? { kind: 'blocked', reason: 'invalidAbilityTarget' } : result.ok ? { kind: 'ability', preview: result.preview } : { kind: 'blocked', reason: result.reason };
+      } else if (target && target.faction !== selected.faction) {
         key = `attack:${target.id}`;
         if (key === hoverKey.current) return;
         const result = previewAttack(session.ctx, state, selected.id, target.id);
@@ -690,7 +743,8 @@ export function BattleDirector({
       if (ui.busy || state.activeFaction !== PLAYER_FACTION || state.status !== 'ongoing') return;
       const { ground, unitId } = aim();
       const clicked = unitId ? findUnit(state, unitId) : undefined;
-      if (clicked && clicked.faction === PLAYER_FACTION) {
+      const aimingAlly = ui.armedAbility !== null && DEFAULT_RULES.heroes[findUnit(state, ui.selectedId ?? '')?.typeKey ?? '']?.abilities.find((a) => a.id === ui.armedAbility)?.target === 'allyEngine';
+      if (clicked && clicked.faction === PLAYER_FACTION && !aimingAlly) {
         // A second click on the selected unit recentres the camera on it.
         if (ui.selectedId === clicked.id) focusOn?.(clicked.position);
         ui.select(clicked.id);
@@ -700,6 +754,14 @@ export function BattleDirector({
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
       if (!selected?.alive) return;
       hoverKey.current = '';
+      if (ui.armedAbility) {
+        const command = abilityCommand(session, selected.id, ui.armedAbility, clicked, ground);
+        if (command) {
+          ui.armAbility(null);
+          session.issue(command);
+        }
+        return;
+      }
       if (clicked) session.issue({ type: 'attack', unitId: selected.id, targetId: clicked.id });
       else if (ground && isSiegeEngine(selected.typeKey) && structureAt(session.ctx, state, ground)) {
         session.issue({ type: 'attackStructure', unitId: selected.id, structureId: (structureAt(session.ctx, state, ground) as StructureDef).id });
@@ -709,7 +771,8 @@ export function BattleDirector({
       const ui = useBattleUi.getState();
       const state = session.state;
       if (e.code === 'Escape') {
-        ui.select(null);
+        if (ui.armedAbility) ui.armAbility(null);
+        else ui.select(null);
         hoverKey.current = '';
         return;
       }
@@ -728,6 +791,10 @@ export function BattleDirector({
       }
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         requestEndTurn(session);
+      } else if (e.code === 'Digit1' || e.code === 'Numpad1' || e.code === 'Digit2' || e.code === 'Numpad2') {
+        triggerAbility(session, e.code.endsWith('1') ? 0 : 1);
+        hoverKey.current = '';
+        refreshHover();
       } else if (e.code === 'KeyB' && ui.selectedId) {
         // Archers: a fire arrow at the pointer.
         const selected = findUnit(state, ui.selectedId);
@@ -763,7 +830,7 @@ export function BattleDirector({
     window.addEventListener('pointerup', onUp);
     window.addEventListener('keydown', onKey);
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
-      if (s.selectedId !== prev.selectedId || s.busy !== prev.busy) {
+      if (s.selectedId !== prev.selectedId || s.busy !== prev.busy || s.armedAbility !== prev.armedAbility) {
         hoverKey.current = '';
         refreshHover();
       }

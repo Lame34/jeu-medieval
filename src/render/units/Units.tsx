@@ -7,6 +7,8 @@
  * same handle.
  */
 import { useGLTF } from '@react-three/drei';
+import { HERO_TAG } from '../../core/battle/tags.ts';
+import { DEFAULT_RULES } from '../../data/index.ts';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, Vector3, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
@@ -100,6 +102,9 @@ const LOADOUTS: Readonly<Record<string, Loadout>> = {
   militia: { body: 'rogue', idle: 'Idle' },
   officer: { body: 'warrior', idle: 'Idle' },
   towerArcher: { body: 'ranger', idle: 'Idle' },
+  heroArcher: { body: 'ranger', idle: 'Idle' },
+  heroEngineer: { body: 'rogue', idle: 'Idle' },
+  heroKnight: { body: 'warrior', idle: 'Idle' },
 };
 const DEFAULT_LOADOUT = LOADOUTS['knight'] as Loadout;
 
@@ -333,11 +338,12 @@ export function Units({
       });
       roots.push(root);
     });
-    // Allegiance pennants above the heads, one instanced batch per side.
-    const pennants = (['attacker', 'defender'] as const).map((faction) => {
-      const slots = roots.map((_, i) => i).filter((i) => factionOf[i] === faction);
+    // Allegiance pennants above the heads, one instanced batch per side; the heroes carry gold ones.
+    const isHero = (i: number) => DEFAULT_RULES.units[units[i]?.typeKey ?? '']?.tags.includes(HERO_TAG) ?? false;
+    const pennants = (['attacker', 'defender', 'hero'] as const).map((kind) => {
+      const slots = roots.map((_, i) => i).filter((i) => (kind === 'hero' ? isHero(i) : factionOf[i] === kind && !isHero(i)));
       return {
-        pennants: createPennants(faction, units.length, UNIT_HEIGHT_M + 0.25),
+        pennants: createPennants(kind, units.length, UNIT_HEIGHT_M + 0.25),
         anchors: slots.map((i) => anchors[i] as Vector3),
         slots,
         visible: new Uint8Array(slots.length).fill(1),

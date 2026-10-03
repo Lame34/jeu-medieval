@@ -370,3 +370,48 @@ kbd {
 .hud-minimap canvas + canvas {
   cursor: crosshair;
 }
+
+/* A hero's card: title, abilities (keys 1 and 2) and passive. */
+.hud-unit[data-hero] {
+  border-color: var(--gold, #c99a3b);
+}
+
+.hud-unit h2 small {
+  font-size: 0.7em;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.hud-abilities {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-abilities button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  color: var(--parchment);
+  background: rgb(43 35 38 / 75%);
+  border: 1px solid var(--gold, #c99a3b);
+  border-radius: 3px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hud-abilities button[data-armed] {
+  background: rgb(201 154 59 / 45%);
+}
+
+.hud-abilities button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hud-abilities em {
+  font-style: normal;
+  opacity: 0.75;
+}

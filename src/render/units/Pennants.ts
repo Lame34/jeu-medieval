@@ -24,12 +24,17 @@ function quad(out: number[], colors: number[], c: Color, a: number[], b: number[
   }
 }
 
-function pennantGeometry(faction: Faction): BufferGeometry {
+/** A hero's pennant: the army's pointed shape, in gold with a blue hem (brief §9.5). */
+const HERO_FLAG = '#d9a634';
+const HERO_HEM = '#2a4f9c';
+
+function pennantGeometry(kind: Faction | 'hero'): BufferGeometry {
   const positions: number[] = [];
   const colors: number[] = [];
   const pole = new Color(POLE_COLOR);
-  const flag = new Color(PALETTE[faction].primary);
-  const hem = new Color(PALETTE[faction].secondary);
+  const faction: Faction = kind === 'hero' ? 'attacker' : kind;
+  const flag = new Color(kind === 'hero' ? HERO_FLAG : PALETTE[faction].primary);
+  const hem = new Color(kind === 'hero' ? HERO_HEM : PALETTE[faction].secondary);
   const w = POLE_WIDTH_M / 2;
   quad(positions, colors, pole, [-w, 0, 0], [w, 0, 0], [w, POLE_M, 0], [-w, POLE_M, 0]);
   const top = POLE_M;
@@ -59,7 +64,7 @@ export interface Pennants {
   dispose(): void;
 }
 
-export function createPennants(faction: Faction, capacity: number, heightM: number): Pennants {
+export function createPennants(faction: Faction | 'hero', capacity: number, heightM: number): Pennants {
   const geometry = pennantGeometry(faction);
   const material = new MeshBasicMaterial({ vertexColors: true, side: DoubleSide, fog: false });
   const mesh = new InstancedMesh(geometry, material, Math.max(1, capacity));
