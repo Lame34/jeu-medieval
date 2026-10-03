@@ -275,6 +275,9 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
   const canAct = type.attack !== null && unit.actions > 0;
   const budget = canAct ? unit.ap - actionAp : unit.ap;
   const fromCost = approach.costAt(type.movement, unit.position);
+  // A shooter that already has a shot from where it stands has no need to close in (it walked
+  // into melee rather than shoot): its moves are weighed by the spot and the shot alone.
+  const shooting = canAct && type.attack !== null && type.attack.rangeM > 0 && state.units.some((e) => e.alive && e.faction !== unit.faction && previewAttack(ctx, state, unit.id, e.id).ok);
   let best: Decision | null = null;
   const consider = (d: Decision) => {
     if (!best || d.score > best.score) best = d;
@@ -326,7 +329,8 @@ export function decideUnit(ctx: BattleContext, state: BattleState, unit: UnitSta
     const guarding = nearest !== null && canOverwatch(ctx, moved) && moved.actions > 0 && apLeft >= actionAp;
     const guard: Command[] = guarding && nearest ? [{ type: 'overwatch', unitId: unit.id, direction: sub(nearest.position, c.position) }] : [];
     const perAp = toObjective ? AI_WEIGHTS.objectivePerAp : AI_WEIGHTS.approachPerAp;
-    if (nearest || gained > 0) consider({ commands: [...move, ...guard], score: base + (engaged || toObjective ? gained * perAp : 0) + (guarding ? AI_WEIGHTS.guardBonus : 0) });
+    const closing = (engaged && !shooting) || toObjective;
+    if (nearest || gained > 0) consider({ commands: [...move, ...guard], score: base + (closing ? gained * perAp : 0) + (guarding ? AI_WEIGHTS.guardBonus : 0) });
   }
   return (best as Decision | null)?.commands ?? [];
 }
