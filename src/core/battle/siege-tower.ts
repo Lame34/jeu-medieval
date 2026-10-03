@@ -19,7 +19,7 @@ import type { BattleState, DockState, UnitState } from './types.ts';
 /** Units carrying others onto a wall (the siege tower). */
 export const TOWER_TAG = 'transport4';
 /** A unit climbs from within this distance of the tower's centre (m). */
-const CLIMB_REACH_M = 2.2;
+export const CLIMB_REACH_M = 2.2;
 
 export function dockOf(state: BattleState, towerId: string): DockState | undefined {
   return state.docks.find((d) => d.towerId === towerId);

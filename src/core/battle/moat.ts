@@ -79,6 +79,11 @@ function slotsOf(ctx: BattleContext): Map<string, number[]> {
   return sites;
 }
 
+/** Every fill site of the context's moats, by id, with its cells. */
+export function fillSites(ctx: BattleContext): ReadonlyMap<string, readonly number[]> {
+  return slotsOf(ctx);
+}
+
 /** Cells of a fill site (empty when unknown). */
 export function fillCells(ctx: BattleContext, siteId: string): readonly number[] {
   return slotsOf(ctx).get(siteId) ?? [];

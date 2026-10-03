@@ -201,6 +201,23 @@ Une passe **non plafonnée** (`--disable-gpu-vsync --disable-frame-rate-limit`) 
 - **Avant-garde à la tête de pont.** Les sept hommes de l'armée partent en deux rangs en travers de la route, 16 m au-dessus du pont, du côté du château, soit environ 160 m de la porte sur `siege-1`. L'avant-poste du village est 50 m plus loin, et les engins attendent au parc de siège. La bande du sud reste dégagée de forêt : le paysage ne change pas.
 - **Interface.** La bannière affiche « Tour N / limite ». Fin du tour : si des unités peuvent encore agir, le premier appui, sur le bouton ou sur Entrée, arme l'avertissement (« N unités peuvent encore agir : confirmer ? »), et le second termine le tour ; tout ordre donné entre-temps désarme l'avertissement. Le panneau de fin donne le résultat et sa raison, les tours joués, les pertes de chaque camp et les ouvrages tombés, avec « Rejouer » et « Retour ».
 
+## ADR-030 — Tactiques de siège de l'IA (J5)
+**Contexte** : le brief (§9.6) demande une garnison qui sort contre un engin isolé, se replie sur la cour quand une brèche est ouverte, éteint les feux et incendie volontairement les champs. En J4, l'IA ne savait que s'approcher, frapper et monter la garde. Côté attaquants, que pilote le joueur, l'IA restait bloquée devant la douve : les simulations (équilibrage J7) ne disaient donc rien de la défense.
+**Décision** (`core/ai/tactics.ts`, branché dans `decideUnit`) :
+- **Feu, évalué depuis la case où se tient l'unité** :
+  - On éteint un foyer à portée selon les alliés à moins de 4 m, avec un gros bonus quand il ronge notre bois : la porte et le pont pour la garnison, les fascines pour l'armée.
+  - Les flèches enflammées visent les cases combustibles autour de chaque ennemi à portée, jusqu'à 3 par ennemi, vent arrière d'abord. La valeur est l'espérance de réussite × (ennemis − alliés dans 2,6 m), avec un bonus pour le pont-levis levé et la porte côté attaquants.
+  - Les archers de tour reçoivent l'étiquette `fireArrows`.
+- **Repli sur la brèche** : pour la garnison, une case située à l'intérieur de l'enceinte (plus près du centre que la brèche) gagne jusqu'à 7 points à moins de 12 m d'une courtine tombée.
+- **Sortie** : un engin ennemi sans escorte à moins de 10 m attire la garnison à 45 m, au lieu des 25 m habituels.
+- **Objectifs des attaquants** :
+  - Tant que la garnison est hors d'atteinte, le champ d'approche ajoute comme origines les cases au sol entre 6 et 16 m de l'obstacle exposé de la porterie, c'est-à-dire le pied de la porte ; le tablier, où passe le bélier, en est exclu.
+  - Chaque engin a son propre champ : le bélier vise la porte exposée, le sapeur la chaussée à combler, la tour une courtine intacte.
+  - La chaussée est voulue devant une brèche que la douve protège encore, ou devant la courtine la plus proche d'une tour qui n'est pas encore accostée.
+  - Le bélier et la tour restent en retrait tant que leur objectif est hors d'atteinte. La tour accostée reste en place, et l'infanterie vient y grimper.
+  - L'approche d'un objectif vaut 10 points par PA gagné, au lieu de 3. Le PA d'un engin couvre 5 à 7 m, et l'objectif justifie l'exposition.
+**Conséquences** : les poids sont dans `TACTIC_WEIGHTS` et `AI_WEIGHTS`, réglés en J7 par des batailles simulées. Le replay reste identique. Un tour d'IA de l'armée prend 250 ms au premier tour, puis 20 à 150 ms ; la garnison prend 5 à 170 ms. Pas encore traité : la mine du sapeur, la sortie par la porte quand elle est fermée, et la coordination sapeur + tour au-delà d'une chaussée.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

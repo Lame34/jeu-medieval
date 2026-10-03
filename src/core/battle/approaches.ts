@@ -142,7 +142,8 @@ export function viableApproaches(layout: WorldLayout, rules: GameRules): { viabl
 }
 
 /** The moat slot right in front of a segment (on the outside), if any. */
-function facingSlot(ctx: BattleContext, wall: StructureDef, centerline: readonly Vec2[]): string | null {
+/** The moat's fill site facing a wall segment (its causeway leads to the segment's foot), if any. */
+export function facingSlot(ctx: BattleContext, wall: StructureDef, centerline: readonly Vec2[]): string | null {
   if (centerline.length < 2) return null;
   const proj = projectOnPolyline(wall.center, centerline);
   if (proj.distance > SLOT_FACING_M) return null;

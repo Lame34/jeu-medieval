@@ -36,7 +36,7 @@ const NEIGHBOURS: readonly (readonly [number, number])[] = [
 ];
 
 /** The wooden structure (gate, drawbridge) standing on a cell, if intact. */
-function woodenStructureAt(ctx: BattleContext, state: BattleState, cell: number): StructureDef | null {
+export function woodenStructureAt(ctx: BattleContext, state: BattleState, cell: number): StructureDef | null {
   for (const d of ctx.structures) {
     if (d.material !== 'wood' || isBroken(state.structures, d.id)) continue;
     if (d.cells.includes(cell)) return d;

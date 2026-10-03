@@ -10,7 +10,7 @@
     "siegeTower":  { "name": "Tour de siège", "faction": "attacker", "hp": 50, "armor": "heavy",  "attack": null,                                                          "ap": 2, "movement": "engine",    "tags": ["transport4", "siegeEngine"] },
     "sapper":      { "name": "Sapeur",        "faction": "attacker", "hp": 15, "armor": "light",  "attack": { "type": "piercing", "power": 5,  "rangeM": 0,  "accuracy": 0.75 }, "ap": 4, "movement": "lightFoot", "tags": ["fillMoat", "undermine"] },
 
-    "towerArcher": { "name": "Archer de tour",     "faction": "defender", "hp": 12, "armor": "light",  "attack": { "type": "piercing", "power": 6,  "rangeM": 35, "accuracy": 0.70 }, "ap": 4, "movement": "lightFoot", "tags": [] },
+    "towerArcher": { "name": "Archer de tour",     "faction": "defender", "hp": 12, "armor": "light",  "attack": { "type": "piercing", "power": 6,  "rangeM": 35, "accuracy": 0.70 }, "ap": 4, "movement": "lightFoot", "tags": ["fireArrows"] },
     "crossbowman": { "name": "Arbalétrier",        "faction": "defender", "hp": 14, "armor": "medium", "attack": { "type": "piercing", "power": 9,  "rangeM": 30, "accuracy": 0.75 }, "ap": 4, "movement": "foot",      "tags": ["slowReload"] },
     "wallGuard":   { "name": "Soldat de rempart",  "faction": "defender", "hp": 20, "armor": "medium", "attack": { "type": "blunt",    "power": 7,  "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["boilingOil", "dropStones"] },
     "sallyKnight": { "name": "Chevalier de sortie", "faction": "defender", "hp": 32, "armor": "heavy",  "attack": { "type": "blunt",    "power": 10, "rangeM": 0,  "accuracy": 0.80 }, "ap": 4, "movement": "foot",      "tags": ["sally"] },

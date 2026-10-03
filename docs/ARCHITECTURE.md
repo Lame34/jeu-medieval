@@ -23,6 +23,7 @@
 |---|---|
 | Règles : déplacement, attaque avec aperçu, riposte, garde, morale, fuite | `core/battle/{movement,combat,overwatch,morale}.ts`, réglages dans `data/damage.json` |
 | IA : scores d'utilité, champs d'approche | `core/ai/planner.ts`, `core/nav-grid/reachable.ts` (`computeCostField`) |
+| IA : tactiques de siège (feu, brèche, sortie, objectifs des engins) | `core/ai/tactics.ts` |
 | Partie en cours : état, journal de commandes, tour de l'IA | `ui/battle/session.ts` |
 | Miroir pour le HUD : sélection, survol, occupation, journal | `state/battle-ui.ts` |
 | File d'animation, souris et clavier, tour de l'IA | `render/battle/BattleDirector.tsx` |
