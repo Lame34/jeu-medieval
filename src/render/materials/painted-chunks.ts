@@ -5,8 +5,6 @@
  */
 import { ShaderChunk } from 'three';
 
-/** Torches lighting the scene at once (the nearest to the camera focus; brief §9.11). */
-export const MAX_TORCHES = 16;
 
 /** Uniform declarations for the shared globals (see painted-globals.ts). */
 export const PAINTED_GLOBALS_PARS = /* glsl */ `
@@ -36,10 +34,11 @@ uniform vec3 uSceneLight;
 uniform float uExposure;
 uniform vec2 uMapMin;
 uniform vec2 uMapMax;
-uniform vec4 uTorches[${MAX_TORCHES}];
+uniform sampler2D uTorchMap;
+uniform vec2 uTorchMapSize;
+uniform float uTorchHeightRange;
 uniform float uTorchStrength;
 uniform vec3 uTorchColor;
-uniform float uTorchRadius;
 `;
 
 /** Cheap hash/value-noise helpers (no sin-based hash: stable across GPUs). */
@@ -94,19 +93,14 @@ vec3 paintedSaturationCeiling(vec3 c, float ceiling) {
   if (s > ceiling) d = mix(vec3(mx), d, ceiling / s);
   return d * d;
 }
-// Torches and braziers at night: a warm pool around each (xyz: the flame, w: 1 when in use).
-// The lit colour is warmed and raised, so the torchlit zones read at a glance (they matter to
-// the shots, brief §9.11). Skipped entirely by day (uniform branch).
+// Torches and braziers at night: a warm pool around each, baked once into a map over the
+// battlefield (r: the glow, g: the flame's height, so the light does not climb the walls). The
+// lit colour is warmed and raised, so the torchlit zones read at a glance (they matter to the
+// shots, brief §9.11). Skipped entirely by day (uniform branch).
 vec3 paintedTorchlight(vec3 color, vec3 worldPos) {
   if (uTorchStrength <= 0.0) return color;
-  float glow = 0.0;
-  for (int i = 0; i < ${MAX_TORCHES}; i++) {
-    vec4 t = uTorches[i];
-    float d = distance(worldPos.xz, t.xz);
-    float k = 1.0 - smoothstep(uTorchRadius * 0.3, uTorchRadius, d);
-    k *= 1.0 - smoothstep(4.0, 10.0, abs(worldPos.y - t.y));
-    glow = max(glow, k * t.w);
-  }
+  vec4 t = texture2D(uTorchMap, worldPos.xz / uTorchMapSize);
+  float glow = t.r * (1.0 - smoothstep(4.0, 10.0, abs(worldPos.y - t.g * uTorchHeightRange)));
   // Towards a warm colour of raised luminance (adding orange to the night's blue gave mauve rims).
   float k = glow * uTorchStrength;
   vec3 warmLit = uTorchColor * (paintedLuma(color) * 3.4 + 0.035);

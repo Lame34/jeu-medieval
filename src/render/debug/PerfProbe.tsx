@@ -168,6 +168,23 @@ export function PerfProbe() {
       });
       return rows;
     };
+    // Draw calls of one whole frame by object family (shadow pass included): where the calls go.
+    api.control['drawList'] = () =>
+      new Promise<Record<string, number>>((resolve) => {
+        const counts: Record<string, number> = {};
+        const original = gl.renderBufferDirect;
+        gl.renderBufferDirect = function (this: typeof gl, ...args: Parameters<typeof original>) {
+          const key = family(args[4]);
+          counts[key] = (counts[key] ?? 0) + 1;
+          return original.apply(this, args);
+        };
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            gl.renderBufferDirect = original;
+            resolve(counts);
+          }),
+        );
+      });
     api.control['shadowPass'] = (on: boolean) => {
       gl.shadowMap.autoUpdate = on;
       gl.shadowMap.needsUpdate = true;

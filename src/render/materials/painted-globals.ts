@@ -2,8 +2,11 @@
  * Uniforms shared by every painted shader (objects, terrain, water, sky). Materials receive
  * these exact objects by reference, so one update per frame reaches the whole scene.
  */
-import { Color, Vector2, Vector3, Vector4 } from 'three';
-import { MAX_TORCHES } from './painted-chunks.ts';
+import { Color, DataTexture, RGBAFormat, Vector2, Vector3 } from 'three';
+
+/** No torches: a black map (the shaders always have one bound). */
+const NO_TORCHES = new DataTexture(new Uint8Array(4), 1, 1, RGBAFormat);
+NO_TORCHES.needsUpdate = true;
 import { resolveRig, type ResolvedRig } from '../atmosphere/time-of-day.ts';
 
 /**
@@ -69,11 +72,12 @@ export const paintedGlobals = {
   /** Playable map rectangle: fog thickens outside it so the map edge never reads. */
   uMapMin: { value: new Vector2(-1e6, -1e6) },
   uMapMax: { value: new Vector2(1e6, 1e6) },
-  /** Torches lighting the scene (xyz: flame, w: 1 in use), their strength (0 by day), colour and reach. */
-  uTorches: { value: Array.from({ length: MAX_TORCHES }, () => new Vector4()) },
+  /** Torchlight baked over the battlefield (Torches.tsx), the metres it covers, its height scale; strength 0 by day. */
+  uTorchMap: { value: NO_TORCHES },
+  uTorchMapSize: { value: new Vector2(1, 1) },
+  uTorchHeightRange: { value: 1 },
   uTorchStrength: { value: 0 },
   uTorchColor: { value: new Color('#ffa457') },
-  uTorchRadius: { value: 9 },
 };
 
 /** Scene light = sun · sin(elevation) + weighted sky ambient, normalised by the 16:30 rig. */
@@ -130,6 +134,13 @@ export const WEATHER_FOG: Readonly<Record<'clear' | 'rain' | 'fog', FogSettings>
 
 /** The fog the camera anchors (Atmosphere sets it from the battle's weather). */
 let activeFog: FogSettings = DEFAULT_FOG;
+
+/** The battlefield's torchlight map, or none. */
+export function setTorchMap(map: DataTexture | null, sizeM: Vector2 | null, heightRangeM: number): void {
+  paintedGlobals.uTorchMap.value = map ?? NO_TORCHES;
+  if (sizeM) paintedGlobals.uTorchMapSize.value.copy(sizeM);
+  paintedGlobals.uTorchHeightRange.value = heightRangeM;
+}
 
 export function setActiveFog(fog: FogSettings): void {
   activeFog = fog;

@@ -11,14 +11,14 @@ import { HERO_TAG } from '../../core/battle/tags.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, Vector3, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
+import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, Sphere, Vector3, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
-import { createFactionRing, RING_MAX_SCALE, RING_SCALE_DISTANCE_M } from './FactionRing.ts';
+import { createRingBatch, createRingMarker, RING_MAX_SCALE, RING_SCALE_DISTANCE_M, updateRingBatch } from './FactionRing.ts';
 import { createPennants } from './Pennants.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createEngineRig, ENGINE_HEIGHT_M, ENGINE_MODELS, engineKindOf, type EngineKind, type EngineRig } from './engines.ts';
@@ -41,6 +41,13 @@ const bodyUrl = (body: Body) => `/assets/characters/${body}.glb`;
  */
 export const UNIT_SCALE = 0.83;
 const UNIT_HEIGHT_M = 2.4;
+/**
+ * Culling bounds of a body (metres, around its feet): wide enough for every gesture, so units
+ * off screen are skipped (J5 perf: every body and its shadow were drawn wherever they stood).
+ */
+const BODY_BOUNDS_M = { centreY: 1.1, radius: 2.2 } as const;
+/** Units cast no shadow seen from farther than this (a few pixels; one draw call each). */
+const UNIT_SHADOW_MAX_DISTANCE_M = 90;
 /**
  * Animation level of detail (camera distance, m): mixers update every frame closer than the
  * first bound, every 2nd frame up to the second, every 4th beyond (with the elapsed time
@@ -206,6 +213,7 @@ export function Units({
     const factionOf: UnitMarker['faction'][] = [];
     const alive: boolean[] = [];
     const hidden: boolean[] = [];
+    const shadowCasters: Object3D[] = [];
     units.forEach((unit, index) => {
       const engineKind = engineKindOf(unit.typeKey);
       if (engineKind) {
@@ -214,7 +222,7 @@ export function Units({
         const rig = createEngineRig(model, engineKind, engineMaterials[engineKind], silhouetteMaterialFor(unit.faction), SILHOUETTE_ORDER);
         const root = new Group();
         root.name = `Unit:${unit.id}`;
-        const ring = createFactionRing(unit.faction);
+        const ring = createRingMarker();
         ring.userData['engine'] = ENGINE_RING_SCALE[engineKind];
         rings.push(ring);
         root.add(rig.pose, ring);
@@ -255,12 +263,14 @@ export function Units({
         o.material = material;
         o.castShadow = true;
         o.receiveShadow = true;
-        o.frustumCulled = false;
+        // Fixed bounds in the mesh's frame (the rest pose's do not follow the animation).
+        o.boundingSphere = new Sphere(new Vector3(0, BODY_BOUNDS_M.centreY / UNIT_SCALE, 0), BODY_BOUNDS_M.radius / UNIT_SCALE);
+        shadowCasters.push(o);
       });
       body.scale.setScalar(UNIT_SCALE);
       const root = new Group();
       root.name = `Unit:${unit.id}`;
-      const ring = createFactionRing(unit.faction);
+      const ring = createRingMarker();
       rings.push(ring);
       root.add(body, ring);
       root.position.set(unit.position.x, unit.elevationM ?? sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
@@ -349,7 +359,12 @@ export function Units({
         visible: new Uint8Array(slots.length).fill(1),
       };
     });
-    return { roots, rings, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, hidden, animElapsed: new Float32Array(mixers.length) };
+    // The rings, one instanced batch per side.
+    const ringBatches = (['attacker', 'defender'] as const).map((faction) => {
+      const markers = rings.filter((_, i) => factionOf[i] === faction);
+      return { batch: createRingBatch(faction, markers.length), markers };
+    });
+    return { roots, rings, ringBatches, shadowCasters, shadowsOn: { value: true }, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, hidden, animElapsed: new Float32Array(mixers.length) };
   }, [anims, bodies, engineModels, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -378,6 +393,13 @@ export function Units({
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale * ((ring.userData['engine'] as number | undefined) ?? 1));
+    for (const { batch, markers } of built.ringBatches) updateRingBatch(batch, markers);
+    // Far views: no unit shadows (switched only when the threshold is crossed).
+    const shadows = distance < UNIT_SHADOW_MAX_DISTANCE_M;
+    if (shadows !== built.shadowsOn.value) {
+      built.shadowsOn.value = shadows;
+      for (const o of built.shadowCasters) o.castShadow = shadows;
+    }
     for (const p of built.pennants) {
       for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] && !built.hidden[p.slots[k] as number] ? 1 : 0;
       p.pennants.update(p.anchors, camera.position, distance, scale, p.visible);
@@ -400,6 +422,9 @@ export function Units({
       ))}
       {built.pennants.map(({ pennants }) => (
         <primitive key={pennants.mesh.name} object={pennants.mesh} />
+      ))}
+      {built.ringBatches.map(({ batch }) => (
+        <primitive key={batch.name} object={batch} />
       ))}
     </>
   );

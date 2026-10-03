@@ -23,6 +23,8 @@ const PAN_ACROSS_M = 30;
 const PAN_MAX = 0.75;
 /** Pitch variation of one-shots, ±. */
 const PITCH_JITTER = 0.06;
+/** Files decoded at once while loading. */
+const LOAD_CONCURRENCY = 3;
 
 interface Entry {
   readonly category: Category;
@@ -51,12 +53,34 @@ class AudioEngine {
     return manifest.sounds[id] as Entry;
   }
 
-  /** Loads every one-shot and ambience (music streams on first play). */
+  /**
+   * Loads every one-shot and ambience, a few files at a time (all at once, the decoding of ~90
+   * files stalled the picture for seconds). Music and ambiences stream.
+   */
   load(): void {
     if (this.loaded) return;
     this.loaded = true;
-    for (const id of Object.keys(manifest.sounds) as SoundId[]) {
-      if (this.entry(id).category !== 'music') this.variants(id);
+    const ids = (Object.keys(manifest.sounds) as SoundId[]).filter((id) => this.entry(id).category !== 'music');
+    // Short sounds first, the long ambiences last (their decoding is the heaviest).
+    ids.sort((a, b) => Number(this.entry(a).category === 'ambience') - Number(this.entry(b).category === 'ambience'));
+    for (const id of ids) this.variants(id);
+  }
+
+  /** Files waiting to load, and how many are loading. */
+  private readonly pending: Howl[] = [];
+  private inFlight = 0;
+
+  private pump(): void {
+    while (this.inFlight < LOAD_CONCURRENCY && this.pending.length > 0) {
+      const howl = this.pending.shift() as Howl;
+      this.inFlight++;
+      const done = () => {
+        this.inFlight--;
+        this.pump();
+      };
+      howl.once('load', done);
+      howl.once('loaderror', done);
+      howl.load();
     }
   }
 
@@ -64,8 +88,15 @@ class AudioEngine {
     let list = this.howls.get(id);
     if (!list) {
       const e = this.entry(id);
-      list = e.variants.map((v) => new Howl({ src: [v.url], loop: e.loop, html5: e.category === 'music', preload: true, volume: 0 }));
+      // Long loops (music, ambiences) stream from a media element: decoding them whole stalled
+      // the picture; one-shots are decoded (instant, pannable).
+      const streamed = e.category === 'music';
+      list = e.variants.map((v) => new Howl({ src: [v.url], loop: e.loop, html5: streamed, preload: streamed, volume: 0 }));
       this.howls.set(id, list);
+      if (!streamed) {
+        this.pending.push(...list);
+        this.pump();
+      }
     }
     return list;
   }

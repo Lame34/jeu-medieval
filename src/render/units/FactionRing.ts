@@ -2,9 +2,11 @@
  * Painted faction ring under each unit (brief §5.1 pillar "lisibilité tactique"): a soft,
  * brush-edged ring in the allegiance colour with an ink inner stroke, normal-blended (additive
  * blending turned red to orange on grass). Shape also encodes the side for colour-blind
- * players (attacker: full ring, defender: dashed). Rings grow with camera distance.
+ * players (attacker: full ring, defender: dashed). Rings grow with camera distance. Drawn
+ * instanced, one batch per side (J5 perf: a mesh per unit cost a draw call each); each unit
+ * carries an invisible marker the batch follows.
  */
-import { Color, DoubleSide, Mesh, NormalBlending, PlaneGeometry, ShaderMaterial } from 'three';
+import { Color, DoubleSide, InstancedMesh, NormalBlending, Object3D, PlaneGeometry, ShaderMaterial } from 'three';
 import type { Faction } from '../../core/rules/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
@@ -17,7 +19,11 @@ const vertexShader = /* glsl */ `
 varying vec2 vUv;
 void main() {
   vUv = uv;
+  #ifdef USE_INSTANCING
+  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+  #else
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  #endif
 }
 `;
 
@@ -70,10 +76,35 @@ function ringMaterial(faction: Faction): ShaderMaterial {
   return material;
 }
 
-export function createFactionRing(faction: Faction): Mesh {
-  const mesh = new Mesh(geometry, ringMaterial(faction));
-  mesh.name = `FactionRing:${faction}`;
+/** Lift of the ring above the unit's feet. */
+const RING_LIFT_M = 0.06;
+
+/** The marker a unit carries where its ring is drawn (visible: drawn; scale: the ring's). */
+export function createRingMarker(): Object3D {
+  const marker = new Object3D();
+  marker.name = 'FactionRing:marker';
+  marker.position.y = RING_LIFT_M;
+  return marker;
+}
+
+/** One side's rings, instanced. */
+export function createRingBatch(faction: Faction, capacity: number): InstancedMesh {
+  const mesh = new InstancedMesh(geometry, ringMaterial(faction), Math.max(1, capacity));
+  mesh.name = `FactionRings:${faction}`;
   mesh.renderOrder = 5;
-  mesh.position.y = 0.06;
+  mesh.frustumCulled = false;
+  mesh.count = 0;
   return mesh;
+}
+
+/** Draws the visible markers' rings (their world matrices; no allocation). */
+export function updateRingBatch(batch: InstancedMesh, markers: readonly Object3D[]): void {
+  let n = 0;
+  for (const m of markers) {
+    if (!m.visible || !m.parent?.visible) continue;
+    m.updateWorldMatrix(true, false);
+    batch.setMatrixAt(n++, m.matrixWorld);
+  }
+  batch.count = n;
+  batch.instanceMatrix.needsUpdate = true;
 }

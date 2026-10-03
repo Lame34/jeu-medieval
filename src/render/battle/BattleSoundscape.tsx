@@ -49,9 +49,21 @@ export function BattleSoundscape({ session, terrain }: { readonly session: Battl
   const clock = useRef(AMBIENCE_EVERY_S);
   const lastBlowRound = useRef(Number.NEGATIVE_INFINITY);
 
+  // The sounds load at the player's first input: browsers play nothing before one anyway, and
+  // decoding them while the battle first shows stole frames.
   useEffect(() => {
-    audio.load();
-    return () => audio.stopLoops();
+    const start = () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+      audio.load();
+    };
+    window.addEventListener('pointerdown', start);
+    window.addEventListener('keydown', start);
+    return () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+      audio.stopLoops();
+    };
   }, []);
   useEffect(() => audio.setMuted(muted), [muted]);
 

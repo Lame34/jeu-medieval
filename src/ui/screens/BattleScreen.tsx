@@ -47,6 +47,9 @@ function conditionsParams(): Partial<BattleConditions> {
   };
 }
 
+/** ?nosound: no soundscape (benches comparing with and without audio). */
+const NO_SOUND = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('nosound');
+
 function mapParams(): WorldgenRequest {
   const query = new URLSearchParams(window.location.search);
   const castle = Number(query.get('castle') ?? '1');
@@ -101,8 +104,10 @@ export default function BattleScreen() {
   const camera = useRef<CameraHandle | null>(null);
   const setHour = useSettings((s) => s.setHour);
   const bench = isBenchMode();
-  // The battle itself (not in bench mode: measurements keep the map's fixed markers).
-  const session = useMemo(() => (layout && !bench ? new BattleSession(layout, mapParams().seed, conditionsParams()) : null), [layout, bench]);
+  // The battle itself (not in bench mode: measurements keep the map's fixed markers), unless
+  // the bench asks for a live one (?bench&live: units, torches, weather, sound; no input).
+  const live = !bench || new URLSearchParams(window.location.search).has('live');
+  const session = useMemo(() => (layout && live ? new BattleSession(layout, mapParams().seed, conditionsParams()) : null), [layout, live]);
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
@@ -207,7 +212,7 @@ export default function BattleScreen() {
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
         {session && <Torches layout={layout} />}
-        {session && sceneReady && <BattleSoundscape session={session} terrain={layout.terrain} />}
+        {session && sceneReady && !NO_SOUND && <BattleSoundscape session={session} terrain={layout.terrain} />}
         {session?.state.weather === 'rain' && <Rain windX={session.state.wind.x} windZ={session.state.wind.z} windStrength={session.state.wind.strength} />}
         {session && <Projectiles waterAt={waterAt} groundAt={heightAt} onHandle={setProjectiles} />}
         {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} projectiles={projectiles} terrain={layout.terrain} focusOn={focusOn} />}

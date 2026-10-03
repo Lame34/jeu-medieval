@@ -4,7 +4,7 @@
  * average FPS, 1 % low, median frame time, draw calls and triangles, optionally with Chrome's
  * CPU throttling. Refuses to report a "portable" result on any GPU other than the Intel iGPU.
  *
- * Usage: node scripts/perf-bench.ts [--preset portable] [--scene lookdev] [--cpu-throttle 4] [--fixedres]
+ * Usage: node scripts/perf-bench.ts [--preset portable] [--scene lookdev] [--cpu-throttle 4] [--fixedres] [--query live&weather=rain&hour=22]
  *                                   [--seconds 5] [--no-build] [--log]
  */
 import { execSync } from 'node:child_process';
@@ -24,6 +24,8 @@ const PRESET = arg('preset', 'portable');
 const SCENE = arg('scene', 'lookdev');
 const CPU_THROTTLE = Number(arg('cpu-throttle', '1'));
 const SECONDS = Number(arg('seconds', '5'));
+/** Extra query for the scene, e.g. --query "live&weather=rain&hour=22" (battle: a live session, its weather and hour). */
+const QUERY = arg('query', '');
 const WARMUP_MS = 2500;
 const LOW_PERCENTILE = 0.99;
 /** A frame this long at 60 Hz has missed at least one vsync (uncapped medians are meaningless: rAF bursts). */
@@ -65,7 +67,7 @@ interface Pass {
 async function measurePass(uncapped: boolean): Promise<Pass> {
   const browser = await launch({ uncapped });
   try {
-    const { page, errors } = await openScene(browser, `/${SCENE}?bench&preset=${PRESET}${flag('fixedres') ? '&fixedres' : ''}`);
+    const { page, errors } = await openScene(browser, `/${SCENE}?bench&preset=${PRESET}${flag('fixedres') ? '&fixedres' : ''}${QUERY ? `&${QUERY}` : ''}`);
     const gpu = await gpuString(page);
     if (PRESET === 'portable' && !isIntelArc(gpu)) throw new Error(`Refusing a "portable" measurement on a non-Intel GPU: ${gpu}`);
     if (CPU_THROTTLE > 1) {
@@ -122,7 +124,7 @@ function report(gpu: string, results: ViewResult[], heapBytes: number, textures:
   const tris = Math.max(...results.map((r) => r.triangles));
   const fpsBudget = CPU_THROTTLE > 1 ? BUDGET.throttledAvgFps : BUDGET.avgFps;
   const verdict = avg >= fpsBudget && (CPU_THROTTLE > 1 || low >= BUDGET.lowFps) && calls < BUDGET.drawCalls && tris < BUDGET.triangles && (CPU_THROTTLE > 1 || !(loadS >= BUDGET.loadS));
-  console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE} url=${baseUrl()}`);
+  console.log(`scene=${SCENE} preset=${PRESET} cpuThrottle=×${CPU_THROTTLE}${QUERY ? ` query=${QUERY}` : ''} url=${baseUrl()}`);
   for (const r of results) {
     console.log(`  view ${r.view}: avg ${r.avgFps.toFixed(1)} fps · 1% low ${r.lowFps.toFixed(1)} · hitches ${r.hitches}/${r.pacedFrames} (> ${HITCH_MS} ms) · ${r.calls} calls · ${(r.triangles / 1000).toFixed(0)}k tris · ${r.frames} frames · scale ${r.scale.toFixed(2)}`);
   }

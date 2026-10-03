@@ -1,19 +1,18 @@
 /**
  * Torches and braziers at night (J5, brief §9.11): small flames at the castle's gates and towers
- * and before each house of the village, and the warm pools they cast (the painted shaders' torch
- * light, fed with the flames nearest to the camera focus). They come up at dusk and go out at
- * dawn; the rain dims them. Where they burn, shots at night are not penalised.
+ * and before each house of the village, and the warm pools they cast, baked once into a map the
+ * painted shaders read (one texture fetch; the torches never move). They come up at dusk and go
+ * out at dawn; the rain dims them. Where they burn, shots at night are not penalised.
  */
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { Matrix4, type InstancedBufferAttribute } from 'three';
+import { DataTexture, LinearFilter, Matrix4, RGBAFormat, Vector2, type InstancedBufferAttribute } from 'three';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useSceneConditions, useSceneHour } from '../../state/scene-conditions.ts';
 import { nightness } from '../atmosphere/time-of-day.ts';
-import { MAX_TORCHES } from '../materials/painted-chunks.ts';
-import { paintedGlobals } from '../materials/painted-globals.ts';
+import { paintedGlobals, setTorchMap } from '../materials/painted-globals.ts';
 import { createFlameMesh } from './fire-fx.ts';
 
 /** A flame's size (× the fire's flame); gate torches stand this high, braziers before the door. */
@@ -26,8 +25,11 @@ const BRAZIER_HEIGHT_M = 1.0;
 const BRAZIER_OUT_M = 1.4;
 /** The rain dims the torches. */
 const RAIN_DIM = 0.8;
-/** Re-pick the nearest torches when the focus moves this far (m). */
-const REPICK_STEP_M = 4;
+/** The torchlight map: metres per texel, and the flame heights it can hold (m). */
+const TORCH_TEXEL_M = 2;
+const TORCH_HEIGHT_RANGE_M = 128;
+/** A pool is full within this share of the reach, then fades out to it. */
+const TORCH_CORE = 0.3;
 
 interface TorchSite {
   readonly x: number;
@@ -64,6 +66,40 @@ function torchSites(layout: WorldLayout): TorchSite[] {
   return out;
 }
 
+/** Bakes the pools: r = strongest glow at the texel, g = that torch's height (/ range). */
+function bakeTorchMap(sites: readonly TorchSite[], widthM: number, depthM: number, reachM: number): DataTexture {
+  const w = Math.ceil(widthM / TORCH_TEXEL_M);
+  const h = Math.ceil(depthM / TORCH_TEXEL_M);
+  const data = new Uint8Array(w * h * 4);
+  const span = Math.ceil(reachM / TORCH_TEXEL_M);
+  for (const s of sites) {
+    const cx = Math.floor(s.x / TORCH_TEXEL_M);
+    const cz = Math.floor(s.z / TORCH_TEXEL_M);
+    for (let z = Math.max(0, cz - span); z <= Math.min(h - 1, cz + span); z++) {
+      for (let x = Math.max(0, cx - span); x <= Math.min(w - 1, cx + span); x++) {
+        const d = Math.hypot((x + 0.5) * TORCH_TEXEL_M - s.x, (z + 0.5) * TORCH_TEXEL_M - s.z);
+        const k = d >= reachM ? 0 : d <= reachM * TORCH_CORE ? 1 : 1 - smoothstep01((d - reachM * TORCH_CORE) / (reachM * (1 - TORCH_CORE)));
+        const i = (z * w + x) * 4;
+        const glow = Math.round(k * 255);
+        if (glow <= (data[i] as number)) continue;
+        data[i] = glow;
+        data[i + 1] = Math.round(Math.min(1, Math.max(0, s.y / TORCH_HEIGHT_RANGE_M)) * 255);
+        data[i + 3] = 255;
+      }
+    }
+  }
+  const tex = new DataTexture(data, w, h, RGBAFormat);
+  tex.magFilter = LinearFilter;
+  tex.minFilter = LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function smoothstep01(x: number): number {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+}
+
 export function Torches({ layout }: { readonly layout: WorldLayout }) {
   const hour = useSceneHour();
   const weather = useSceneConditions((s) => s.weather);
@@ -81,13 +117,18 @@ export function Torches({ layout }: { readonly layout: WorldLayout }) {
     });
     flames.instanceMatrix.needsUpdate = true;
     seeds.needsUpdate = true;
-    paintedGlobals.uTorchRadius.value = DEFAULT_RULES.weather.lightRadiusM;
+    const widthM = layout.terrain.width * layout.terrain.cellSize;
+    const depthM = layout.terrain.depth * layout.terrain.cellSize;
+    const map = bakeTorchMap(sites, widthM, depthM, DEFAULT_RULES.weather.lightRadiusM);
+    setTorchMap(map, new Vector2(widthM, depthM), TORCH_HEIGHT_RANGE_M);
     return () => {
       flames.geometry.dispose();
       (flames.material as { dispose(): void }).dispose();
+      setTorchMap(null, null, 1);
+      map.dispose();
       paintedGlobals.uTorchStrength.value = 0;
     };
-  }, [flames, sites]);
+  }, [flames, sites, layout]);
 
   useEffect(() => {
     // Flames only while it is dark enough (no draw call by day; the program is compiled anyway).
@@ -95,42 +136,8 @@ export function Torches({ layout }: { readonly layout: WorldLayout }) {
     paintedGlobals.uTorchStrength.value = strength;
   }, [flames, sites, strength]);
 
-  const last = useMemo(() => ({ x: Number.POSITIVE_INFINITY, z: 0, n: -1 }), []);
-  const order = useMemo(() => new Int32Array(sites.length), [sites]);
-  const dist = useMemo(() => new Float32Array(sites.length), [sites]);
   useFrame((_, delta) => {
     time.value += delta;
-    if (strength <= 0) return;
-    const focus = paintedGlobals.uFocus.value;
-    if (Math.hypot(focus.x - last.x, focus.z - last.z) < REPICK_STEP_M && last.n === sites.length) return;
-    last.x = focus.x;
-    last.z = focus.z;
-    last.n = sites.length;
-    // The nearest MAX_TORCHES flames light the shaders (insertion into a short sorted list).
-    let kept = 0;
-    for (let i = 0; i < sites.length; i++) {
-      const s = sites[i] as TorchSite;
-      const d = (s.x - focus.x) ** 2 + (s.z - focus.z) ** 2;
-      let j = Math.min(kept, MAX_TORCHES - 1);
-      if (kept === MAX_TORCHES && d >= (dist[j] as number)) continue;
-      while (j > 0 && (dist[j - 1] as number) > d) {
-        dist[j] = dist[j - 1] as number;
-        order[j] = order[j - 1] as number;
-        j--;
-      }
-      dist[j] = d;
-      order[j] = i;
-      if (kept < MAX_TORCHES) kept++;
-    }
-    const torches = paintedGlobals.uTorches.value;
-    for (let k = 0; k < MAX_TORCHES; k++) {
-      const v = torches[k];
-      if (!v) continue;
-      if (k < kept) {
-        const s = sites[order[k] as number] as TorchSite;
-        v.set(s.x, s.y, s.z, 1);
-      } else v.set(0, -1e4, 0, 0);
-    }
   });
 
   return <primitive object={flames} />;
