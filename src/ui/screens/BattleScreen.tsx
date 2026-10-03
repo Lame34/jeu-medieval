@@ -108,6 +108,13 @@ export default function BattleScreen() {
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   const [castle, setCastle] = useState<CastleHandle | null>(null);
   const [fire, setFire] = useState<FireHandle | null>(null);
+  // The garrison's AI plans in a worker of its own.
+  useEffect(() => {
+    if (!session || !layout) return undefined;
+    const worker = new Worker(new URL('../workers/ai.worker.ts', import.meta.url), { type: 'module' });
+    session.attachAi(worker, layout);
+    return () => worker.terminate();
+  }, [session, layout]);
   // The battle's wind (smoke drift, painted sway) shows from the start, before any fire.
   useEffect(() => {
     if (fire && session) fire.syncFrom(session.state);

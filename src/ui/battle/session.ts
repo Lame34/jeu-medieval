@@ -4,6 +4,7 @@
  * is `seed + scenario + commands`: the log replays it exactly.
  */
 import { playTurn } from '../../core/ai/planner.ts';
+import type { AiRequest, AiResponse } from '../workers/ai.worker.ts';
 import { heroSpawnCells } from '../../core/battle/heroes.ts';
 import { drawConditions, lightsOf, type BattleConditions } from '../../core/battle/conditions.ts';
 import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
@@ -101,11 +102,62 @@ export class BattleSession {
     return result;
   }
 
-  /** The AI plays `faction`'s whole turn. */
+  /** The AI plays `faction`'s whole turn (on this thread). */
   playAiTurn(faction: Faction): void {
     const turn = playTurn(this.ctx, this.current, faction);
     this.log.push(...turn.commands);
     this.current = turn.state;
     this.emit(turn.events);
+  }
+
+  private ai: Worker | null = null;
+  private aiRequest = 0;
+
+  /** Plans the AI's turns in `worker` (ai.worker.ts) from now on. */
+  attachAi(worker: Worker, layout: WorldLayout): void {
+    this.ai = worker;
+    const request: AiRequest = { type: 'init', layout };
+    worker.postMessage(request);
+  }
+
+  /**
+   * The AI plays `faction`'s turn, planned in the worker when there is one (the picture keeps
+   * moving): its commands are replayed here, so the state and the log are those of playAiTurn.
+   */
+  playAiTurnAsync(faction: Faction): Promise<void> {
+    const worker = this.ai;
+    if (!worker) {
+      this.playAiTurn(faction);
+      return Promise.resolve();
+    }
+    const id = ++this.aiRequest;
+    const from = this.current;
+    return new Promise((resolve) => {
+      const onMessage = (event: MessageEvent<AiResponse>) => {
+        if (event.data.id !== id) return;
+        worker.removeEventListener('message', onMessage);
+        // Planned on a state that has since moved on, or failed: plan here instead.
+        if (!event.data.ok || this.current !== from) {
+          if (!event.data.ok) console.warn(`AI worker: ${event.data.error}`);
+          if (this.current === from) this.playAiTurn(faction);
+          resolve();
+          return;
+        }
+        const events: GameEvent[] = [];
+        let state = this.current;
+        for (const command of event.data.commands) {
+          const result = applyCommand(this.ctx, state, command);
+          state = result.state;
+          events.push(...result.events);
+        }
+        this.log.push(...event.data.commands);
+        this.current = state;
+        this.emit(events);
+        resolve();
+      };
+      worker.addEventListener('message', onMessage);
+      const request: AiRequest = { type: 'plan', id, state: from, faction };
+      worker.postMessage(request);
+    });
   }
 }

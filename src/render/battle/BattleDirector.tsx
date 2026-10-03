@@ -963,12 +963,11 @@ export function BattleDirector({
     } else if (queue.current.length === 0 && useBattleUi.getState().busy && !aiPending.current) {
       const state = session.state;
       if (state.status === 'ongoing' && state.activeFaction !== PLAYER_FACTION) {
-        // Let the banner frame render before the AI (0.2–0.5 s on the main thread) runs.
+        // The AI plans in its worker (the picture keeps moving), then its orders play out.
         aiPending.current = true;
-        window.setTimeout(() => {
-          session.playAiTurn(state.activeFaction);
+        void session.playAiTurnAsync(state.activeFaction).then(() => {
           aiPending.current = false;
-        }, 0);
+        });
       } else useBattleUi.getState().setBusy(false);
     }
 
