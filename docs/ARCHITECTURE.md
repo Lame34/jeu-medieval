@@ -24,6 +24,11 @@
 | Règles : déplacement, attaque avec aperçu, riposte, garde, morale, fuite | `core/battle/{movement,combat,overwatch,morale}.ts`, réglages dans `data/damage.json` |
 | IA : scores d'utilité, champs d'approche | `core/ai/planner.ts`, `core/nav-grid/reachable.ts` (`computeCostField`) |
 | IA : tactiques de siège (feu, brèche, sortie, objectifs des engins) | `core/ai/tactics.ts` |
+| Météo et heure : pluie, brouillard (brouillard de guerre), nuit et torches, boue, vent sur l'artillerie (ADR-031) | `core/battle/conditions.ts`, rendu : `render/atmosphere/time-of-day.ts`, `render/vfx/Torches.tsx`, `render/vfx/Rain.tsx`, `state/scene-conditions.ts` |
+| Héros : capacités, recharges, buffs, auras (ADR-032) | `core/battle/heroes.ts`, `core/battle/hero-auras.ts`, `data/heroes.json`, UI : `ui/battle/abilities.ts` |
+| IA dans un worker (même cœur, commandes rejouées par la session) | `ui/workers/ai.worker.ts`, `ui/battle/session.ts` (`playAiTurnAsync`) |
+| Audio : chaîne Blender (audaspace), moteur Howler, paysage sonore (ADR-033) | `scripts/audio-manifest.json`, `scripts/blender/process_audio.py`, `audio/engine.ts`, `render/battle/BattleSoundscape.tsx` |
+| HUD : heure, météo, vent, modificateurs de tir, mini-carte | `ui/battle/BattleHud.tsx`, `ui/battle/MiniMap.tsx` |
 | Partie en cours : état, journal de commandes, tour de l'IA | `ui/battle/session.ts` |
 | Miroir pour le HUD : sélection, survol, occupation, journal | `state/battle-ui.ts` |
 | File d'animation, souris et clavier, tour de l'IA | `render/battle/BattleDirector.tsx` |
