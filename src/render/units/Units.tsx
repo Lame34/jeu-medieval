@@ -25,7 +25,8 @@ import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
 const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
 const ENGINE_KINDS = Object.keys(ENGINE_MODELS) as EngineKind[];
 /** Engines stand on a wider allegiance ring than a soldier. */
-const ENGINE_RING_SCALE = 2.4;
+/** Allegiance ring under each engine, scaled to show around its chassis (review J4). */
+const ENGINE_RING_SCALE: Readonly<Record<EngineKind, number>> = { ram: 3.8, catapult: 3.2, siegeTower: 3.4 };
 /** Tests (`?fast`) play the battle animations this much faster (same switch as BattleDirector). */
 const TIME_SCALE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fast') ? 8 : 1;
 const BODIES = ['warrior', 'ranger', 'rogue'] as const;
@@ -47,6 +48,8 @@ const UNIT_HEIGHT_M = 2.4;
 const ANIM_LOD_M: readonly [number, number] = [35, 80];
 const ANIM_LOD_STRIDE: readonly [number, number, number] = [1, 2, 4];
 const RIM = { color: '#fff1d6', strength: 0.55 };
+/** Engines: their broad grazing timber turned grey-blue under the full rim (review J4). */
+const ENGINE_RIM = { color: '#fff1d6', strength: 0.18 };
 /** Quaternius atlases are painted dark for Blender's studio light; the warrior's steel most. */
 const ALBEDO_VALUE: Readonly<Record<Body, number>> = { warrior: 1.7, ranger: 1.3, rogue: 1.35 };
 
@@ -165,18 +168,24 @@ export function Units({
       }
       return m;
     };
-    const engineMaterial = createPaintedMaterial({
-      name: 'Unit:engine',
-      vertexColors: true,
-      heightM: ENGINE_HEIGHT_M.ram,
-      gradientBase: 0.82,
-      gradientSaturation: 0.08,
-      valueNoiseAmp: 0.04,
-      groundAO: 0.2,
-      groundAOHeightM: 0.5,
-      rim: RIM,
-    });
-    materials.set('engine', engineMaterial);
+    // One material per engine kind (its own height gradient), one program for the three.
+    const engineMaterials = Object.fromEntries(
+      ENGINE_KINDS.map((kind) => {
+        const m = createPaintedMaterial({
+          name: `Unit:engine:${kind}`,
+          vertexColors: true,
+          heightM: ENGINE_HEIGHT_M[kind],
+          gradientBase: 0.82,
+          gradientSaturation: 0.08,
+          valueNoiseAmp: 0.04,
+          groundAO: 0.2,
+          groundAOHeightM: 0.5,
+          rim: ENGINE_RIM,
+        });
+        materials.set(`engine:${kind}`, m);
+        return [kind, m];
+      }),
+    ) as Record<EngineKind, ReturnType<typeof createPaintedMaterial>>;
     const engines: EngineRig[] = [];
     /** Pennant anchors: a unit's root position, or a point lifted to an engine's top. */
     const anchors: Vector3[] = [];
@@ -194,11 +203,11 @@ export function Units({
       if (engineKind) {
         const model = engineModels[ENGINE_KINDS.indexOf(engineKind)]?.scene;
         if (!model) return;
-        const rig = createEngineRig(model, engineKind, engineMaterial, silhouetteMaterialFor(unit.faction), SILHOUETTE_ORDER);
+        const rig = createEngineRig(model, engineKind, engineMaterials[engineKind], silhouetteMaterialFor(unit.faction), SILHOUETTE_ORDER);
         const root = new Group();
         root.name = `Unit:${unit.id}`;
         const ring = createFactionRing(unit.faction);
-        ring.userData['engine'] = true;
+        ring.userData['engine'] = ENGINE_RING_SCALE[engineKind];
         rings.push(ring);
         root.add(rig.pose, ring);
         root.position.set(unit.position.x, unit.elevationM ?? sampleHeight(terrain, unit.position.x, unit.position.z), unit.position.z);
@@ -349,7 +358,7 @@ export function Units({
     for (const l of built.lifted) l.anchor.copy(l.root.position).setY(l.root.position.y + l.lift);
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
-    for (const ring of built.rings) ring.scale.setScalar(scale * (ring.userData['engine'] ? ENGINE_RING_SCALE : 1));
+    for (const ring of built.rings) ring.scale.setScalar(scale * ((ring.userData['engine'] as number | undefined) ?? 1));
     for (const p of built.pennants) {
       for (let k = 0; k < p.slots.length; k++) p.visible[k] = built.alive[p.slots[k] as number] ? 1 : 0;
       p.pennants.update(p.anchors, camera.position, distance, scale, p.visible);

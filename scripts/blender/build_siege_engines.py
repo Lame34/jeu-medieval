@@ -29,7 +29,7 @@ SEED = 1187
 WOOD_WARM = ('#7a5234', '#4e3322')
 WOOD_LIGHT = ('#a67b4f', '#6e5034')
 IRON = '#3e3f44'
-HIDE = ('#a08868', '#7a6650')
+HIDE = ('#8a6444', '#5c4030')
 ROPE = '#b49a6a'
 STONE = '#8f8577'
 TONE_JITTER = 0.09
@@ -198,7 +198,7 @@ def build_ram():
             b = Vector((sx * (side_x + 0.45), 0, 2.38)).lerp(Vector((0, 0, 3.32)), t1)
             mid = (a + b) / 2
             slope = math.atan2(b.z - a.z, abs(b.x - a.x))
-            parts.append(box('plank', ((b - a).length * 0.96, L + 0.6, 0.07), (mid.x, 0, mid.z + 0.05), rotation=(0, sx * slope, 0), color=tone(WOOD_LIGHT)))
+            parts.append(box('plank', ((b - a).length * 0.96, L + 0.6, 0.07), (mid.x, 0, mid.z + 0.05), rotation=(0, sx * slope, 0), color=tone(WOOD_WARM)))
         for k, y in enumerate((-2.2, -0.75, 0.7, 2.15)):
             c = Vector((sx * (side_x * 0.55 + 0.1), y + rng.uniform(-0.15, 0.15), 2.93 + rng.uniform(-0.02, 0.04)))
             slope = math.atan2(3.32 - 2.38, side_x + 0.45)
@@ -208,7 +208,7 @@ def build_ram():
     body = join('Body', parts)
 
     # The log, hung from the ridge, iron-headed; thrust along -y (forward).
-    log_parts = [cylinder('log', 0.26, 6.6, (0, -0.4, 1.6), rotation=(math.pi / 2, 0, 0), color=tone(WOOD_LIGHT, 0.6), sides=12)]
+    log_parts = [cylinder('log', 0.26, 6.6, (0, -0.4, 1.6), rotation=(math.pi / 2, 0, 0), color=tone(WOOD_LIGHT, 0.85), sides=12)]
     log_parts.append(cylinder('head', 0.33, 0.7, (0, -3.95, 1.6), rotation=(math.pi / 2, 0, 0), color=rgb(IRON), sides=12))
     bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.33, radius2=0.12, depth=0.45, location=(0, -4.5, 1.6), rotation=(math.pi / 2, 0, 0))
     cone = bpy.context.active_object
