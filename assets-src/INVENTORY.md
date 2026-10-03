@@ -10,6 +10,7 @@ Sommaire :
 5. [Universal Animation Library 2 (UAL 2)](#5-universal-animation-library-2-ual-2-quaternius-cc0) (Quaternius, CC0) — mannequin H/F + 43 animations
 6. [Cheval (cavalerie)](#6-cheval-cavalerie-quaternius-cc0-via-polypizza) (Quaternius, CC0, via poly.pizza)
 7. [Personnages — options évaluées](#7-personnages--options-évaluées) : KayKit Adventurers (retenu), RPG Characters Quaternius, Ultimate Animated Character Pack Quaternius
+8. [Audio (J5)](#8-audio-j5---effets-ambiances-et-musique) (CC0 : Kenney, rubberduck, Still North Media, RandomMind, packs OGA) — 107 fichiers, 36,8 Mo
 
 ---
 ## 1. Medieval Village MegaKit (Quaternius, CC0)
@@ -519,3 +520,205 @@ Comme prévu par la mission, **« Universal Base Characters »** et **« Modular
 **Animation du corps de base : privilégier KayKit pour tout ce qui est joueur/PNJ principal** (autonome, pas de retargeting nécessaire). **Garder UAL1 + UAL2 en réserve** pour des besoins spécifiques non couverts par KayKit (`Push_Loop` d'UAL1 est la seule source de poussée trouvée dans tout le sourcing — utile pour un bélier ou pour déplacer du mobilier de siège) ; en cas d'usage, rattacher `Push_Loop` au squelette KayKit demandera un retargeting manuel (les 3 rigs — KayKit 41 os, UAL1 53 os `DEF-`, UAL2/Mannequin_F 65 os UE-style — sont tous mutuellement incompatibles par nommage).
 
 **Trou non comblé** : aucune animation de type « cheer » n'existe hors KayKit ; aucune option testée ne couvre une attaque de cavalerie armée à cheval. Le mobilier/matériel de siège (catapulte, trébuchet, bélier, tour d'assaut, échelle, mur crénelé, porte-herse) est **totalement absent** des 3 MegaKits téléchargés — sourcing dédié à planifier en J2 pour un jeu appelé « Siège ».
+
+---
+## 8. Audio (J5 - effets, ambiances et musique)
+
+Sourcé le 2026-10-03 par l'asset-scout. **107 fichiers retenus, 36.8 Mo** (budget 40 Mo). Tout est sous **CC0** (aucune attribution obligatoire ; les crédits sont néanmoins consignés dans `assets/CREDITS.md`). Fichiers dans `assets-src/raw/audio/<pack>/` (ignoré par git) ; les archives d'origine n'ont pas été conservées (trop lourdes ou inutiles), seules les pièces retenues le sont : le SHA-256 de chaque archive est dans CREDITS.md. Durées lues avec `music-metadata`.
+
+**Réserves** : (1) aucune pièce n'a été écoutée (agent sans audio) : les affectations reposent sur les noms de fichiers et les descriptions de packs, à valider à l'oreille ; (2) mélange d'origines (Kenney + rubberduck + Still North Media + packs OGA isolés) : niveaux sonores hétérogènes, normaliser au pipeline (LUFS cible commun) ; (3) les 6 WAV Still North (192 kHz / 24 bits) pèsent 1,3 à 4,4 Mo par fichier chacun : à convertir en ogg 44,1 kHz mono ; (4) lacunes : voir fin de section.
+
+### Combat
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `hurt-ezduzziteh/hurt_01.mp3` | mp3 44.1 kHz stéréo | 0.3 s | 7 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `hurt-ezduzziteh/hurt_02.mp3` | mp3 44.1 kHz stéréo | 0.3 s | 5 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `hurt-ezduzziteh/hurt_03.mp3` | mp3 44.1 kHz stéréo | 0.2 s | 4 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `hurt-ezduzziteh/hurt_04.mp3` | mp3 44.1 kHz stéréo | 0.3 s | 5 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `hurt-ezduzziteh/hurt_05.mp3` | mp3 44.1 kHz stéréo | 0.4 s | 8 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `hurt-ezduzziteh/hurt_06.mp3` | mp3 44.1 kHz stéréo | 0.2 s | 4 Ko | Hurt Sound Effects (EZduzziteh) | Cri bref de blessé (0,2-0,4 s, sans voix intelligible). |
+| `kenney/impact-sounds/Audio/impactMetal_light_000.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 7 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactMetal_light_001.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 7 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactMetal_light_002.ogg` | ogg 44.1 kHz stéréo | 0.2 s | 7 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactMetal_medium_000.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 7 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactMetal_medium_001.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactPlate_medium_000.ogg` | ogg 44.1 kHz stéréo | 0.6 s | 11 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Épées qui s'entrechoquent / flèche sur armure métallique. |
+| `kenney/impact-sounds/Audio/impactPunch_heavy_000.ogg` | ogg 44.1 kHz stéréo | 0.7 s | 11 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup contondant (masse, bouclier, assommé). |
+| `kenney/impact-sounds/Audio/impactPunch_heavy_001.ogg` | ogg 44.1 kHz stéréo | 0.5 s | 11 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup contondant (masse, bouclier, assommé). |
+| `kenney/impact-sounds/Audio/impactPunch_medium_000.ogg` | ogg 44.1 kHz stéréo | 0.4 s | 9 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup contondant (masse, bouclier, assommé). |
+| `kenney/impact-sounds/Audio/impactSoft_medium_000.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 5 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur chair/armure (sourd, pas de vrai « thunk » de chair). |
+| `kenney/impact-sounds/Audio/impactSoft_medium_001.ogg` | ogg 44.1 kHz stéréo | 0.2 s | 5 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur chair/armure (sourd, pas de vrai « thunk » de chair). |
+| `kenney/impact-sounds/Audio/impactSoft_medium_002.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 5 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur chair/armure (sourd, pas de vrai « thunk » de chair). |
+| `kenney/impact-sounds/Audio/impactWood_light_000.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur bois (palissade, porte, tour de bois). |
+| `kenney/impact-sounds/Audio/impactWood_light_001.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur bois (palissade, porte, tour de bois). |
+| `kenney/impact-sounds/Audio/impactWood_light_002.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Impact de flèche sur bois (palissade, porte, tour de bois). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_hit_01.ogg` | ogg 48 kHz stéréo | 0.1 s | 8 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de flèche sur pierre (muraille, créneau). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_hit_01.ogg` | ogg 48 kHz stéréo | 0.3 s | 11 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de flèche/projectile sur bois (variantes, plus sèches). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_hit_02.ogg` | ogg 48 kHz stéréo | 0.3 s | 13 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de flèche/projectile sur bois (variantes, plus sèches). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_hit_03.ogg` | ogg 48 kHz stéréo | 0.4 s | 15 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de flèche/projectile sur bois (variantes, plus sèches). |
+| `rubberduck-80-cc0-rpg-sfx/x/item_stone_02.ogg` | ogg 48 kHz stéréo | 0.3 s | 15 Ko | 80 CC0 RPG SFX (rubberduck) | Impact de flèche sur pierre (muraille, créneau). |
+| `rubberduck-80-cc0-rpg-sfx/x/item_stone_04.ogg` | ogg 48 kHz stéréo | 0.3 s | 17 Ko | 80 CC0 RPG SFX (rubberduck) | Impact de flèche sur pierre (muraille, créneau). |
+| `still-north-media/Axe Norse Sword Blade on Blade.wav` | wav 192 kHz mono | 6.3 s | 3.4 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Épées qui s'entrechoquent (mêlée, parade). 192 kHz mono. |
+| `still-north-media/Crossbow Bolt Passby.wav` | wav 192 kHz mono | 2.3 s | 1.3 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Sifflement/passage du carreau en vol. |
+| `still-north-media/Crossbow Shoot.wav` | wav 192 kHz mono | 3.2 s | 1.7 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Tir d'arbalète (carreau). 192 kHz 24 bits. |
+| `still-north-media/English Longbow Shoot.wav` | wav 192 kHz mono | 4.0 s | 2.2 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Décoche d'arc long (archers défenseurs/attaquants). 192 kHz 24 bits : à rééchantillonner (44,1 kHz) au pipeline. |
+| `still-north-media/Mace Norse Sword Blade.wav` | wav 192 kHz mono | 7.8 s | 4.3 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Coup contondant (masse sur lame : choc métallique lourd ; la vraie masse sur chair n'existe pas dans ces packs). |
+| `still-north-media/Scythian Recurve Shoot.wav` | wav 192 kHz mono | 4.1 s | 2.3 Mo | Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts (Ben Jaszczak & Brian Nelson) | Décoche d'arc (variante, arc court/recourbé : cavalerie légère ou variété). |
+
+### Siège
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `cannon-hit-wall/cannon_hit_wall.ogg` | ogg 48 kHz stéréo | 3.0 s | 177 Ko | Cannon hit wall (Thimras) | Impact de boulet sur la pierre (mur). |
+| `earthquake-mieki256/shake.flac` | flac 44.1 kHz stéréo | 5.3 s | 474 Ko | Earthquake and Open sesame (mieki256) | Grondement/effondrement de pan de mur ou de tour. |
+| `iron-door/iron_door.ogg` | ogg 44.1 kHz mono | 0.8 s | 13 Ko | Iron Door (themightyglider) | Grille de herse (grincement métallique ; à pitcher vers le bas). |
+| `kenney/impact-sounds/Audio/impactMining_000.ogg` | ogg 44.1 kHz stéréo | 0.9 s | 12 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pelle et terre (sape) ; Mining = coups de pioche/outil. |
+| `kenney/impact-sounds/Audio/impactMining_001.ogg` | ogg 44.1 kHz stéréo | 0.9 s | 11 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pelle et terre (sape) ; Mining = coups de pioche/outil. |
+| `kenney/impact-sounds/Audio/impactMining_002.ogg` | ogg 44.1 kHz stéréo | 0.8 s | 11 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pelle et terre (sape) ; Mining = coups de pioche/outil. |
+| `kenney/impact-sounds/Audio/impactWood_heavy_000.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `kenney/impact-sounds/Audio/impactWood_heavy_001.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `kenney/impact-sounds/Audio/impactWood_heavy_002.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `kenney/rpg-audio/Audio/creak1.ogg` | ogg 48 kHz stéréo | 0.7 s | 15 Ko | Kenney - RPG Audio 1.0 (Kenney Vleugels) | Grincement de catapulte, de roues d'engin et de bois sous charge. |
+| `kenney/rpg-audio/Audio/creak2.ogg` | ogg 48 kHz stéréo | 0.8 s | 19 Ko | Kenney - RPG Audio 1.0 (Kenney Vleugels) | Grincement de catapulte, de roues d'engin et de bois sous charge. |
+| `kenney/rpg-audio/Audio/creak3.ogg` | ogg 48 kHz stéréo | 0.3 s | 10 Ko | Kenney - RPG Audio 1.0 (Kenney Vleugels) | Grincement de catapulte, de roues d'engin et de bois sous charge. |
+| `rubberduck-100-cc0-sfx/x/slam_01.ogg` | ogg 48 kHz stéréo | 0.5 s | 24 Ko | 100 CC0 SFX (rubberduck) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `rubberduck-100-cc0-sfx/x/slam_02.ogg` | ogg 48 kHz stéréo | 0.6 s | 28 Ko | 100 CC0 SFX (rubberduck) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `rubberduck-100-cc0-sfx/x/slam_07.ogg` | ogg 48 kHz stéréo | 0.7 s | 30 Ko | 100 CC0 SFX (rubberduck) | Chute du pont-levis (claquement sur le sol). |
+| `rubberduck-100-cc0-sfx/x/spring_01.ogg` | ogg 48 kHz stéréo | 1.3 s | 50 Ko | 100 CC0 SFX (rubberduck) | Relâche de bras de catapulte / détente de torsion. |
+| `rubberduck-100-cc0-sfx/x/spring_02.ogg` | ogg 48 kHz stéréo | 1.3 s | 67 Ko | 100 CC0 SFX (rubberduck) | Relâche de bras de catapulte / détente de torsion. |
+| `rubberduck-100-cc0-sfx/x/spring_06.ogg` | ogg 48 kHz stéréo | 0.9 s | 48 Ko | 100 CC0 SFX (rubberduck) | Relâche de bras de catapulte / détente de torsion. |
+| `rubberduck-30-cc0-sfx-loops/x/rolling.ogg` | ogg 48 kHz stéréo | 1.1 s | 50 Ko | 30 CC0 SFX loops (rubberduck) | Roues d'engin qui roulent/grincent (boucle courte). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_breaking_01.ogg` | ogg 48 kHz stéréo | 1.1 s | 29 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Grondement/effondrement de pan de mur ou de tour. |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_breaking_02.ogg` | ogg 48 kHz stéréo | 0.9 s | 45 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Grondement/effondrement de pan de mur ou de tour. |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_01.ogg` | ogg 48 kHz stéréo | 0.9 s | 35 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de boulet sur la pierre (mur). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_03.ogg` | ogg 48 kHz stéréo | 0.8 s | 40 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Impact de boulet sur la pierre (mur). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_rock_falling_09.ogg` | ogg 48 kHz stéréo | 0.7 s | 30 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Grondement/effondrement de pan de mur ou de tour. |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_breaking_03.ogg` | ogg 48 kHz stéréo | 0.5 s | 17 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Coup de bélier sur une porte de bois (heavy = choc, breaking = porte qui cède). |
+| `rubberduck-75-cc0-breaking-falling-hit/x/bfh1_wood_falling_01.ogg` | ogg 48 kHz stéréo | 0.7 s | 33 Ko | 75 CC0 breaking / falling / hit SFX (rubberduck) | Chute du pont-levis (claquement sur le sol). |
+| `rubberduck-80-cc0-rpg-sfx/x/chain_01.ogg` | ogg 48 kHz stéréo | 0.5 s | 22 Ko | 80 CC0 RPG SFX (rubberduck) | Chaînes du pont-levis (levée/abaissement). |
+| `rubberduck-80-cc0-rpg-sfx/x/chain_02.ogg` | ogg 48 kHz stéréo | 0.5 s | 18 Ko | 80 CC0 RPG SFX (rubberduck) | Chaînes du pont-levis (levée/abaissement). |
+| `rubberduck-80-cc0-rpg-sfx/x/chain_03.ogg` | ogg 48 kHz stéréo | 0.9 s | 36 Ko | 80 CC0 RPG SFX (rubberduck) | Chaînes du pont-levis (levée/abaissement). |
+| `rubberduck-80-cc0-rpg-sfx/x/stones_03.ogg` | ogg 48 kHz stéréo | 1.2 s | 40 Ko | 80 CC0 RPG SFX (rubberduck) | Impact de boulet sur la pierre (mur). |
+| `shovel/shovel.ogg` | ogg 44.1 kHz stéréo | 0.9 s | 21 Ko | Shovel Sound (themightyglider) | Pelle et terre (sape) ; Mining = coups de pioche/outil. |
+| `winch/x/winch - Marker #3.wav` | wav 44.1 kHz stéréo | 1.8 s | 623 Ko | Chain winch sounds (bart) | Treuil/chaîne : grincement d'engin (tension de catapulte), chaîne du pont-levis. |
+| `winch/x/winch - Marker #8.wav` | wav 44.1 kHz stéréo | 3.6 s | 1.2 Mo | Chain winch sounds (bart) | Treuil/chaîne : grincement d'engin (tension de catapulte), chaîne du pont-levis. |
+
+### Feu et eau
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `fireplace-loop/fire_loop_16bit_mono.wav` | wav 44.1 kHz mono | 29.3 s | 2.5 Mo | Fireplace Sound loop (converti en 16 bits mono par nos soins) (PagDev) | Crépitement de feu en boucle (29,3 s ; très faible niveau, pic 0,107 -> gain +15 à +19 dB). |
+| `rubberduck-30-cc0-sfx-loops/x/water_flowing.ogg` | ogg 48 kHz stéréo | 1.9 s | 73 Ko | 30 CC0 SFX loops (rubberduck) | Rivière/douve en boucle (3-7 s ; vérifier le point de bouclage). |
+| `rubberduck-40-cc0-water-splash-slime/x/loop_water_01.ogg` | ogg 48 kHz stéréo | 3.4 s | 172 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Rivière/douve en boucle (3-7 s ; vérifier le point de bouclage). |
+| `rubberduck-40-cc0-water-splash-slime/x/loop_water_02.ogg` | ogg 48 kHz stéréo | 7.0 s | 263 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Rivière/douve en boucle (3-7 s ; vérifier le point de bouclage). |
+| `rubberduck-40-cc0-water-splash-slime/x/splash_01.ogg` | ogg 48 kHz stéréo | 1.4 s | 63 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Éclaboussure (douves, gué, chute dans l'eau). |
+| `rubberduck-40-cc0-water-splash-slime/x/splash_03.ogg` | ogg 48 kHz stéréo | 0.8 s | 31 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Éclaboussure (douves, gué, chute dans l'eau). |
+| `rubberduck-40-cc0-water-splash-slime/x/splash_05.ogg` | ogg 48 kHz stéréo | 1.2 s | 48 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Éclaboussure (douves, gué, chute dans l'eau). |
+| `rubberduck-40-cc0-water-splash-slime/x/splash_07.ogg` | ogg 48 kHz stéréo | 1.3 s | 61 Ko | 40 CC0 water / splash / slime SFX (rubberduck) | Éclaboussure (douves, gué, chute dans l'eau). |
+| `rubberduck-80-cc0-rpg-sfx/x/spell_fire_03.ogg` | ogg 48 kHz stéréo | 1.9 s | 70 Ko | 80 CC0 RPG SFX (rubberduck) | Embrasement (whoosh) : départ de feu, huile enflammée. |
+| `rubberduck-80-cc0-rpg-sfx/x/spell_fire_04.ogg` | ogg 48 kHz stéréo | 1.6 s | 58 Ko | 80 CC0 RPG SFX (rubberduck) | Embrasement (whoosh) : départ de feu, huile enflammée. |
+| `rubberduck-80-cc0-rpg-sfx/x/spell_fire_05.ogg` | ogg 48 kHz stéréo | 1.2 s | 53 Ko | 80 CC0 RPG SFX (rubberduck) | Embrasement (whoosh) : départ de feu, huile enflammée. |
+
+### Pas
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `kdd-different-steps/x/gravel.ogg` | ogg 44.1 kHz stéréo | 0.7 s | 21 Ko | Different steps on wood, stone, leaves, gravel and mud (TinyWorlds) | Pas sur terre/gravier (chemin, sape). Seulement 2 variantes. |
+| `kdd-different-steps/x/mud02.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 10 Ko | Different steps on wood, stone, leaves, gravel and mud (TinyWorlds) | Pas sur terre/gravier (chemin, sape). Seulement 2 variantes. |
+| `kenney/impact-sounds/Audio/footstep_concrete_000.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur pierre/dalle. |
+| `kenney/impact-sounds/Audio/footstep_concrete_001.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur pierre/dalle. |
+| `kenney/impact-sounds/Audio/footstep_concrete_002.ogg` | ogg 44.1 kHz stéréo | 0.1 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur pierre/dalle. |
+| `kenney/impact-sounds/Audio/footstep_grass_000.ogg` | ogg 44.1 kHz stéréo | 0.8 s | 8 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur herbe. |
+| `kenney/impact-sounds/Audio/footstep_grass_001.ogg` | ogg 44.1 kHz stéréo | 0.7 s | 8 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur herbe. |
+| `kenney/impact-sounds/Audio/footstep_grass_002.ogg` | ogg 44.1 kHz stéréo | 0.7 s | 8 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur herbe. |
+| `kenney/impact-sounds/Audio/footstep_wood_000.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur bois (pont, hourd, pont-levis). |
+| `kenney/impact-sounds/Audio/footstep_wood_001.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur bois (pont, hourd, pont-levis). |
+| `kenney/impact-sounds/Audio/footstep_wood_002.ogg` | ogg 44.1 kHz stéréo | 0.3 s | 6 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Pas sur bois (pont, hourd, pont-levis). |
+
+### Interface
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `horn-stumpystrust/theircoming.ogg` | ogg 44.1 kHz stéréo | 14.0 s | 115 Ko | Their Coming (generic horn sound) (StumpyStrust) | Fin de tour : cor long (14 s ; version longue pour début/fin de bataille). |
+| `horn-stumpystrust/theircoming3.ogg` | ogg 44.1 kHz stéréo | 5.2 s | 117 Ko | Their Coming (generic horn sound) (StumpyStrust) | Fin de tour : cor bref (5,2 s ; à couper/fondre). |
+| `kenney/impact-sounds/Audio/impactBell_heavy_000.ogg` | ogg 44.1 kHz stéréo | 1.5 s | 14 Ko | Kenney - Impact Sounds 1.0 (Kenney Vleugels) | Fin de tour (alternative : cloche) ou alarme. |
+| `kenney/interface-sounds/Audio/click_001.ogg` | ogg 44.1 kHz mono | 0.1 s | 5 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : clic. |
+| `kenney/interface-sounds/Audio/click_002.ogg` | ogg 44.1 kHz mono | 0.0 s | 4 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : clic. |
+| `kenney/interface-sounds/Audio/click_003.ogg` | ogg 44.1 kHz mono | 0.0 s | 4 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : clic. |
+| `kenney/interface-sounds/Audio/confirmation_001.ogg` | ogg 44.1 kHz mono | 0.3 s | 9 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : validation d'ordre. |
+| `kenney/interface-sounds/Audio/confirmation_002.ogg` | ogg 44.1 kHz mono | 0.5 s | 14 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : validation d'ordre. |
+| `kenney/interface-sounds/Audio/select_001.ogg` | ogg 44.1 kHz stéréo | 0.0 s | 5 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : sélection d'unité. |
+| `kenney/interface-sounds/Audio/select_002.ogg` | ogg 44.1 kHz stéréo | 0.0 s | 5 Ko | Kenney - Interface Sounds 1.0 (Kenney Vleugels) | Interface : sélection d'unité. |
+
+### Ambiances
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `birds-and-wind-spring/Birds-and-Wind-Ambient.ogg` | ogg 44.1 kHz stéréo | 83.8 s | 1.8 Mo | Birds and Wind - Ambient, Birds, Wind and Synth (Spring Spring) | Ambiance de jour (oiseaux, vent) en boucle. |
+| `birds-isaiah658/birds-isaiah658.ogg` | ogg 48 kHz stéréo | 30.7 s | 532 Ko | Ambient Bird Sounds (isaiah658) | Ambiance de jour (oiseaux, vent) en boucle. |
+| `crickets/crickets.mp3` | mp3 44.1 kHz stéréo | 11.5 s | 180 Ko | Crickets Ambient Noise - loopable (Wolfgang_) | Ambiance de nuit (grillons) en boucle, 11,5 s. |
+| `rain-ylmir/x/1.ogg` | ogg 44.1 kHz stéréo | 27.0 s | 537 Ko | Rain (loopable) (Ylmir) | Pluie en boucle. |
+| `rain-ylmir/x/3.ogg` | ogg 44.1 kHz stéréo | 45.0 s | 892 Ko | Rain (loopable) (Ylmir) | Pluie en boucle. |
+| `wind-whoosh-loop/wind-woosh-loop.ogg` | ogg 48 kHz stéréo | 6.0 s | 246 Ko | wind whoosh loop (SketchMan3) | Vent dans les blés (boucle 6 s ; filtre passe-bas/gain modulé par la météo). |
+
+### Musique
+
+| Fichier (sous raw/audio/) | Format | Durée | Taille | Source | Usage prévu |
+|---|---|---|---|---|---|
+| `randommind-music/Lament_for_a_Warriors_Soul.mp3` | mp3 44.1 kHz stéréo | 160.7 s | 3.7 Mo | Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle (RandomMind) | Musique couche TENSION (mineur, lent). |
+| `randommind-music/Medieval_Battle.mp3` | mp3 44.1 kHz stéréo | 78.9 s | 3.0 Mo | Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle (RandomMind) | Musique couche BATAILLE (79 s). |
+| `randommind-music/The_Bards_Tale.mp3` | mp3 44.1 kHz stéréo | 158.6 s | 3.6 Mo | Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle (RandomMind) | Musique couche CALME (mode majeur). Version mp3 « complète » : pas de boucle sans couture (la version Loop .wav fait 10 Mo, non retenue). |
+
+### Licences et sources (résumé)
+
+- **Birds and Wind - Ambient, Birds, Wind and Synth** - Spring Spring - CC0 (page OGA) - https://opengameart.org/content/birds-and-wind-ambient-birds-wind-and-synth
+- **Ambient Bird Sounds** - isaiah658 - CC0 (page OGA) - https://opengameart.org/content/ambient-bird-sounds
+- **Cannon hit wall** - Thimras - CC0 (page OGA) - https://opengameart.org/content/cannon-hit-wall
+- **Crickets Ambient Noise - loopable** - Wolfgang_ - CC0 (page OGA) - https://opengameart.org/content/crickets-ambient-noise-loopable
+- **Earthquake and Open sesame** - mieki256 - CC0 (page OGA) - https://opengameart.org/content/earthquake-and-open-sesame
+- **Fireplace Sound loop (converti en 16 bits mono par nos soins)** - PagDev - CC0 (page OGA) - https://opengameart.org/content/fireplace-sound-loop
+- **Their Coming (generic horn sound)** - StumpyStrust - CC0 (page OGA) - https://opengameart.org/content/their-coming-generic-horn-sound
+- **Hurt Sound Effects** - EZduzziteh - CC0 (page OGA) - https://opengameart.org/content/hurt-sound-effects
+- **Iron Door** - themightyglider - CC0 (page OGA) - https://opengameart.org/content/iron-door
+- **Different steps on wood, stone, leaves, gravel and mud** - TinyWorlds ([kdd]) - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud
+- **Kenney - Impact Sounds 1.0** - Kenney Vleugels (Kenney.nl) - CC0 - « License (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/ » (fichier License.txt dans l'archive, conservé dans kenney/impact-sounds/) - https://kenney.nl/assets/impact-sounds
+- **Kenney - Interface Sounds 1.0** - Kenney Vleugels (Kenney.nl) - CC0 - même texte (License.txt dans l'archive, conservé dans kenney/interface-sounds/) - https://kenney.nl/assets/interface-sounds
+- **Kenney - RPG Audio 1.0** - Kenney Vleugels (Kenney.nl) - CC0 - même texte (License.txt dans l'archive, conservé dans kenney/rpg-audio/) - https://kenney.nl/assets/rpg-audio
+- **Rain (loopable)** - Ylmir - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/rain-loopable
+- **Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle** - RandomMind (Sergio) - CC0 (page OGA ; attribution non requise) - https://opengameart.org/content/medieval-the-bards-tale ; https://opengameart.org/content/fantasy-lament-for-a-warriors-soul ; https://opengameart.org/content/medieval-battle
+- **100 CC0 SFX** - rubberduck - CC0 (licence de la page OGA ; aucun fichier de licence dans le zip) - https://opengameart.org/content/100-cc0-sfx
+- **30 CC0 SFX loops** - rubberduck - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/30-cc0-sfx-loops
+- **40 CC0 water / splash / slime SFX** - rubberduck - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/40-cc0-water-splash-slime-sfx
+- **75 CC0 breaking / falling / hit SFX** - rubberduck - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx
+- **80 CC0 RPG SFX** - rubberduck - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/80-cc0-rpg-sfx
+- **Shovel Sound** - themightyglider - CC0 (page OGA) - https://opengameart.org/content/shovel-sound
+- **Medieval sound effects (Still North Media) - Weapon Textures et Weapon impacts** - Ben Jaszczak & Brian Nelson (Still North Media), soumis sur OGA par MedicineStorm - CC0 - page OGA : « You may use any of our sounds freely, with no royalties, and no credit needs to be given » ; « CC0 NO RIGHTS RESERVED » (aucun fichier de licence dans les 7z) - https://opengameart.org/content/medieval-sound-effects-weapon-textures (+ https://opengameart.org/content/medieval-sound-effects-weapon-impacts)
+- **Chain winch sounds** - bart (OpenGameArt) - CC0 (page OGA ; pas de fichier de licence dans le zip) - https://opengameart.org/content/chain-winch-sounds
+- **wind whoosh loop** - SketchMan3 - CC0 (page OGA) - https://opengameart.org/content/wind-whoosh-loop
+
+### Couverture par rapport à la liste demandée
+
+| Besoin | État | Détail |
+|---|---|---|
+| Décoche d'arc | OK | 2 variantes (arc long, arc recourbé) |
+| Impact flèche bois / pierre / chair | OK (approx.) | bois 6, pierre 3, chair 3 ; la « chair » est un impact sourd Kenney, pas un vrai son de flèche |
+| Carreau d'arbalète | OK | tir + passage en vol |
+| Épées qui s'entrechoquent | OK | 1 clash Still North + 6 impacts métal/plaque Kenney |
+| Coup contondant | OK | 1 masse + 3 impacts Punch |
+| Cri de blessé | OK | 6 cris brefs |
+| Catapulte (relâche, grincement) | Partiel | relâche = 3 « spring » génériques ; grincements = 3 creaks Kenney + 2 treuils ; pas de son dédié de catapulte |
+| Boulet sur pierre | OK | 6 pièces |
+| Effondrement | OK | grondement 5 s + 3 éboulements |
+| Bélier sur porte | OK (approx.) | impacts bois lourds + claquements ; pas de bélier dédié |
+| Pont-levis (chaînes, chute) | OK | 3 chaînes + 2 treuils + 2 chutes |
+| Herse | Partiel | 1 son de porte de fer (0,8 s) + chaînes |
+| Pelle et terre | OK | 1 pelle + 3 pioches |
+| Roues d'engin | Partiel | creaks + 1 « rolling » de 1 s ; pas de boucle de roues |
+| Feu : embrasement, crépitement, éclaboussure | OK | 3 whoosh, 1 boucle de 29 s (très faible), 4 éclaboussures |
+| Pas herbe / terre / pierre / bois | OK sauf terre | herbe 3, pierre 3, bois 3 ; terre = 2 seulement (boue, gravier) |
+| UI : clic, sélection, validation, fin de tour | OK | clic 3, sélection 2, validation 2, cor 2 (5 s et 14 s) + cloche |
+| Ambiances jour / nuit / pluie / blés / rivière | OK (approx.) | jour 2, nuit 1, pluie 2, vent 1, rivière 3 ; boucles courtes, points de bouclage non vérifiés ; pas de « vent dans les blés » dédié (vent générique) |
+| Musique 3 couches | Partiel | calme / tension / bataille, tous CC0 (RandomMind), mais tonalité NON vérifiée (calme = Majeur d'après les tags, tension = mineur) : crossfade tonal non garanti ; mp3 non bouclables sans couture |
+| Non trouvé en CC0 scriptable | Manque | vrais sons de catapulte/trébuchet/bélier/herse (les packs CC0 ne couvrent pas, Freesound exige une connexion, Sonniss et FuseHive sont à licence maison) |
+
