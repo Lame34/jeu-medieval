@@ -19,7 +19,7 @@ import { useEffect, useRef } from 'react';
 import { Raycaster, Vector2, Vector3, type Camera } from 'three';
 import { previewAttack } from '../../core/battle/combat.ts';
 import type { BattleContext } from '../../core/battle/context.ts';
-import { distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
+import { distanceToCells, distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
 import { isBroken, structureDef, type StructureDef } from '../../core/battle/structures.ts';
 import { fillCells, fillSiteAt, fillSurfaceM } from '../../core/battle/moat.ts';
 import { FILL_MOAT_TAG, MINE_SITE_PREFIX, UNDERMINE_TAG } from '../../core/battle/siege-works.ts';
@@ -163,7 +163,7 @@ function castleWork(session: BattleSession, workId: string, kind: 'fill' | 'mine
   const dx = sapper.x - def.center.x;
   const dz = sapper.z - def.center.z;
   const len = Math.hypot(dx, dz) || 1;
-  return { kind: 'mine', id: workId, fraction, at: sapper, out: { x: dx / len, z: dz / len }, groundM: session.standHeight(sapper.x, sapper.z) };
+  return { kind: 'mine', id: workId, fraction, at: sapper, out: { x: dx / len, z: dz / len }, groundM: session.standHeight(sapper.x, sapper.z), wallM: distanceToCells(ctx, def.cells, sapper) };
 }
 
 function isSiegeEngine(typeKey: string): boolean {
@@ -472,7 +472,7 @@ export function BattleDirector({
             const work = castleWork(session, event.workId, event.kind, event.progress / event.required, unit.position);
             if (work) castle?.setWork(work);
             const p = h?.root.position;
-            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Sape'} ${event.progress}/${event.required}`, 'guard', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Sape'} ${event.progress}/${event.required}`, 'work', p.x, p.y + FLOAT_HEIGHT_M, p.z);
           },
           finish() {
             h?.play('idle');

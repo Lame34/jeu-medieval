@@ -87,6 +87,7 @@ uniform vec3 uDeep;
 uniform vec3 uFoam;
 uniform float uFlowSpeed;
 uniform float uStill;
+uniform vec3 uDuckweed;
 varying vec3 vWorldPos;
 varying vec3 vFlow;
 varying float vSide;
@@ -123,10 +124,14 @@ void main() {
   vec3 skyRefl = mix(mix(uHorizonAway, uHorizonSun, towardSun), uSkyZenith, 0.35);
   // Running water reflects a teal sky, not a glacier blue (review v15).
   skyRefl = mix(skyRefl, uShallow, mix(0.25, 0.4, sunHigh) * (1.0 - uStill));
-  // Still water (moats) mirrors the sky much more than running water: it must read as water.
+  // Still water (moats): a dark mirror, darker than the berm around it, so it reads as water and
+  // as an obstacle (review J4: a bright sky reflection made it a concrete road).
   float farCalm = mix(1.0 - 0.6 * smoothstep(30.0, 90.0, distance(cameraPosition, vWorldPos)), 1.0, uStill);
-  float reflection = uStill * 0.12 + fresnel * mix(0.45, 0.7, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill) * farCalm;
-  col = mix(col, skyRefl * 0.9, clamp(reflection, 0.0, mix(mix(0.22, 0.1, sunHigh), 0.5, uStill)));
+  float reflection = uStill * 0.03 + fresnel * mix(0.45, 0.35, uStill) + (ripple - 0.5) * mix(0.18, 0.08, uStill) * farCalm;
+  col = mix(col, skyRefl * mix(0.9, 0.72, uStill), clamp(reflection, 0.0, mix(mix(0.22, 0.1, sunHigh), 0.25, uStill)));
+  // Duckweed in the moat's shallows, in broken patches.
+  float weed = smoothstep(0.48, 0.72, paintedValueNoise(vWorldPos.xz * 0.35 + 3.0)) * (1.0 - smoothstep(0.2, 0.4, depth)) * uStill;
+  col = mix(col, uDuckweed * uSceneLight, weed * 0.5);
 
   // Painted light streaks along the current.
   float streak = smoothstep(0.72, 0.92, paintedValueNoise(flowUv * vec2(0.25, 2.8)));
@@ -165,6 +170,7 @@ export function Water({ bodies, heights, heightsSize }: { readonly bodies: reado
             uFoam: { value: new Color(PALETTE.water.foam) },
             uFlowSpeed: { value: RIVER_FLOW_SPEED },
             uStill: { value: still },
+            uDuckweed: { value: new Color(PALETTE.water.duckweed) },
           },
           vertexShader,
           fragmentShader,

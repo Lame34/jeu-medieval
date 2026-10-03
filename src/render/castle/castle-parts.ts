@@ -40,6 +40,15 @@ const MOAT_BRIDGE_TO_M = 17.5;
 const PLANK_M = 0.45;
 const PLANK_GAP_M = 0.06;
 const DECK_THICKNESS_M = 0.22;
+/** Share of its pitch a deck plank fills (fixed bridges), and on the lifting span. */
+const PLANK_FILL = 0.88;
+const LIFT_PLANK_FILL = 0.97;
+/** The lifting span's backing board under the planks, and its two iron bands. */
+const LIFT_BACKING_M = 0.05;
+const LIFT_BACKING_DROP_M = 0.03;
+const LIFT_BACKING_COLOR = '#4e3322';
+const LIFT_BAND_M = 0.04;
+const LIFT_BAND_WIDTH_M = 0.16;
 const STONE_BRIDGE_SEGMENTS = 14;
 const STONE_DECK_THICKNESS_M = 1.1;
 const STONE_PARAPET_HEIGHT_M = 0.85;
@@ -187,15 +196,18 @@ function mergeOrThrow(parts: BufferGeometry[], name: string): BufferGeometry {
   return merged;
 }
 
-/** Timber deck (planks across, two stringers under), from z = 0 to `length`, top at y = 0. */
-function timberDeck(width: number, length: number, paintBase: number): BufferGeometry[] {
+/**
+ * Timber deck (planks across, two stringers under), from z = 0 to `length`, top at y = 0; each
+ * plank fills `fill` of its pitch (the rest is the gap between planks).
+ */
+function timberDeck(width: number, length: number, paintBase: number, fill = PLANK_FILL): BufferGeometry[] {
   const out: BufferGeometry[] = [];
   const lit = new Color(PALETTE.woodLight.lit);
   const dark = new Color(PALETTE.woodLight.base);
   const count = Math.max(1, Math.floor(length / (PLANK_M + PLANK_GAP_M)));
   for (let k = 0; k < count; k++) {
     const tone = dark.clone().lerp(lit, 0.35 + 0.45 * (((k * 37) % 11) / 10));
-    out.push(finish(boxGeometry({ center: new Vector3(0, -DECK_THICKNESS_M / 2, ((k + 0.5) / count) * length), size: new Vector3(width, DECK_THICKNESS_M, (length / count) * 0.88), yaw: 0 }), paintBase, tone));
+    out.push(finish(boxGeometry({ center: new Vector3(0, -DECK_THICKNESS_M / 2, ((k + 0.5) / count) * length), size: new Vector3(width, DECK_THICKNESS_M, (length / count) * fill), yaw: 0 }), paintBase, tone));
   }
   const stringer = dark.clone().multiplyScalar(0.8);
   for (const side of [-1, 1]) {
@@ -206,10 +218,18 @@ function timberDeck(width: number, length: number, paintBase: number): BufferGeo
 
 /** The lifting span, in its hinge frame (see GatePieces.lift). */
 function liftSpan(gate: GateSite): BufferGeometry {
-  const parts = timberDeck(gate.openingM + 0.6, GATEHOUSE.liftSpanM, 0);
+  // Planks nearly joined: raised, the gaps showed their lit edges as the bars of a portcullis.
+  const parts = timberDeck(gate.openingM + 0.6, GATEHOUSE.liftSpanM, 0, LIFT_PLANK_FILL);
   // Iron-shod edge at the tip, rings for the chains.
   const iron = new Color(IRON_COLOR);
   parts.push(finish(boxGeometry({ center: new Vector3(0, -DECK_THICKNESS_M / 2, GATEHOUSE.liftSpanM - 0.08), size: new Vector3(gate.openingM + 0.7, DECK_THICKNESS_M + 0.06, 0.16), yaw: 0 }), 0, iron));
+  // Raised, the span shows its underside to the attackers: a solid backing (no light through the
+  // plank gaps, which read as a portcullis) bound by two iron bands.
+  const backY = -DECK_THICKNESS_M - LIFT_BACKING_DROP_M;
+  parts.push(finish(boxGeometry({ center: new Vector3(0, backY, GATEHOUSE.liftSpanM / 2), size: new Vector3(gate.openingM + 0.6, LIFT_BACKING_M, GATEHOUSE.liftSpanM), yaw: 0 }), 0, new Color(LIFT_BACKING_COLOR)));
+  for (const at of [0.25, 0.75]) {
+    parts.push(finish(boxGeometry({ center: new Vector3(0, backY - LIFT_BACKING_M / 2 - LIFT_BAND_M / 2, GATEHOUSE.liftSpanM * at), size: new Vector3(gate.openingM + 0.7, LIFT_BAND_M, LIFT_BAND_WIDTH_M), yaw: 0 }), 0, iron));
+  }
   return mergeOrThrow(parts, 'lift');
 }
 

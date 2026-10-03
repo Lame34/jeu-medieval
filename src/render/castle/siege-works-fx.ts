@@ -3,7 +3,7 @@
  * they lie level with the causeway, and at a wall's foot the sappers' timber shed with a heap of
  * spoil growing beside it. Built when a work progresses (never per frame).
  */
-import { Color, CylinderGeometry, Euler, InstancedMesh, Matrix4, Quaternion, Vector3, type BufferGeometry, type Material } from 'three';
+import { Color, CylinderGeometry, Euler, InstancedMesh, Matrix4, Quaternion, Vector3, type BufferAttribute, type BufferGeometry, type Material } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { PALETTE } from '../materials/palette.ts';
@@ -16,18 +16,64 @@ const BUNDLE_RADIUS_M = 0.32;
 /** Bundles per cell of the slot in the top layer; how deep the pile shows under the surface. */
 const BUNDLES_PER_CELL = 0.55;
 const PILE_SHOWS_M = 1.6;
+/** A faggot, not a rolled rug (review J4): splayed ends, a ragged outline, cut ends showing. */
+const BUNDLE_FLARE = 1.2;
+const BUNDLE_RAGGED = 0.12;
+const BRUSH_TOP = '#7f7048';
+const BRUSH_BASE = '#57492f';
+const BRUSH_CUT = '#b39b6a';
+const BINDING_COLOR = '#3a2a1c';
+const BINDING_WIDTH_M = 0.08;
+/** A finished causeway: a strip of tamped earth over the bundles, level with the banks. */
+const CAUSEWAY_EARTH = '#a88a5c';
+const CAUSEWAY_THICKNESS_M = 0.12;
+const CAUSEWAY_RISE_M = 0.04;
+/** The mine: spoil (colour, heaps, height and spread grow with the work), shed, gallery mouth. */
+const SPOIL_COLOR = '#9c7a52';
+const SPOIL_HEAPS = 6;
+const SHED_HIDE = '#8a6444';
+const GALLERY_COLOR = '#2a2226';
+const GALLERY_WIDTH_M = 1.3;
 
-/** One bundle, its axis along +x, painted brushwood with two bindings. */
+/** One bundle, its axis along +x: brushwood darker underneath, pale cut ends, two bindings. */
 export function bundleGeometry(): BufferGeometry {
   const parts: BufferGeometry[] = [];
-  const brush = new Color(PALETTE.woodLight.lit).lerp(new Color('#9a8a52'), 0.45);
-  const binding = new Color(PALETTE.woodWarm.base);
-  const body = new CylinderGeometry(BUNDLE_RADIUS_M, BUNDLE_RADIUS_M * 0.92, BUNDLE_LENGTH_M, 7, 1, false).rotateZ(Math.PI / 2);
-  parts.push(finish(body.toNonIndexed(), -2, brush));
+  const top = new Color(BRUSH_TOP);
+  const base = new Color(BRUSH_BASE);
+  const cut = new Color(BRUSH_CUT);
+  const half = BUNDLE_LENGTH_M / 2;
+  // Built along y, then laid along x.
+  const body = new CylinderGeometry(BUNDLE_RADIUS_M, BUNDLE_RADIUS_M * 0.92, BUNDLE_LENGTH_M, 6, 3, false);
+  const pos = body.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    if (Math.hypot(x, z) < 1e-4) continue;
+    // Same displacement for coincident vertices (side ring and cap rim): hashed from angle and height.
+    const key = Math.round(Math.atan2(z, x) * 100);
+    const ring = Math.round(y * 100);
+    const k = (Math.abs(y) > half - 1e-3 ? BUNDLE_FLARE : 1) * (1 + (hash01(key, ring, 3) - 0.5) * 2 * BUNDLE_RAGGED);
+    pos.setXYZ(i, x * k, y, z * k);
+  }
+  const laid = body.toNonIndexed().rotateZ(Math.PI / 2);
   body.dispose();
+  laid.computeVertexNormals();
+  const finished = finish(laid, -2, top);
+  const colors = finished.getAttribute('color') as BufferAttribute;
+  const normals = finished.getAttribute('normal');
+  const p2 = finished.getAttribute('position');
+  const reach = BUNDLE_RADIUS_M * BUNDLE_FLARE * (1 + BUNDLE_RAGGED);
+  const c = new Color();
+  for (let i = 0; i < p2.count; i++) {
+    if (Math.abs(normals.getX(i)) > 0.95) c.copy(cut);
+    else c.copy(base).lerp(top, Math.min(1, Math.max(0, p2.getY(i) / reach * 0.5 + 0.5)));
+    colors.setXYZ(i, c.r, c.g, c.b);
+  }
+  parts.push(finished);
   for (const x of [-0.7, 0.7]) {
-    const band = new CylinderGeometry(BUNDLE_RADIUS_M * 1.06, BUNDLE_RADIUS_M * 1.06, 0.14, 7, 1, false).rotateZ(Math.PI / 2).translate(x, 0, 0);
-    parts.push(finish(band.toNonIndexed(), -2, binding));
+    const band = new CylinderGeometry(BUNDLE_RADIUS_M * 1.1, BUNDLE_RADIUS_M * 1.1, BINDING_WIDTH_M, 6, 1, false).rotateZ(Math.PI / 2).translate(x, 0, 0);
+    parts.push(finish(band.toNonIndexed(), -2, new Color(BINDING_COLOR)));
     band.dispose();
   }
   const merged = mergeGeometries(parts, false);
@@ -64,43 +110,76 @@ export function placeBundles(mesh: InstancedMesh, cells: readonly Vec2[], tangen
   mesh.instanceMatrix.needsUpdate = true;
 }
 
+/**
+ * The tamped earth of a finished causeway: one strip across the moat over the slot (world space),
+ * `tangent` the moat's direction; its ends run into the banks.
+ */
+export function causewayGeometry(cells: readonly Vec2[], tangent: Vec2, surfaceM: number): BufferGeometry {
+  const centre = cells.reduce((a, c) => ({ x: a.x + c.x / cells.length, z: a.z + c.z / cells.length }), { x: 0, z: 0 });
+  const across = { x: -tangent.z, z: tangent.x };
+  let halfAlong = 0;
+  let halfAcross = 0;
+  for (const c of cells) {
+    halfAlong = Math.max(halfAlong, Math.abs((c.x - centre.x) * tangent.x + (c.z - centre.z) * tangent.z));
+    halfAcross = Math.max(halfAcross, Math.abs((c.x - centre.x) * across.x + (c.z - centre.z) * across.z));
+  }
+  const geometry = finish(
+    boxGeometry({
+      center: new Vector3(centre.x, surfaceM + CAUSEWAY_RISE_M, centre.z),
+      size: new Vector3((halfAlong + 0.3) * 2, CAUSEWAY_THICKNESS_M, (halfAcross + 0.5) * 2),
+      yaw: Math.atan2(-tangent.z, tangent.x),
+    }),
+    surfaceM - 1,
+    new Color(CAUSEWAY_EARTH),
+  );
+  return geometry;
+}
+
 /** Upper bound of instances a slot of `cells` cells can need. */
 export function bundleCapacity(cells: number): number {
   return Math.ceil(cells * BUNDLES_PER_CELL * (PILE_SHOWS_M / (BUNDLE_RADIUS_M * 1.6) + 1)) + 4;
 }
 
 /**
- * The sappers' shed at a wall's foot (a sloping roof of planks on four posts, its back to the
- * wall) and, beside it, a heap of spoil that grows with the work. World space; `out` points away
- * from the wall.
+ * The sappers' shed at a wall's foot (a sloping roof of planks under a hide on four posts, its
+ * back to the wall), the gallery's mouth in the wall behind it, deepening with the work, and
+ * beside it heaps of spoil that grow with the work. World space; `out` points away from the
+ * wall, which stands `wallM` behind `at`.
  */
-export function mineGeometry(at: Vec2, groundM: number, out: Vec2, fraction: number): BufferGeometry {
+export function mineGeometry(at: Vec2, groundM: number, out: Vec2, fraction: number, wallM: number): BufferGeometry {
   const parts: BufferGeometry[] = [];
   const yaw = Math.atan2(out.x, out.z);
   const wood = new Color(PALETTE.woodWarm.lit);
   const plank = new Color(PALETTE.woodLight.base);
-  const earth = new Color('#7a6248');
+  const earth = new Color(SPOIL_COLOR);
+  const f = Math.min(1, fraction);
   const local = (x: number, z: number) => new Vector3(at.x + Math.cos(yaw) * x + Math.sin(yaw) * z, 0, at.z - Math.sin(yaw) * x + Math.cos(yaw) * z);
   for (const [x, z, h] of [
-    [-1, -0.9, 2.2],
-    [1, -0.9, 2.2],
-    [-1, 0.9, 1.4],
-    [1, 0.9, 1.4],
+    [-1, -0.9, 2.0],
+    [1, -0.9, 2.0],
+    [-1, 0.9, 1.0],
+    [1, 0.9, 1.0],
   ] as const) {
     const c = local(x, z).setY(groundM + h / 2);
     parts.push(finish(boxGeometry({ center: c, size: new Vector3(0.18, h, 0.18), yaw: -yaw }), groundM, wood));
   }
+  const hide = new Color(SHED_HIDE);
   for (let k = 0; k < 5; k++) {
     const z = -0.9 + (k + 0.5) * 0.4;
-    const c = local(0, z).setY(groundM + 2.25 - (k + 0.5) * 0.17);
-    parts.push(finish(boxGeometry({ center: c, size: new Vector3(2.4, 0.07, 0.38), yaw: -yaw }), groundM, plank.clone().multiplyScalar(0.9 + 0.2 * hash01(k, 3))));
+    const y = groundM + 2.05 - (k + 0.5) * 0.2;
+    parts.push(finish(boxGeometry({ center: local(0, z).setY(y), size: new Vector3(2.4, 0.07, 0.38), yaw: -yaw }), groundM, plank.clone().multiplyScalar(0.9 + 0.2 * hash01(k, 3))));
+    // The hide thrown over the planks (against fire and stones).
+    parts.push(finish(boxGeometry({ center: local(0, z).setY(y + 0.05), size: new Vector3(2.6, 0.03, 0.46), yaw: -yaw }), groundM, hide.clone().multiplyScalar(0.92 + 0.12 * hash01(k, 4))));
   }
-  // Spoil heap: a few flattened mounds, taller as the gallery deepens.
-  const heap = 0.25 + 0.9 * Math.min(1, fraction);
-  for (let k = 0; k < 4; k++) {
-    const c = local(1.9 + 0.5 * hash01(k, 5), 1.0 + 1.2 * hash01(k, 7)).setY(groundM + heap * 0.3);
-    const mound = new CylinderGeometry(0.15, 0.9 + 0.3 * hash01(k, 9), heap * (0.6 + 0.4 * hash01(k, 11)), 8, 1, false).translate(c.x, c.y, c.z);
-    parts.push(finish(mound.toNonIndexed(), groundM, earth.clone().multiplyScalar(0.92 + 0.15 * hash01(k, 13))));
+  // The gallery's mouth at the wall's foot, higher as it is dug.
+  const mouthH = 0.5 + 0.6 * f;
+  parts.push(finish(boxGeometry({ center: local(0, -Math.max(1.0, wallM) + 0.03).setY(groundM + mouthH / 2), size: new Vector3(GALLERY_WIDTH_M, mouthH, 0.06), yaw: -yaw }), groundM, new Color(GALLERY_COLOR)));
+  // Spoil: flattened heaps, taller and wider as the gallery deepens.
+  const heap = 0.45 + 1.3 * f;
+  for (let k = 0; k < SPOIL_HEAPS; k++) {
+    const c = local(1.9 + 0.9 * hash01(k, 5), 0.4 + 2.0 * hash01(k, 7)).setY(groundM + heap * 0.3);
+    const mound = new CylinderGeometry(0.15, 1.1 + 0.5 * hash01(k, 9), heap * (0.6 + 0.4 * hash01(k, 11)), 8, 1, false).translate(c.x, c.y, c.z);
+    parts.push(finish(mound.toNonIndexed(), groundM - 1, earth.clone().multiplyScalar(0.92 + 0.15 * hash01(k, 13))));
     mound.dispose();
   }
   const merged = mergeGeometries(parts, false);

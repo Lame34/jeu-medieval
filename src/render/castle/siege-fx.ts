@@ -10,6 +10,7 @@ import {
   Color,
   DynamicDrawUsage,
   Euler,
+  InstancedBufferAttribute,
   InstancedMesh,
   Matrix4,
   NormalBlending,
@@ -21,8 +22,8 @@ import {
 } from 'three';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WallRun } from '../../core/worldgen/types.ts';
-import { PALETTE } from '../materials/palette.ts';
-import { boxGeometry, finish } from './castle-geometry.ts';
+import { finish } from './castle-geometry.ts';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 
 /** Deterministic [0, 1) from integers (no Math.random in the scene either: replays look the same). */
@@ -60,15 +61,34 @@ export function segmentFrame(wall: WallRun, k: number): SegmentFrame {
 const CRACKS_AT_FULL_DAMAGE = 9;
 const CRACK_STEPS = 7;
 const CRACK_STEP_M = 0.75;
-const CRACK_WIDTH_M = 0.34;
+const CRACK_WIDTH_M = 0.5;
+const CRACK_TAPER = 0.88;
 const CRACK_OFFSET_M = 0.04;
-const CRACK_COLOR = '#5e5043';
+const CRACK_COLOR = '#2b2326';
+/** The lit upper lip of each crack (the face breaks, the light catches its edge). */
+const CRACK_LIP_COLOR = '#c2b59c';
+const CRACK_LIP_RISE_M = 0.06;
+const CRACK_LIP_WIDTH = 0.35;
+/** Past this damage stones are missing from the face; past the second, chips lie at the foot. */
+const MISSING_STONES_AT = 0.5;
+const MISSING_STONES = [3, 6] as const;
+const MISSING_STONE_M = { w: 0.6, h: 0.35 } as const;
+const CHIPS_AT = 0.7;
+const CHIPS = [6, 10] as const;
+const CHIP_COLOR = '#8e8272';
 
-/** Dark branching cracks on the outer face of a segment; more of them as `damage` (0–1) grows. */
-export function crackGeometry(f: SegmentFrame, seed: number, damage: number): BufferGeometry | null {
+/**
+ * Dark branching cracks on the outer face of a segment, each with a lit upper lip; more of them
+ * as `damage` (0–1) grows; past half damage stones are missing from the face, past
+ * CHIPS_AT broken chips lie at its foot. `ground` gives the relief height.
+ */
+export function crackGeometry(f: SegmentFrame, seed: number, damage: number, ground: (x: number, z: number) => number): BufferGeometry | null {
   const count = Math.round(Math.min(1, damage) * CRACKS_AT_FULL_DAMAGE);
   if (count === 0) return null;
-  const positions: number[] = [];
+  const dark: number[] = [];
+  const lip: number[] = [];
+  const chips: number[] = [];
+  let positions = dark;
   const face = f.thickness / 2 + CRACK_OFFSET_M;
   const point = (u: number, y: number) => [f.a.x + f.dir.x * u + f.outward.x * face, y, f.a.z + f.dir.z * u + f.outward.z * face];
   const strip = (u0: number, y0: number, u1: number, y1: number, w: number) => {
@@ -94,24 +114,78 @@ export function crackGeometry(f: SegmentFrame, seed: number, damage: number): Bu
       const step = CRACK_STEP_M * (0.6 + 0.8 * hash01(seed, c * 31 + s, 5));
       const u1 = Math.min(f.length - 0.3, Math.max(0.3, u + Math.cos(angle) * step));
       const y1 = Math.max(f.base + 0.8, y + Math.sin(angle) * step);
+      positions = dark;
       strip(u, y, u1, y1, w);
+      positions = lip;
+      strip(u, y + w * 0.5 + CRACK_LIP_RISE_M, u1, y1 + w * 0.5 + CRACK_LIP_RISE_M, w * CRACK_LIP_WIDTH);
+      positions = dark;
       if (hash01(seed, c * 31 + s, 6) < 0.25) strip(u1, y1, u1 + (hash01(seed, c, s + 7) - 0.5) * 1.6, y1 - 0.5 * step, w * 0.55);
       u = u1;
       y = y1;
-      w *= 0.8;
+      w *= CRACK_TAPER;
     }
   }
-  const g = new BufferGeometry();
-  g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-  g.computeVertexNormals();
-  return finish(g, f.base, new Color(CRACK_COLOR));
+  // Missing stones: dark sockets in the face.
+  if (damage >= MISSING_STONES_AT) {
+    positions = dark;
+    const n = MISSING_STONES[0] + Math.round(((damage - MISSING_STONES_AT) / (1 - MISSING_STONES_AT)) * (MISSING_STONES[1] - MISSING_STONES[0]));
+    for (let i = 0; i < n; i++) {
+      const u = f.length * (0.1 + 0.8 * hash01(seed, i, 40));
+      const y = f.base + f.height * (0.25 + 0.65 * hash01(seed, i, 41));
+      strip(u - MISSING_STONE_M.w / 2, y, u + MISSING_STONE_M.w / 2, y, MISSING_STONE_M.h);
+    }
+  }
+  // Chips fallen at the foot: small wedges on the ground, outside.
+  if (damage >= CHIPS_AT) {
+    const n = CHIPS[0] + Math.round(((damage - CHIPS_AT) / (1 - CHIPS_AT)) * (CHIPS[1] - CHIPS[0]));
+    for (let i = 0; i < n; i++) {
+      const u = f.length * (0.08 + 0.84 * hash01(seed, i, 50));
+      const out = f.thickness / 2 + 0.4 + 1.6 * hash01(seed, i, 51);
+      const x = f.a.x + f.dir.x * u + f.outward.x * out;
+      const z = f.a.z + f.dir.z * u + f.outward.z * out;
+      const s = 0.25 + 0.3 * hash01(seed, i, 52);
+      const yaw = hash01(seed, i, 53) * Math.PI * 2;
+      const y = ground(x, z);
+      // A low tetrahedron: three base corners and a raised tip.
+      const corner = (k: number) => [x + Math.cos(yaw + (k * Math.PI * 2) / 3) * s, y, z + Math.sin(yaw + (k * Math.PI * 2) / 3) * s];
+      const tip = [x + 0.1 * s, y + s * 0.8, z - 0.1 * s];
+      const [c0, c1, c2] = [corner(0), corner(1), corner(2)];
+      chips.push(...c0, ...c1, ...tip, ...c1, ...c2, ...tip, ...c2, ...c0, ...tip);
+    }
+  }
+  const part = (data: number[], color: string) => {
+    if (data.length === 0) return null;
+    const g = new BufferGeometry();
+    g.setAttribute('position', new BufferAttribute(new Float32Array(data), 3));
+    g.computeVertexNormals();
+    return finish(g, f.base, new Color(color));
+  };
+  const parts = [part(dark, CRACK_COLOR), part(lip, CRACK_LIP_COLOR), part(chips, CHIP_COLOR)].filter((g): g is BufferGeometry => g !== null);
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  return merged;
 }
 
 
 // --- Collapse -------------------------------------------------------------------------------
 
-const BLOCK_ALONG_M = 1.35;
-const BLOCK_ROW_M = 1.25;
+const BLOCK_ALONG_M = 0.9;
+const BLOCK_ROW_M = 0.85;
+/** Share of blocks that are mere fragments, and their size factor. */
+const FRAGMENT_SHARE = 0.5;
+const FRAGMENT_SIZE = [0.3, 0.55] as const;
+/** Each block's tone (instance colour), so the heap is not one flat grey. */
+const BLOCK_TONE = [0.82, 1.08] as const;
+/** The broken stone's corners: chamfer (fraction of the half size) and jitter. */
+const CHUNK_CHAMFER = 0.32;
+const CHUNK_JITTER = 0.18;
+/** The bed of crushed stone under a breach: a ragged patch (length + extra) × depth. */
+const BED_EXTRA_M = 3;
+const BED_DEPTH_M = 7;
+const BED_SIDES = 16;
+const BED_RAGGED = 0.25;
+const BED_LIFT_M = 0.06;
+const BED_COLOR = '#8e8272';
 /** Rubble stays this low over the breach itself (units cross it), heaps up beside it. */
 const HEAP_OVER_BREACH_M = 0.7;
 const HEAP_CELL_M = 1.1;
@@ -148,7 +222,7 @@ export function planCollapse(f: SegmentFrame, seed: number, ground: (x: number, 
         const u = ((i + 0.5) / along) * f.length;
         const across = (leaf === 0 ? 1 : -1) * (f.thickness / 4);
         // Broken stone, not bricks: sizes vary a lot, some blocks are mere fragments.
-        const shrink = hash01(seed, n, 10) < 0.35 ? 0.45 + 0.25 * hash01(seed, n, 11) : 1;
+        const shrink = hash01(seed, n, 10) < FRAGMENT_SHARE ? FRAGMENT_SIZE[0] + (FRAGMENT_SIZE[1] - FRAGMENT_SIZE[0]) * hash01(seed, n, 11) : 1;
         const size = new Vector3((f.length / along) * (0.6 + 0.38 * hash01(seed, n, 1)) * shrink, (f.height / rows) * (0.55 + 0.4 * hash01(seed, n, 2)) * shrink, (f.thickness / 2) * (0.6 + 0.35 * hash01(seed, n, 3)) * shrink);
         const from = new Vector3(f.a.x + f.dir.x * u + f.outward.x * across, f.base + ((r + 0.5) / rows) * f.height, f.a.z + f.dir.z * u + f.outward.z * across);
         // Outer leaf falls outwards, inner leaf inwards; higher blocks fly farther.
@@ -176,6 +250,89 @@ export function planCollapse(f: SegmentFrame, seed: number, ground: (x: number, 
   return blocks;
 }
 
+/**
+ * A broken stone: a box with chamfered corners (octagonal faces, a facet at each corner), the
+ * corners pushed in or out so no two faces are parallel; about 44 triangles.
+ */
+export function chunkGeometry(seed: number): BufferGeometry {
+  const h = 0.5;
+  const c = h * CHUNK_CHAMFER;
+  const corners: { s: [number, number, number]; v: [number, number, number][] }[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sy of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const j = 1 + (hash01(seed, corners.length, 60) - 0.5) * 2 * CHUNK_JITTER;
+        const v: [number, number, number][] = [
+          [sx * (h - c) * j, sy * h * j, sz * h * j],
+          [sx * h * j, sy * (h - c) * j, sz * h * j],
+          [sx * h * j, sy * h * j, sz * (h - c) * j],
+        ];
+        corners.push({ s: [sx, sy, sz], v });
+      }
+    }
+  }
+  const tris: number[] = [];
+  const push = (a: number[], b: number[], d: number[]) => {
+    // Outward winding (the chunk is convex around its centre).
+    const ab = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
+    const ad = [d[0]! - a[0]!, d[1]! - a[1]!, d[2]! - a[2]!];
+    const n = [ab[1]! * ad[2]! - ab[2]! * ad[1]!, ab[2]! * ad[0]! - ab[0]! * ad[2]!, ab[0]! * ad[1]! - ab[1]! * ad[0]!];
+    const m = [a[0]! + b[0]! + d[0]!, a[1]! + b[1]! + d[1]!, a[2]! + b[2]! + d[2]!];
+    if (n[0]! * m[0]! + n[1]! * m[1]! + n[2]! * m[2]! < 0) tris.push(...a, ...d, ...b);
+    else tris.push(...a, ...b, ...d);
+  };
+  // Corner facets.
+  for (const k of corners) push(k.v[0]!, k.v[1]!, k.v[2]!);
+  // Faces: the two vertices of each of the face's four corners that lie in its plane, in order around it.
+  for (let axis = 0; axis < 3; axis++) {
+    for (const side of [-1, 1]) {
+      const ring: number[][] = [];
+      for (const k of corners) {
+        if (k.s[axis] !== side) continue;
+        for (let e = 0; e < 3; e++) if (e !== axis) ring.push(k.v[e]!);
+      }
+      const u = (axis + 1) % 3;
+      const w = (axis + 2) % 3;
+      ring.sort((p, q) => Math.atan2(p[w]!, p[u]!) - Math.atan2(q[w]!, q[u]!));
+      for (let i = 1; i < ring.length - 1; i++) push(ring[0]!, ring[i]!, ring[i + 1]!);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(tris), 3));
+  g.computeVertexNormals();
+  return g;
+}
+
+/** The ragged bed of crushed stone a breach leaves on the ground, draped on the relief. */
+export function rubbleBedGeometry(f: SegmentFrame, seed: number, ground: (x: number, z: number) => number): BufferGeometry {
+  const mid = { x: f.a.x + f.dir.x * (f.length / 2), z: f.a.z + f.dir.z * (f.length / 2) };
+  const halfL = (f.length + BED_EXTRA_M) / 2;
+  const halfD = BED_DEPTH_M / 2;
+  const at = (k: number, scale: number) => {
+    const a = (k / BED_SIDES) * Math.PI * 2;
+    const r = scale * (1 + (hash01(seed, k, 70) - 0.5) * 2 * BED_RAGGED);
+    const u = Math.cos(a) * halfL * r;
+    const v = Math.sin(a) * halfD * r;
+    const x = mid.x + f.dir.x * u + f.outward.x * v;
+    const z = mid.z + f.dir.z * u + f.outward.z * v;
+    return [x, ground(x, z) + BED_LIFT_M, z];
+  };
+  const centre = [mid.x, ground(mid.x, mid.z) + BED_LIFT_M, mid.z];
+  const tris: number[] = [];
+  for (let k = 0; k < BED_SIDES; k++) {
+    const i0 = at(k, 0.55);
+    const i1 = at(k + 1, 0.55);
+    const o0 = at(k, 1);
+    const o1 = at(k + 1, 1);
+    // Counter-clockwise seen from above (normals up).
+    tris.push(...centre, ...i1, ...i0, ...i0, ...i1, ...o1, ...i0, ...o1, ...o0);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(tris), 3));
+  g.computeVertexNormals();
+  return finish(g, -BLOCK_PAINT_HEIGHT_M, new Color(BED_COLOR));
+}
+
 /** Instanced rubble for one collapse, animated by `pose(t)`; `material` is the castle's stone. */
 export class Rubble {
   readonly mesh: InstancedMesh;
@@ -188,9 +345,17 @@ export class Rubble {
   private readonly p = new Vector3();
   private readonly s = new Vector3();
 
-  constructor(blocks: readonly FallingBlock[], material: Material, name: string) {
-    const unit = finish(boxGeometry({ center: new Vector3(0, 0, 0), size: new Vector3(1, 1, 1), yaw: 0 }), -BLOCK_PAINT_HEIGHT_M, new Color('#ffffff'));
+  constructor(blocks: readonly FallingBlock[], material: Material, name: string, seed = 0) {
+    const unit = finish(chunkGeometry(seed), -BLOCK_PAINT_HEIGHT_M, new Color('#ffffff'));
     this.mesh = new InstancedMesh(unit, material, blocks.length);
+    // Per-block tone; set even on an empty (warm-up) batch so its program variant is compiled.
+    const tones = new Float32Array(Math.max(1, blocks.length) * 3);
+    for (let i = 0; i < blocks.length; i++) {
+      const t = BLOCK_TONE[0] + (BLOCK_TONE[1] - BLOCK_TONE[0]) * hash01(seed, i, 80);
+      tones.set([t, t * (0.99 + 0.02 * hash01(seed, i, 81)), t * (0.97 + 0.03 * hash01(seed, i, 82))], i * 3);
+    }
+    if (blocks.length === 0) tones.fill(1);
+    this.mesh.instanceColor = new InstancedBufferAttribute(tones, 3);
     this.mesh.name = name;
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
@@ -228,6 +393,8 @@ const UP = new Vector3(0, 1, 0);
 // --- Dust ------------------------------------------------------------------------------------
 
 const DUST_POOL = 192;
+/** Stone dust, darker than the lit stone (a white ball read as a cartoon cloud). */
+const DUST_COLOR = '#9e927e';
 const DUST_LIFE_S = 3.2;
 const DUST_RISE_MS = 0.6;
 
@@ -256,6 +423,8 @@ void main() {
   float a = atan(p.y, p.x);
   float rim = 0.78 + 0.12 * sin(a * 5.0 + vSeed * 31.0) + 0.06 * sin(a * 9.0 - vSeed * 17.0);
   float alpha = vAlpha * smoothstep(rim, rim * 0.35, r);
+  // Soft foot: puffs born at the ground fade out at the bottom instead of being cut by it.
+  alpha *= 1.0 - smoothstep(0.55, 1.0, gl_PointCoord.y);
   if (alpha < 0.01) discard;
   gl_FragColor = vec4(uColor * (0.92 + 0.16 * (1.0 - r)), alpha);
 }
@@ -286,7 +455,7 @@ export class DustPool {
       name: 'Castle:dust',
       vertexShader: DUST_VERTEX,
       fragmentShader: DUST_FRAGMENT,
-      uniforms: { uColor: { value: new Color(PALETTE.stone.lit).multiplyScalar(1.05) }, uPixelsPerMeter: { value: pixelsPerMeter } },
+      uniforms: { uColor: { value: new Color(DUST_COLOR) }, uPixelsPerMeter: { value: pixelsPerMeter } },
       transparent: true,
       depthWrite: false,
       blending: NormalBlending,

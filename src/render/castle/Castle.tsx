@@ -17,8 +17,8 @@ import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { assignShadowDepthMaterials } from '../materials/shadow-depth.ts';
 import { buildCrenelShadowProxy, buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
 import { buildGate, buildGatePieces, buildKeep, buildStairs, buildStoneBridge, gateYaw } from './castle-parts.ts';
-import { crackGeometry, DustPool, hash01, planCollapse, Rubble, segmentFrame } from './siege-fx.ts';
-import { bundleCapacity, createBundleMesh, mineGeometry, placeBundles } from './siege-works-fx.ts';
+import { crackGeometry, DustPool, hash01, planCollapse, Rubble, rubbleBedGeometry, segmentFrame } from './siege-fx.ts';
+import { bundleCapacity, causewayGeometry, createBundleMesh, mineGeometry, placeBundles } from './siege-works-fx.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { createStoneMaterial } from './stone-material.ts';
 
@@ -36,9 +36,20 @@ const KNOCK_S = 0.35;
 const KNOCK_RAD = 0.035;
 /** Dust: puffs per hit, per collapse metre; puff sizes (m). */
 const HIT_PUFFS = 7;
-const COLLAPSE_PUFFS_PER_M = 1.6;
+const COLLAPSE_PUFFS_PER_M = 2.4;
 const HIT_PUFF_M = 2.4;
-const COLLAPSE_PUFF_M = 5;
+const COLLAPSE_PUFF_M = 7;
+/** At most this many collapse puffs per wave (overdraw of 7 m sprites on the iGPU). */
+const COLLAPSE_PUFFS_MAX = 20;
+/** Collapse puffs are born this far (× their size) above the ground: their soft foot touches it. */
+const PUFF_BIRTH_LIFT = 0.45;
+
+/** Deterministic seed of a structure id (cracks, rubble and dust replay the same). */
+function seedOfId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
+  return h;
+}
 
 /** A structure's condition as the battle shows it. */
 export interface CastleSiegeState {
@@ -62,7 +73,16 @@ export type CastleWork =
       readonly surfaceM: number;
       readonly bedM: number;
     }
-  | { readonly kind: 'mine'; readonly id: string; readonly fraction: number; readonly at: Vec2; readonly out: Vec2; readonly groundM: number };
+  | {
+      readonly kind: 'mine';
+      readonly id: string;
+      readonly fraction: number;
+      readonly at: Vec2;
+      readonly out: Vec2;
+      readonly groundM: number;
+      /** Distance (m) from `at` back to the wall's face. */
+      readonly wallM: number;
+    };
 
 /** What the battle director drives (BattleDirector, structure events). */
 export interface CastleHandle {
@@ -162,6 +182,12 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
         for (let k = 0; k < w.points.length - 1; k++) if (isBreached(w.id, k)) skip.add(k);
         return buildWallGeometry(w, w.baseHeightM, true, skip);
       });
+      // Each breach leaves a bed of crushed stone (part of the masonry: no extra draw call).
+      for (const w of walls) {
+        for (let k = 0; k < w.points.length - 1; k++) {
+          if (isBreached(w.id, k)) g.push(rubbleBedGeometry(segmentFrame(w, k), seedOfId(wallSegmentId(w.id, k)), (x, z) => sampleHeight(terrain, x, z)));
+        }
+      }
       const merged = g.length + (staticStone ? 1 : 0) > 0 ? mergeGeometries(staticStone ? [staticStone, ...g] : g, false) : null;
       g.forEach((x) => x.dispose());
       return merged;
@@ -244,17 +270,13 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
       }
       return null;
     };
-    const seedOf = (id: string) => {
-      let h = 0;
-      for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
-      return h;
-    };
+    const seedOf = seedOfId;
     const rebuildCracks = () => {
       const g: BufferGeometry[] = [];
       for (const [id, d] of damage) {
         const seg = segmentOf(id);
         if (!seg || breached.has(id)) continue;
-        const crack = crackGeometry(segmentFrame(seg.wall, seg.k), seedOf(id), d);
+        const crack = crackGeometry(segmentFrame(seg.wall, seg.k), seedOf(id), d, ground);
         if (crack) g.push(crack);
       }
       const merged = g.length > 0 ? mergeGeometries(g, false) : null;
@@ -265,7 +287,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     const addRubble = (id: string, settled: boolean): Rubble | null => {
       const seg = segmentOf(id);
       if (!seg) return null;
-      const r = new Rubble(planCollapse(segmentFrame(seg.wall, seg.k), seedOf(id), ground), stone, `Castle:rubble:${id}`);
+      const r = new Rubble(planCollapse(segmentFrame(seg.wall, seg.k), seedOf(id), ground), stone, `Castle:rubble:${id}`, seedOf(id));
       r.pose(settled ? r.duration : 0);
       assignShadowDepthMaterials(r.mesh);
       rubbleGroup.add(r.mesh);
@@ -288,6 +310,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     root.add(worksGroup);
     const fills = new Map<string, ReturnType<typeof createBundleMesh>>();
     const mines = new Map<string, Mesh>();
+    const causeways = new Map<string, Mesh>();
     for (const s of siege ?? []) if (!s.broken && s.hpFraction < 1) damage.set(s.id, 1 - s.hpFraction);
     rebuildCracks();
 
@@ -297,7 +320,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
         const u = f.length * hash01(seed, i, 11);
         const x = f.a.x + f.dir.x * u;
         const z = f.a.z + f.dir.z * u;
-        dust.emit(x, f.base + f.height * 0.25 * hash01(seed, i, 12), z, 1, f.thickness, sizeM);
+        dust.emit(x, ground(x, z) + sizeM * PUFF_BIRTH_LIFT + f.height * 0.1 * hash01(seed, i, 12), z, 1, f.thickness, sizeM);
       }
     };
     const play = (duration: number, update: (t: number) => void) => {
@@ -316,13 +339,21 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
             fills.set(work.id, mesh);
           }
           placeBundles(mesh, work.cells, work.tangent, work.surfaceM, work.bedM, work.fraction, seedOf(work.id));
+          // Finished: tamped earth over the bundles, a path to walk on.
+          if (work.fraction >= 1 && !causeways.has(work.id)) {
+            const earth = new Mesh(causewayGeometry(work.cells, work.tangent, work.surfaceM), wood);
+            earth.name = `Castle:causeway:${work.id}`;
+            earth.receiveShadow = true;
+            worksGroup.add(earth);
+            causeways.set(work.id, earth);
+          }
           const c = work.cells[Math.floor(work.cells.length / 2)];
           if (c) dust.emit(c.x, work.surfaceM - 0.5, c.z, HIT_PUFFS - 3, 1.5, HIT_PUFF_M * 0.7);
           return;
         }
         const previous = mines.get(work.id);
         if (previous) previous.geometry.dispose();
-        const geometry = mineGeometry(work.at, work.groundM, work.out, work.fraction);
+        const geometry = mineGeometry(work.at, work.groundM, work.out, work.fraction, work.wallM);
         const mesh = previous ?? new Mesh(geometry, wood);
         mesh.geometry = geometry;
         if (!previous) {
@@ -382,14 +413,14 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
           const r = addRubble(id, false);
           const seed = seedOf(id);
           const length = segmentFrame(seg.wall, seg.k).length;
-          puffAlong(seg.wall, seg.k, Math.ceil(length * COLLAPSE_PUFFS_PER_M * 0.5), COLLAPSE_PUFF_M, seed);
+          puffAlong(seg.wall, seg.k, Math.min(COLLAPSE_PUFFS_MAX, Math.ceil(length * COLLAPSE_PUFFS_PER_M * 0.5)), COLLAPSE_PUFF_M, seed);
           let second = false;
           const duration = r ? r.duration : 1;
           return play(duration, (t) => {
             r?.pose(t);
             if (!second && t > duration * 0.45) {
               second = true;
-              puffAlong(seg.wall, seg.k, Math.ceil(length * COLLAPSE_PUFFS_PER_M * 0.5), COLLAPSE_PUFF_M * 1.2, seed + 1);
+              puffAlong(seg.wall, seg.k, Math.min(COLLAPSE_PUFFS_MAX, Math.ceil(length * COLLAPSE_PUFFS_PER_M * 0.5)), COLLAPSE_PUFF_M, seed + 1);
             }
           });
         }

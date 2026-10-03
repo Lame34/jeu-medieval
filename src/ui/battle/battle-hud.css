@@ -277,6 +277,17 @@ kbd {
   color: #c8d4f5;
 }
 
+/* Siege works' progress: parchment text inked all round (grey on grey against masonry). */
+.battle-float[data-tone='work'] {
+  color: #e8d9b5;
+  text-shadow:
+    1px 0 0 var(--ink),
+    -1px 0 0 var(--ink),
+    0 1px 0 var(--ink),
+    0 -1px 0 var(--ink),
+    0 0 8px rgb(0 0 0 / 70%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .battle-float {
     transition: none;
