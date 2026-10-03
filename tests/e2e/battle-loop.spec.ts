@@ -226,6 +226,10 @@ test('ending the turn hands it to the AI, and it comes back to the attackers', a
   const initial = await battleState(page);
   expect(initial.activeFaction).toBe('attacker');
 
+  // Units can still act: the first Enter only arms the end-of-turn warning (brief §10).
+  await page.keyboard.press('Enter');
+  expect((await battleState(page)).activeFaction).toBe('attacker');
+  await expect(page.locator('.hud-end-turn')).toContainText(/encore agir/);
   await page.keyboard.press('Enter');
   // `issue()` applies synchronously (src/ui/battle/session.ts): the turn has already changed
   // hands before any animation (the turn banner) has played a single frame.

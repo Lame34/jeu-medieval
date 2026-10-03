@@ -5,10 +5,10 @@
  */
 import type { ReactNode } from 'react';
 import { moraleStanding } from '../../core/battle/morale.ts';
-import type { UnitState } from '../../core/battle/types.ts';
+import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
-import { FACTION_LABEL, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
+import { END_LABEL, FACTION_LABEL, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import './battle-hud.css';
 
@@ -118,8 +118,65 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
   }
 }
 
-export function BattleHud({ onEndTurn }: { readonly onEndTurn: () => void }) {
+/** Losses and structures down, for the end panel. */
+function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState; readonly onReplay: () => void; readonly onLeave: () => void }) {
+  const ending = useBattleUi((s) => s.ending);
+  const won = battle.status === 'attackerWon';
+  const side = (f: 'attacker' | 'defender') => {
+    const all = battle.units.filter((u) => u.faction === f);
+    return `${all.filter((u) => !u.alive).length} / ${all.length}`;
+  };
+  const down = battle.structures.filter((s) => s.broken).map((s) => s.id.slice(0, s.id.indexOf(':')));
+  const count = (kind: string) => down.filter((k) => k === kind).length;
+  const works: string[] = [];
+  if (count('wall') > 0) works.push(`${count('wall')} brèche${count('wall') > 1 ? 's' : ''}`);
+  if (count('drawbridge') > 0) works.push('pont-levis abattu');
+  if (count('gate') > 0) works.push('porte enfoncée');
+  if (count('portcullis') > 0) works.push('herse forcée');
+  const filled = battle.works.filter((w) => w.done && w.id.startsWith('fill:')).length;
+  if (filled > 0) works.push(`${filled} tronçon${filled > 1 ? 's' : ''} de douve comblé${filled > 1 ? 's' : ''}`);
+  return (
+    <div className="hud-end" role="status">
+      <h2>{won ? 'Victoire' : 'Défaite'}</h2>
+      <p>{ending ? END_LABEL[battle.status === 'attackerWon' ? 'attackerWon' : 'defenderWon'][ending.reason] : won ? 'Les assaillants tiennent le terrain.' : 'Les défenseurs ont repoussé l’assaut.'}</p>
+      <dl className="hud-end-stats">
+        <dt>Tours</dt>
+        <dd>
+          {battle.turn} / {battle.turnLimit}
+        </dd>
+        <dt>Pertes des assaillants</dt>
+        <dd>{side('attacker')}</dd>
+        <dt>Pertes de la garnison</dt>
+        <dd>{side('defender')}</dd>
+        <dt>Siège</dt>
+        <dd>{works.length > 0 ? works.join(', ') : 'aucun ouvrage tombé'}</dd>
+      </dl>
+      <div className="hud-end-actions">
+        <button type="button" onClick={onReplay}>
+          Rejouer
+        </button>
+        <button type="button" onClick={onLeave}>
+          Retour
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function BattleHud({
+  onEndTurn,
+  stillActing,
+  onReplay,
+  onLeave,
+}: {
+  readonly onEndTurn: () => void;
+  /** Units of ours that could still act (the end-of-turn warning). */
+  readonly stillActing: () => number;
+  readonly onReplay: () => void;
+  readonly onLeave: () => void;
+}) {
   const battle = useBattleUi((s) => s.battle);
+  const armed = useBattleUi((s) => s.endTurnArmed);
   const selectedId = useBattleUi((s) => s.selectedId);
   const hover = useBattleUi((s) => s.hover);
   const busy = useBattleUi((s) => s.busy);
@@ -131,12 +188,12 @@ export function BattleHud({ onEndTurn }: { readonly onEndTurn: () => void }) {
     <div className="battle-hud">
       <header className="hud-banner" data-faction={battle.activeFaction}>
         <span>
-          Tour {battle.turn} · {FACTION_LABEL[battle.activeFaction]}
+          Tour {battle.turn} / {battle.turnLimit} · {FACTION_LABEL[battle.activeFaction]}
         </span>
         {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
       </header>
-      <button type="button" className="hud-end-turn" onClick={onEndTurn} disabled={!playerTurn || busy}>
-        Fin du tour <kbd>Entrée</kbd>
+      <button type="button" className="hud-end-turn" data-armed={armed || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
+        {armed ? `${stillActing()} unité${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : confirmer ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
       {selected && <UnitCard unit={selected} />}
       {selected && playerTurn && !busy && (
@@ -153,12 +210,7 @@ export function BattleHud({ onEndTurn }: { readonly onEndTurn: () => void }) {
           <li key={`${i}-${line}`}>{line}</li>
         ))}
       </ol>
-      {battle.status !== 'ongoing' && (
-        <div className="hud-end" role="status">
-          <h2>{battle.status === 'attackerWon' ? 'Victoire' : 'Défaite'}</h2>
-          <p>{battle.status === 'attackerWon' ? 'Les assaillants tiennent le terrain.' : 'Les défenseurs ont repoussé l’assaut.'}</p>
-        </div>
-      )}
+      {battle.status !== 'ongoing' && <EndPanel battle={battle} onReplay={onReplay} onLeave={onLeave} />}
     </div>
   );
 }

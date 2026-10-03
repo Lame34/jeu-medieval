@@ -42,6 +42,7 @@ import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
+import { requestEndTurn } from '../../ui/battle/end-turn.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
 
@@ -281,6 +282,10 @@ export function BattleDirector({
       store.setBattle(state);
       const lines = events.map((e) => describeEvent(e, state)).filter((l): l is string => l !== null);
       if (lines.length > 0) store.pushLog(lines);
+      const ending = events.find((e) => e.type === 'battleEnded');
+      if (ending) store.setEnding(ending);
+      // Any order given disarms the end-of-turn warning.
+      if (store.endTurnArmed && events.some((e) => e.type !== 'commandRejected')) store.armEndTurn(false);
       if (events.length > 0) store.setBusy(true);
     });
   }, [session]);
@@ -722,8 +727,7 @@ export function BattleDirector({
         return;
       }
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
-        ui.select(null);
-        session.issue({ type: 'endTurn' });
+        requestEndTurn(session);
       } else if (e.code === 'KeyB' && ui.selectedId) {
         // Archers: a fire arrow at the pointer.
         const selected = findUnit(state, ui.selectedId);

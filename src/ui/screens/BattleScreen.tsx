@@ -18,6 +18,7 @@ import { useSceneStatus } from '../../state/scene-status.ts';
 import { useSettings } from '../../state/settings.ts';
 import { BattleHud } from '../battle/BattleHud.tsx';
 import { BattleSession, PLAYER_FACTION } from '../battle/session.ts';
+import { requestEndTurn, unitsStillActing } from '../battle/end-turn.ts';
 import { navigate, ROUTES } from '../router.ts';
 import type { WorldgenRequest, WorldgenResponse } from '../workers/worldgen.worker.ts';
 import { LoadingScreen } from './LoadingScreen.tsx';
@@ -161,10 +162,10 @@ export default function BattleScreen() {
       {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
       {session && (
         <BattleHud
-          onEndTurn={() => {
-            useBattleUi.getState().select(null);
-            session.issue({ type: 'endTurn' });
-          }}
+          onEndTurn={() => requestEndTurn(session)}
+          stillActing={() => unitsStillActing(session)}
+          onReplay={() => window.location.reload()}
+          onLeave={() => navigate(ROUTES.title)}
         />
       )}
       {!bench && (

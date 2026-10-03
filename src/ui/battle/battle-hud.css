@@ -289,3 +289,33 @@ kbd {
   font-size: 16px;
   color: var(--parchment);
 }
+
+.hud-end-turn[data-armed] {
+  border-color: var(--gold, #c99a3b);
+  box-shadow: 0 0 0 2px rgb(201 154 59 / 55%), var(--shadow-deep);
+}
+
+.hud-end-stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 18px;
+  margin: 12px auto 0;
+  text-align: left;
+  font-family: var(--font-body);
+}
+
+.hud-end-stats dt {
+  opacity: 0.75;
+}
+
+.hud-end-stats dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.hud-end-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}

@@ -7,6 +7,7 @@ import type { AttackPreview } from '../core/battle/combat.ts';
 import type { MovePlan } from '../core/battle/movement.ts';
 import type { BattleState } from '../core/battle/types.ts';
 import type { CommandRejection } from '../core/commands/types.ts';
+import type { BattleEndedEvent } from '../core/events/types.ts';
 import type { Threat } from '../core/battle/overwatch.ts';
 import type { StructureAttackPreview } from '../core/battle/siege.ts';
 import type { StructureKind } from '../core/battle/structures.ts';
@@ -26,6 +27,12 @@ export interface BattleUiState {
   readonly busy: boolean;
   /** Short journal lines, newest last. */
   readonly log: readonly string[];
+  /** How the battle ended (the end panel). */
+  readonly ending: BattleEndedEvent | null;
+  /** Ending the turn with units still able to act asks twice. */
+  readonly endTurnArmed: boolean;
+  setEnding(ending: BattleEndedEvent): void;
+  armEndTurn(armed: boolean): void;
   setBattle(battle: BattleState): void;
   select(id: string | null): void;
   setHover(hover: HoverPreview): void;
@@ -42,10 +49,14 @@ export const useBattleUi = create<BattleUiState>((set) => ({
   hover: { kind: 'none' },
   busy: false,
   log: [],
+  ending: null,
+  endTurnArmed: false,
+  setEnding: (ending) => set({ ending }),
+  armEndTurn: (endTurnArmed) => set({ endTurnArmed }),
   setBattle: (battle) => set({ battle }),
   select: (selectedId) => set({ selectedId, hover: { kind: 'none' } }),
   setHover: (hover) => set({ hover }),
   setBusy: (busy) => set({ busy }),
   pushLog: (lines) => set((s) => ({ log: [...s.log, ...lines].slice(-LOG_LINES) })),
-  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [] }),
+  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false }),
 }));
