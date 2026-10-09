@@ -14,6 +14,8 @@ import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
 import './battle-hud.css';
 
+/** Test runs (?e2e) start without the opening briefing (it would cover their captures). */
+const NO_BRIEFING = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('e2e');
 const pct = (p: number) => `${Math.round(p * 100)} %`;
 const COVER_LABEL = { none: 'aucun', light: 'léger', partial: 'partiel', heavy: 'lourd' } as const;
 const STANDING_LABEL = { steady: 'Ferme', shaken: 'Ébranlée', fleeing: 'En fuite' } as const;
@@ -357,7 +359,7 @@ export function BattleHud({
           </p>
         </section>
       )}
-      {!briefed && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} onClose={() => useBattleUi.getState().setBriefed()} />}
+      {!briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} onClose={() => useBattleUi.getState().setBriefed()} />}
       {!selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (

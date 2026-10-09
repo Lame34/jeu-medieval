@@ -244,8 +244,9 @@ export function BattleDirector({
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as Camera;
   const queue = useRef<GameEvent[]>([]);
-  const step = useRef<{ step: Step; t: number; speed: number } | null>(null);
+  const step = useRef<{ step: Step; t: number; speed: number; type: GameEvent['type'] } | null>(null);
   const lastSpeed = useRef(1);
+  const lastType = useRef<GameEvent['type']>('turnStarted');
   const frustum = useRef({ f: new Frustum(), m: new Matrix4(), p: new Vector3() });
   /** Is the ground point in view (the enemy's moves out of view play at once)? */
   const inView = (x: number, z: number): boolean => {
@@ -890,6 +891,7 @@ export function BattleDirector({
       issue: (command) => session.issue(command),
       aiTurn: () => session.playAiTurn(session.state.activeFaction),
       busy: () => useBattleUi.getState().busy || queue.current.length > 0 || step.current !== null,
+      playing: () => (step.current ? { type: step.current.type, t: step.current.t, duration: step.current.step.duration } : null),
       unitScreen: (id) => {
         const h = handles?.get(id);
         return h ? toScreen(h.root.position.x, h.root.position.y + UNIT_PICK_HEIGHT_M / 2, h.root.position.z) : null;
@@ -908,8 +910,9 @@ export function BattleDirector({
     while (!current && queue.current.length > 0 && handles) {
       const event = queue.current.shift() as GameEvent;
       lastSpeed.current = speedOf(event);
+      lastType.current = event.type;
       const next = makeStep(event);
-      if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current };
+      if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current, type: lastType.current };
     }
     if (current) {
       current.t += dt * current.speed;
@@ -957,6 +960,8 @@ export interface BattleTestHook {
   aiTurn(): void;
   /** Animations, queue or AI turn in progress. */
   busy(): boolean;
+  /** The event being played, its time and duration (s), or null (captures wait on it). */
+  playing(): { type: string; t: number; duration: number } | null;
   /** Screen position (CSS px) of a unit's body, or null. */
   unitScreen(id: string): { x: number; y: number } | null;
   groundScreen(x: number, z: number): { x: number; y: number };

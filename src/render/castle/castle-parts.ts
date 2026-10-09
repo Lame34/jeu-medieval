@@ -33,7 +33,7 @@ const PORTCULLIS_INSET_M = 0.6;
 const PORTCULLIS_BAR_STEP_M = 0.42;
 const PORTCULLIS_RAIL_STEP_M = 0.7;
 const PORTCULLIS_BAR_M = 0.09;
-const IRON_COLOR = '#3e3f44';
+const IRON_COLOR = '#45403c';
 const TRESTLE_EVERY_M = 3.5;
 /** The timber bridge spans the moat: from the berm to beyond the outer bank (m from the gate). */
 const MOAT_BRIDGE_TO_M = 17.5;

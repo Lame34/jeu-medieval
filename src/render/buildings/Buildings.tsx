@@ -12,7 +12,7 @@ const HOUSE_HEIGHT_M = 8;
 const GLASS_COLOR = '#3b4b57';
 /** Kit textures that break the saturation rule (STYLE_BIBLE §2) are toned down at load. */
 const KIT_ALBEDO_GRADE: Readonly<Record<string, { saturation: number; value: number }>> = {
-  MI_RoundTiles: { saturation: 0.6, value: 0.92 },
+  MI_RoundTiles: { saturation: 0.45, value: 0.88 },
   MI_Brick: { saturation: 0.75, value: 0.95 },
 };
 /** Every other kit texture (thatch, plaster, timber): stays under the allegiance saturations. */

@@ -59,6 +59,22 @@ const shot = async (page: Page, name: string) => {
   await page.screenshot({ path: join(outDir, `siege-${name}.png`) });
   console.log(`  ${name}`);
 };
+
+/** Waits for the director to play `type`, then shoots at the given fractions of its duration. */
+async function shotsDuring(page: Page, type: string, at: readonly (readonly [number, string])[]): Promise<void> {
+  await page.waitForFunction((t) => (window as unknown as { __battle?: { playing(): { type: string } | null } }).__battle?.playing()?.type === t, type, { timeout: 30_000 });
+  for (const [fraction, name] of at) {
+    await page.waitForFunction(
+      ([t, k]) => {
+        const p = (window as unknown as { __battle?: { playing(): { type: string; t: number; duration: number } | null } }).__battle?.playing();
+        return !p || p.type !== t || p.t >= p.duration * (k as number);
+      },
+      [type, fraction] as const,
+      { timeout: 30_000 },
+    );
+    await shot(page, name);
+  }
+}
 /** Ends the turn and waits for the AI's turn to play out. */
 const endTurn = async (page: Page) => {
   await issue(page, { type: 'endTurn' });
@@ -104,15 +120,13 @@ try {
     console.log(`turn ${s.turn}: catapult → operator (${rejection ?? 'ok'})`);
     const killed = !(await state(page)).units.find((u) => u.id === OPERATOR)?.alive;
     if (killed) {
-      // The bridge falls a moment after the blow (attack clip, death, then the drop).
-      for (const [ms, name] of [
-        [1800, '01-bridge-falling-a'],
-        [700, '02-bridge-falling-b'],
-        [2500, '03-bridge-down'],
-      ] as const) {
-        await page.waitForTimeout(ms);
-        await shot(page, name);
-      }
+      // The bridge falls after the blow (the stone's flight, the death, then the drop).
+      await shotsDuring(page, 'structureBroken', [
+        [0.3, '01-bridge-falling-a'],
+        [0.6, '02-bridge-falling-b'],
+      ]);
+      await idle(page);
+      await shot(page, '03-bridge-down');
       await idle(page);
       await endTurn(page);
       break;
@@ -141,15 +155,14 @@ try {
     }
     const after = (await state(page)).structures.find((x) => x.id === target);
     if (after?.broken) {
-      for (const [ms, name] of [
-        [900, '04-collapse-a'],
-        [500, '05-collapse-b'],
-        [700, '06-collapse-c'],
-        [3500, '07-breach'],
-      ] as const) {
-        await page.waitForTimeout(ms);
-        await shot(page, name);
-      }
+      await shotsDuring(page, 'structureBroken', [
+        [0.25, '04-collapse-a'],
+        [0.5, '05-collapse-b'],
+        [0.8, '06-collapse-c'],
+      ]);
+      await idle(page);
+      await page.waitForTimeout(1500);
+      await shot(page, '07-breach');
       break;
     }
     await page.waitForTimeout(1500);

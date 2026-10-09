@@ -28,7 +28,9 @@ const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
 const ENGINE_KINDS = Object.keys(ENGINE_MODELS) as EngineKind[];
 /** Engines stand on a wider allegiance ring than a soldier. */
 /** Allegiance ring under each engine, scaled to show around its chassis (review J4). */
-const ENGINE_RING_SCALE: Readonly<Record<EngineKind, number>> = { ram: 3.8, catapult: 3.2, siegeTower: 3.4 };
+/** Engines' timber, lightened (painted albedo value factor). */
+const ENGINE_ALBEDO_VALUE = 1.25;
+const ENGINE_RING_SCALE: Readonly<Record<EngineKind, number>> = { ram: 2.4, catapult: 2.2, siegeTower: 2.6 };
 /** Tests (`?fast`) play the battle animations this much faster (same switch as BattleDirector). */
 const TIME_SCALE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fast') ? 8 : 1;
 const BODIES = ['warrior', 'ranger', 'rogue'] as const;
@@ -187,6 +189,8 @@ export function Units({
       ENGINE_KINDS.map((kind) => {
         const m = createPaintedMaterial({
           name: `Unit:engine:${kind}`,
+          // The timber read near black at a distance (review J5b).
+          albedoValue: ENGINE_ALBEDO_VALUE,
           vertexColors: true,
           heightM: ENGINE_HEIGHT_M[kind],
           gradientBase: 0.82,
@@ -393,7 +397,11 @@ export function Units({
     for (const l of built.lifted) l.anchor.copy(l.root.position).setY(l.root.position.y + l.lift);
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
-    for (const ring of built.rings) ring.scale.setScalar(scale * ((ring.userData['engine'] as number | undefined) ?? 1));
+    // Soldiers' rings grow with the distance; an engine's is already wide (it does not).
+    for (const ring of built.rings) {
+      const engine = ring.userData['engine'] as number | undefined;
+      ring.scale.setScalar(engine ?? scale);
+    }
     for (const ring of built.rings) if (ring.parent) alignRingToGround(ring, ring.parent, heightAt);
     for (const { batch, markers } of built.ringBatches) updateRingBatch(batch, markers);
     // Far views: no unit shadows (switched only when the threshold is crossed).

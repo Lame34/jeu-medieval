@@ -16,6 +16,8 @@ const BUNDLE_RADIUS_M = 0.32;
 /** Bundles per cell of the slot in the top layer; how deep the pile shows under the surface. */
 const BUNDLES_PER_CELL = 0.55;
 const PILE_SHOWS_M = 1.6;
+/** How far (× radius) the top bundles sink below the pile's top. */
+const FASCINE_SINK = 0.4;
 /** A faggot, not a rolled rug (review J4): splayed ends, a ragged outline, cut ends showing. */
 const BUNDLE_FLARE = 1.2;
 const BUNDLE_RAGGED = 0.12;
@@ -25,12 +27,14 @@ const BRUSH_CUT = '#b39b6a';
 const BINDING_COLOR = '#3a2a1c';
 const BINDING_WIDTH_M = 0.08;
 /** A finished causeway: a strip of tamped earth over the bundles, level with the banks. */
-const CAUSEWAY_EARTH = '#a88a5c';
-const CAUSEWAY_THICKNESS_M = 0.12;
+const CAUSEWAY_EARTH = '#9c7a52';
+const CAUSEWAY_THICKNESS_M = 0.05;
+/** The trodden strip covers this share of the slot's length: the bundles show either side. */
+const CAUSEWAY_SHARE = 0.55;
 const CAUSEWAY_RISE_M = 0.04;
 /** The mine: spoil (colour, heaps, height and spread grow with the work), shed, gallery mouth. */
 const SPOIL_COLOR = '#9c7a52';
-const SPOIL_HEAPS = 6;
+const SPOIL_HEAPS = 3;
 const SHED_HIDE = '#8a6444';
 const GALLERY_COLOR = '#2a2226';
 const GALLERY_WIDTH_M = 1.3;
@@ -97,7 +101,8 @@ export function placeBundles(mesh: InstancedMesh, cells: readonly Vec2[], tangen
   let n = 0;
   const layers = Math.max(1, Math.ceil(Math.min(PILE_SHOWS_M, top - bedM) / (BUNDLE_RADIUS_M * 1.6)));
   for (let layer = 0; layer < layers && n < mesh.instanceMatrix.count; layer++) {
-    const y = top - BUNDLE_RADIUS_M * 0.75 - layer * BUNDLE_RADIUS_M * 1.6;
+    // The top layer sits in the water, not on it.
+    const y = top - BUNDLE_RADIUS_M * (0.75 + FASCINE_SINK) - layer * BUNDLE_RADIUS_M * 1.6;
     cells.forEach((c, k) => {
       if (n >= mesh.instanceMatrix.count || hash01(seed, k, layer) > BUNDLES_PER_CELL) return;
       q.setFromEuler(EULER.set((hash01(seed, k, layer + 11) - 0.5) * 0.25, yaw + (hash01(seed, k, layer + 23) - 0.5) * 0.5, 0));
@@ -126,7 +131,7 @@ export function causewayGeometry(cells: readonly Vec2[], tangent: Vec2, surfaceM
   const geometry = finish(
     boxGeometry({
       center: new Vector3(centre.x, surfaceM + CAUSEWAY_RISE_M, centre.z),
-      size: new Vector3((halfAlong + 0.3) * 2, CAUSEWAY_THICKNESS_M, (halfAcross + 0.5) * 2),
+      size: new Vector3((halfAlong + 0.3) * 2 * CAUSEWAY_SHARE, CAUSEWAY_THICKNESS_M, (halfAcross + 0.5) * 2),
       yaw: Math.atan2(-tangent.z, tangent.x),
     }),
     surfaceM - 1,
@@ -175,7 +180,8 @@ export function mineGeometry(at: Vec2, groundM: number, out: Vec2, fraction: num
   const mouthH = 0.5 + 0.6 * f;
   parts.push(finish(boxGeometry({ center: local(0, -Math.max(1.0, wallM) + 0.03).setY(groundM + mouthH / 2), size: new Vector3(GALLERY_WIDTH_M, mouthH, 0.06), yaw: -yaw }), groundM, new Color(GALLERY_COLOR)));
   // Spoil: flattened heaps, taller and wider as the gallery deepens.
-  const heap = 0.45 + 1.3 * f;
+  // One heap a turn of work: 0.35, 0.7, 1 m.
+  const heap = 0.35 + 0.65 * f;
   for (let k = 0; k < SPOIL_HEAPS; k++) {
     const c = local(1.9 + 0.9 * hash01(k, 5), 0.4 + 2.0 * hash01(k, 7)).setY(groundM + heap * 0.3);
     const mound = new CylinderGeometry(0.15, 1.1 + 0.5 * hash01(k, 9), heap * (0.6 + 0.4 * hash01(k, 11)), 8, 1, false).translate(c.x, c.y, c.z);

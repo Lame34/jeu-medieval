@@ -31,9 +31,9 @@ const DASH_WIDTH_M = 0.16;
 const LIFT_M = 0.07;
 const LABEL_HEIGHT_M = 0.9;
 /** Guard cones: washes on the ground, ours in blue, theirs in red. */
-const CONE_OWN_COLOR = '#4f79e0';
 const CONE_ENEMY_COLOR = '#d0463f';
-const CONE_OPACITY = 0.16;
+/** Enemy guard cones: a light wash, shown while one of ours is selected (they matter to its move). */
+const CONE_OPACITY = 0.09;
 const CONE_RINGS = 14;
 const CONE_SEGMENTS = 16;
 const CONE_LIFT_M = 0.05;
@@ -96,13 +96,13 @@ function guardCones(session: BattleSession): BufferGeometry {
   const positions: number[] = [];
   const colors: number[] = [];
   const half = (session.ctx.rules.damage.overwatchHalfAngleDeg * Math.PI) / 180;
-  const own = new Color(CONE_OWN_COLOR);
   const enemy = new Color(CONE_ENEMY_COLOR);
   for (const unit of session.state.units) {
-    if (!unit.alive || !unit.overwatch) continue;
+    // Only the enemy's: ours are told by their card and their float (review J5b).
+    if (!unit.alive || !unit.overwatch || unit.faction === PLAYER_FACTION) continue;
     const range = session.ctx.rules.units[unit.typeKey]?.attack?.rangeM ?? 0;
     if (range <= 0) continue;
-    const color = unit.faction === PLAYER_FACTION ? own : enemy;
+    const color = enemy;
     const heading = Math.atan2(unit.overwatch.x, unit.overwatch.z);
     const at = (r: number, a: number): readonly [number, number, number, number] => {
       const x = unit.position.x + Math.sin(a) * r;
@@ -211,8 +211,8 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
         lastBattle.current = state;
         parts.cones.geometry.dispose();
         parts.cones.geometry = guardCones(session);
-        setDrawable(parts.cones, (parts.cones.geometry.getAttribute('position')?.count ?? 0) > 0);
       }
+      setDrawable(parts.cones, ui.selectedId !== null && (parts.cones.geometry.getAttribute('position')?.count ?? 0) > 0);
     };
     refresh();
     const unsubscribe = useBattleUi.subscribe((s, prev) => {

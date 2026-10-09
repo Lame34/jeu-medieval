@@ -69,6 +69,9 @@ export const paintedGlobals = {
   /** Scene light level (≈ 1 at the reference afternoon): multiplies unlit shaders such as water. */
   uSceneLight: { value: new Color(1, 1, 1) },
   uExposure: { value: 1 },
+  /** 0 under the rain (no cast shadows), 1 otherwise; the sun's strength over the afternoon's, 0–1. */
+  uCastShadow: { value: 1 },
+  uSunShare: { value: 1 },
   /** Playable map rectangle: fog thickens outside it so the map edge never reads. */
   uMapMin: { value: new Vector2(-1e6, -1e6) },
   uMapMax: { value: new Vector2(1e6, 1e6) },
@@ -79,6 +82,9 @@ export const paintedGlobals = {
   uTorchStrength: { value: 0 },
   uTorchColor: { value: new Color('#ffa457') },
 };
+
+/** The sun intensity of the reference afternoon (the shade lift is full at it). */
+const SUN_SHARE_REFERENCE = 2.5;
 
 /** Scene light = sun · sin(elevation) + weighted sky ambient, normalised by the 16:30 rig. */
 const AMBIENT_WEIGHT = 0.5;
@@ -118,6 +124,7 @@ export function applyRigToGlobals(rig: ResolvedRig): void {
   const light = sceneLightOf(rig);
   g.uSceneLight.value.setRGB(light.r / referenceLight.r, light.g / referenceLight.g, light.b / referenceLight.b);
   g.uExposure.value = rig.exposure;
+  g.uSunShare.value = Math.min(1, Math.max(0, rig.sunIntensity / SUN_SHARE_REFERENCE));
   g.uFogSun.value.copy(rig.fogSun);
   g.uFogAway.value.copy(rig.fogAway);
   g.uSkyZenith.value.copy(rig.skyZenith);

@@ -27,6 +27,9 @@ export const PLAYER_FACTION: Faction = 'attacker';
 
 export type SessionListener = (events: readonly GameEvent[], state: BattleState) => void;
 
+/** Heroes start this far behind the army's centre (m). */
+const HERO_REAR_M = 14;
+
 /** Scenario from the map's unit markers (units on wall-walks and towers stand on their decks). */
 function scenarioFrom(ctx: BattleContext, layout: WorldLayout): Scenario {
   const units: UnitSpawn[] = [];
@@ -39,11 +42,16 @@ function scenarioFrom(ctx: BattleContext, layout: WorldLayout): Scenario {
     const a = marker.facingTurns * 2 * Math.PI;
     units.push({ id: marker.id, typeKey: marker.typeKey, position: marker.position, facing: { x: Math.sin(a), z: Math.cos(a) } });
   }
-  // The three heroes join the army, on the free cells nearest to its centre.
+  // The three heroes join the army, on the free cells nearest to a point behind its centre
+  // (away from the castle): at its centre they stood within the outpost's reach, the garrison's
+  // first targets before the player had moved.
   const army = units.filter((u) => ctx.rules.units[u.typeKey]?.faction === PLAYER_FACTION);
   const heroKeys = Object.keys(ctx.rules.heroes);
   if (army.length > 0 && heroKeys.length > 0) {
-    const centre = { x: army.reduce((s, u) => s + u.position.x, 0) / army.length, z: army.reduce((s, u) => s + u.position.z, 0) / army.length };
+    const middle = { x: army.reduce((s, u) => s + u.position.x, 0) / army.length, z: army.reduce((s, u) => s + u.position.z, 0) / army.length };
+    const gate = layout.gates[0]?.center ?? layout.focus;
+    const away = Math.hypot(middle.x - gate.x, middle.z - gate.z) || 1;
+    const centre = { x: middle.x + ((middle.x - gate.x) / away) * HERO_REAR_M, z: middle.z + ((middle.z - gate.z) / away) * HERO_REAR_M };
     const taken = units.map((u) => u.position);
     const free = (p: { x: number; z: number }) =>
       heroKeys.every((k) => isPassable(ctx.nav, ctx.rules.units[k]?.movement ?? 'foot', Math.floor(p.x), Math.floor(p.z))) && taken.every((q) => Math.hypot(q.x - p.x, q.z - p.z) >= 1.5);

@@ -76,7 +76,7 @@ export function createStoneMaterial(wallHeightM: number, courseM = CASTLE_COURSE
     worldNormal: true,
     vertexData: true,
     vertexColors: true,
-    wrap: 0.4,
+    wrap: 0.5,
     customAlbedo: {
       key: 'stone-v1',
       pars: STONE_PARS,

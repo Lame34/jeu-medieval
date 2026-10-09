@@ -61,15 +61,16 @@ export function segmentFrame(wall: WallRun, k: number): SegmentFrame {
 
 const CRACKS_AT_FULL_DAMAGE = 9;
 const CRACK_STEPS = 7;
-const CRACK_STEP_M = 0.75;
-const CRACK_WIDTH_M = 0.5;
+/** A crack runs along the masonry courses (0.7 m), stepping down and across: a staircase. */
+const CRACK_STEP_M = 0.7;
+const CRACK_WIDTH_M = 0.3;
 const CRACK_TAPER = 0.88;
 const CRACK_OFFSET_M = 0.04;
-const CRACK_COLOR = '#2b2326';
+const CRACK_COLOR = '#4a3a36';
 /** The lit upper lip of each crack (the face breaks, the light catches its edge). */
 const CRACK_LIP_COLOR = '#c2b59c';
 const CRACK_LIP_RISE_M = 0.06;
-const CRACK_LIP_WIDTH = 0.35;
+const CRACK_LIP_WIDTH = 0.6;
 /** Past this damage stones are missing from the face; past the second, chips lie at the foot. */
 const MISSING_STONES_AT = 0.5;
 const MISSING_STONES = [3, 6] as const;
@@ -111,8 +112,11 @@ export function crackGeometry(f: SegmentFrame, seed: number, damage: number, gro
     let y = f.base + f.height * (0.45 + 0.5 * hash01(seed, c, 2));
     let w = CRACK_WIDTH_M * (0.8 + 0.6 * hash01(seed, c, 3));
     for (let s = 0; s < CRACK_STEPS; s++) {
-      const angle = -Math.PI / 2 + (hash01(seed, c * 31 + s, 4) - 0.5) * 2.2;
-      const step = CRACK_STEP_M * (0.6 + 0.8 * hash01(seed, c * 31 + s, 5));
+      // Down a course, then along a joint (left or right), and again: a stepped crack.
+      const down = s % 2 === 0;
+      const side = hash01(seed, c * 31 + s, 4) < 0.5 ? 0 : Math.PI;
+      const angle = down ? -Math.PI / 2 + (hash01(seed, c * 31 + s, 4) - 0.5) * 0.3 : side + (hash01(seed, c * 31 + s, 7) - 0.5) * 0.2;
+      const step = down ? CRACK_STEP_M : CRACK_STEP_M * (0.5 + 0.8 * hash01(seed, c * 31 + s, 5));
       const u1 = Math.min(f.length - 0.3, Math.max(0.3, u + Math.cos(angle) * step));
       const y1 = Math.max(f.base + 0.8, y + Math.sin(angle) * step);
       positions = dark;
@@ -170,13 +174,13 @@ export function crackGeometry(f: SegmentFrame, seed: number, damage: number, gro
 
 // --- Collapse -------------------------------------------------------------------------------
 
-const BLOCK_ALONG_M = 0.9;
-const BLOCK_ROW_M = 0.85;
+const BLOCK_ALONG_M = 1.5;
+const BLOCK_ROW_M = 1.3;
 /** Share of blocks that are mere fragments, and their size factor. */
-const FRAGMENT_SHARE = 0.5;
+const FRAGMENT_SHARE = 0.35;
 const FRAGMENT_SIZE = [0.3, 0.55] as const;
 /** Each block's tone (instance colour), so the heap is not one flat grey. */
-const BLOCK_TONE = [0.82, 1.08] as const;
+const BLOCK_TONE = [0.9, 1.1] as const;
 /** The broken stone's corners: chamfer (fraction of the half size) and jitter. */
 const CHUNK_CHAMFER = 0.32;
 const CHUNK_JITTER = 0.18;
@@ -190,7 +194,7 @@ const BED_COLOR = '#8e8272';
 /** Rubble stays this low over the breach itself (units cross it), heaps up beside it. */
 const HEAP_OVER_BREACH_M = 0.7;
 const HEAP_CELL_M = 1.1;
-const SPREAD_M = 6.5;
+const SPREAD_M = 3.5;
 const GRAVITY = 9.8;
 /** Moss and streak treatment of the stone material counts heights from here (blocks are rubble). */
 const BLOCK_PAINT_HEIGHT_M = 6;
@@ -242,7 +246,8 @@ export function planCollapse(f: SegmentFrame, seed: number, ground: (x: number, 
         const to = new Vector3(x, ground(x, z) + stack + size.y * 0.32, z);
         const rest = new Quaternion().setFromEuler(new Euler((hash01(seed, n, 6) - 0.5) * 1.1, (hash01(seed, n, 7) - 0.5) * 1.4, (hash01(seed, n, 8) - 0.5) * 1.1));
         // The middle of the segment goes first, the collapse runs out to its ends.
-        const delay = (Math.abs(u / f.length - 0.5) * 0.9 + hash01(seed, n, 9) * 0.25) * (1 - 0.35 * (r / rows));
+        // Columns go down together, from the middle out (the dust curtain hides them in the air).
+        const delay = Math.abs(u / f.length - 0.5) * 0.9 + hash01(seed, n, 9) * 0.25;
         const fall = Math.sqrt((2 * Math.max(0.5, from.y - to.y)) / GRAVITY) * 1.15;
         blocks.push({ from, to, size, yaw, rest, delay, fall });
       }

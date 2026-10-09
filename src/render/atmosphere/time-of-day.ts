@@ -42,10 +42,10 @@ const NIGHT: Omit<LightRig, 'hour' | 'sunElevationDeg' | 'sunAzimuthDeg'> = {
   ambientGround: '#2c2834',
   ambientIntensity: 1.7,
   shadowColor: '#222a58',
-  shadowStrength: 0.32,
-  shadowHue: 0.3,
-  fogSun: '#36406a',
-  fogAway: '#2a3254',
+  shadowStrength: 0.2,
+  shadowHue: 0.2,
+  fogSun: '#3e4870',
+  fogAway: '#343c60',
   gradeWarmth: -0.01,
   gradeSaturation: 0.85,
   exposure: 1.5,
@@ -164,6 +164,8 @@ export const LIGHT_RIGS: readonly LightRig[] = [
 
 /** The weather's cast over a rig: colours drawn towards a grey (scaled to the hour's light), factors. */
 interface WeatherCast {
+  /** Share of the rig's shade hue kept (an overcast shade is barely tinted). */
+  readonly hue: number;
   readonly grey: string;
   readonly toward: number;
   readonly sun: number;
@@ -173,8 +175,9 @@ interface WeatherCast {
   readonly warmth: number;
 }
 const WEATHER_CAST: Readonly<Record<Exclude<Weather, 'clear'>, WeatherCast>> = {
-  rain: { grey: '#9aa2ac', toward: 0.65, sun: 0.45, ambient: 1.05, shadow: 0.6, saturation: 0.85, warmth: 0.3 },
-  fog: { grey: '#c4c8cc', toward: 0.7, sun: 0.6, ambient: 1.1, shadow: 0.7, saturation: 0.85, warmth: 0.5 },
+  rain: { hue: 0, grey: '#9aa2ac', toward: 0.65, sun: 0.45, ambient: 1.05, shadow: 0.6, saturation: 0.85, warmth: 0.3 },
+  // A cream fog, not a neutral grey (review J5b).
+  fog: { hue: 0.4, grey: '#cdc6b8', toward: 0.7, sun: 0.6, ambient: 1.1, shadow: 0.5, saturation: 0.85, warmth: 0.5 },
 };
 /** The day's horizon the weather greys are given for (they are dimmed with the hour's light). */
 const CAST_REFERENCE = '#c0c4ca';
@@ -251,6 +254,7 @@ function withWeather(rig: ResolvedRig, weather: Weather): ResolvedRig {
     ambientSky: toward(rig.ambientSky, cast.toward * 0.5),
     ambientIntensity: rig.ambientIntensity * cast.ambient,
     shadowStrength: rig.shadowStrength * cast.shadow,
+    shadowHue: rig.shadowHue * cast.hue,
     fogSun: toward(rig.fogSun),
     fogAway: toward(rig.fogAway),
     gradeSaturation: rig.gradeSaturation * cast.saturation,

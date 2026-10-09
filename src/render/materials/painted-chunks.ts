@@ -38,6 +38,8 @@ uniform sampler2D uTorchMap;
 uniform vec2 uTorchMapSize;
 uniform float uTorchHeightRange;
 uniform float uTorchStrength;
+uniform float uCastShadow;
+uniform float uSunShare;
 uniform vec3 uTorchColor;
 `;
 
@@ -151,6 +153,8 @@ void RE_Direct_Painted(const in IncidentLight directLight, const in vec3 geometr
 }
 
 void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geometryNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
+  // Under an overcast sky (rain) nothing casts a shadow: the light is diffuse.
+  paintedShadow = mix(1.0, paintedShadow, uCastShadow);
   float vis = paintedWrap(geometryNormal, directLight.direction) * paintedShadow;
   // "Is this surface in the sun?" — a narrow step around the terminator, not the wrap term:
   // flat ground under a grazing sun must stay neutral, only true shade takes the tint.
@@ -168,11 +172,12 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
   tint = mix(tint, vec3(1.0), 0.5 * warmAlbedo);
   vec3 c = light * tint * BRDF_Lambert(material.diffuseColor);
   // Cast shadows as washes: a little more light than the plain ambient (the ground more: a
-  // meadow in shade reads at ~2/3 of its sunlit value).
+  // meadow in shade reads at ~2/3 of its sunlit value), as much as the sun is strong — under a
+  // weak sun the lifted shade came out lighter than the lit ground (review J5b).
   #ifdef PAINTED_GROUND
-  c *= mix(1.22, 1.0, paintedSunLit);
+  c *= mix(1.0 + 0.22 * uSunShare, 1.0, paintedSunLit);
   #else
-  c *= mix(1.1, 1.0, paintedSunLit);
+  c *= mix(1.0 + 0.1 * uSunShare, 1.0, paintedSunLit);
   #endif
   // Shade turns the hue towards blue-violet at constant luminance (YIQ rotation, at most
   // ~25°): wheat goes ochre, grass blue-green, plaster sienna, stone blue-violet. A straight
@@ -193,7 +198,7 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
     float warmTurn = yiq.z < 0.0 ? mix(-0.17, -0.09, smoothstep(0.3, 0.45, albedoYiq.x)) : 0.0;
     a += mix(clamp(d, -0.25, 0.25), warmTurn, warm) * shade;
     yiq.yz = vec2(cos(a), sin(a)) * chroma * mix(1.0 - 0.1 * shade, 1.0, warm);
-    yiq.yz += uShadowIQ * yiq.x * 0.25 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
+    yiq.yz += uShadowIQ * yiq.x * 0.08 * shade * (1.0 - smoothstep(0.02, 0.06, chroma));
     c = max(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * yiq, 0.0);
   }
   reflectedLight.indirectDiffuse += c;

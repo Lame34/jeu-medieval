@@ -42,6 +42,8 @@ const HIT_PUFF_M = 2.4;
 const COLLAPSE_PUFF_M = 7;
 /** At most this many collapse puffs per wave (overdraw of 7 m sprites on the iGPU). */
 const COLLAPSE_PUFFS_MAX = 20;
+/** Puffs of the dust curtain rising with a collapse (along the segment). */
+const COLLAPSE_CURTAIN_PUFFS = 24;
 /** Collapse puffs are born this far (× their size) above the ground: their soft foot touches it. */
 const PUFF_BIRTH_LIFT = 0.45;
 
@@ -417,6 +419,12 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
           const r = addRubble(id, false);
           const seed = seedOf(id);
           const length = segmentFrame(seg.wall, seg.k).length;
+          // A curtain of dust rises with the fall, along the segment, up to mid-height.
+          const frame = segmentFrame(seg.wall, seg.k);
+          for (let i = 0; i < COLLAPSE_CURTAIN_PUFFS; i++) {
+            const u = frame.length * ((i + 0.5) / COLLAPSE_CURTAIN_PUFFS);
+            dust.emit(frame.a.x + frame.dir.x * u, frame.base + frame.height * (0.3 + 0.3 * hash01(seed, i, 13)), frame.a.z + frame.dir.z * u, 1, frame.thickness, COLLAPSE_PUFF_M);
+          }
           puffAlong(seg.wall, seg.k, Math.min(COLLAPSE_PUFFS_MAX, Math.ceil(length * COLLAPSE_PUFFS_PER_M * 0.5)), COLLAPSE_PUFF_M, seed);
           let second = false;
           const duration = r ? r.duration : 1;

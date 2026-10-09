@@ -48,7 +48,12 @@ export function Atmosphere() {
   }, [gl, rig]);
   useEffect(() => {
     setActiveFog(WEATHER_FOG[weather]);
-    return () => setActiveFog(WEATHER_FOG.clear);
+    // Overcast: no cast shadows, and no shadow pass to render.
+    paintedGlobals.uCastShadow.value = weather === 'rain' ? 0 : 1;
+    return () => {
+      setActiveFog(WEATHER_FOG.clear);
+      paintedGlobals.uCastShadow.value = 1;
+    };
   }, [weather]);
 
   const sun = useMemo(() => {
@@ -123,7 +128,7 @@ export function Atmosphere() {
     sunTarget.position.copy(target);
     sun.position.copy(target).addScaledVector(dir, SUN_DISTANCE_M);
     sunTarget.updateMatrixWorld();
-    if (moved || ++shadowFrame.current % SHADOW_EVERY === 0) gl.shadowMap.needsUpdate = true;
+    if (paintedGlobals.uCastShadow.value > 0 && (moved || ++shadowFrame.current % SHADOW_EVERY === 0)) gl.shadowMap.needsUpdate = true;
   });
 
   return null;

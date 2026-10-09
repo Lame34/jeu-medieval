@@ -17,12 +17,12 @@ import { createFlameMesh } from './fire-fx.ts';
 import { setDrawable } from '../drawable.ts';
 
 /** A flame's size (× the fire's flame); gate torches stand this high, braziers before the door. */
-const TORCH_FLAME_SCALE = 0.32;
-const BRAZIER_FLAME_SCALE = 0.42;
+const TORCH_FLAME_SCALE = 0.45;
+const BRAZIER_FLAME_SCALE = 0.6;
 const GATE_TORCH_HEIGHT_M = 3.2;
 const GATE_TORCH_OUT_M = 0.6;
 const TOWER_TORCH_BELOW_TOP_M = 1.2;
-const BRAZIER_HEIGHT_M = 1.0;
+const BRAZIER_HEIGHT_M = 0.35;
 const BRAZIER_OUT_M = 1.4;
 /** The rain dims the torches. */
 const RAIN_DIM = 0.8;
