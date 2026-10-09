@@ -119,10 +119,11 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   if (hasTag(unit, TOWER_TAG) && !dockOf(state, unit.id)) {
     const wall = wallToDock(ctx, state, unit);
     out.push({ id: 'works', label: 'Amarrer', key: 'F', description: 'Abaisse la passerelle sur la courtine voisine : l’infanterie pourra monter.', note: wall ? null : 'collez la tour à une courtine', disabled: !wall || !canAct });
+  } else if (towerToClimb(state, unit)) {
+    // Beside a docked tower, F climbs it (as actionCommand decides), sappers included.
+    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par la tour de siège sur le chemin de ronde.', note: `${ctx.rules.structures.towerClimbAp} PA`, disabled: unit.ap < ctx.rules.structures.towerClimbAp });
   } else if (hasTag(unit, FILL_MOAT_TAG) || hasTag(unit, UNDERMINE_TAG)) {
     out.push({ id: 'works', label: 'Combler ou saper', key: 'F', description: 'Visez la douve pour y jeter des fascines (une chaussée), ou le pied d’une courtine pour la saper.', note: 'tout le tour', disabled: !canAct || unit.ap < d.attackApCost });
-  } else if (towerToClimb(state, unit)) {
-    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par la tour de siège sur le chemin de ronde.', note: `${ctx.rules.structures.towerClimbAp} PA`, disabled: unit.ap < ctx.rules.structures.towerClimbAp });
   }
   const hero = ctx.rules.heroes[unit.typeKey];
   hero?.abilities.forEach((a, i) => {

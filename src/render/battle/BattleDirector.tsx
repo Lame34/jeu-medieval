@@ -243,7 +243,8 @@ export function BattleDirector({
 }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as Camera;
-  const queue = useRef<GameEvent[]>([]);
+  /** Events to play, each with whether the enemy's turn produced it (it plays quicker). */
+  const queue = useRef<{ event: GameEvent; enemy: boolean }[]>([]);
   const step = useRef<{ step: Step; t: number; speed: number; type: GameEvent['type'] } | null>(null);
   const lastSpeed = useRef(1);
   const lastType = useRef<GameEvent['type']>('turnStarted');
@@ -255,11 +256,8 @@ export function BattleDirector({
     v.f.setFromProjectionMatrix(v.m);
     return v.f.containsPoint(v.p.set(x, session.standHeight(x, z), z));
   };
-  /** How fast an event plays: the enemy's quicker, its walks out of view at once. */
+  /** How fast an event of the enemy's turn plays: quicker, its walks out of view at once. */
   const speedOf = (event: GameEvent): number => {
-    const actorId = 'unitId' in event ? event.unitId : 'attackerId' in event ? event.attackerId : 'towerId' in event ? event.towerId : null;
-    const actor = typeof actorId === 'string' ? findUnit(session.state, actorId) : undefined;
-    if (!actor || actor.faction === PLAYER_FACTION) return 1;
     if (event.type === 'unitMoved') {
       const a = event.path[0];
       const b = event.path[event.path.length - 1];
@@ -308,7 +306,9 @@ export function BattleDirector({
     const ui = useBattleUi.getState();
     ui.setBattle(session.state);
     return session.subscribe((events, state) => {
-      queue.current.push(...events);
+      // The enemy's turn arrives as one batch, closed by its own end of turn.
+      const enemy = events.some((e) => e.type === 'turnEnded' && e.faction !== PLAYER_FACTION);
+      queue.current.push(...events.map((event) => ({ event, enemy })));
       const store = useBattleUi.getState();
       store.setBattle(state);
       const lines = events.map((e) => describeEvent(e, state)).filter((l): l is string => l !== null);
@@ -908,8 +908,8 @@ export function BattleDirector({
     const dt = Math.min(delta, 0.1) * TIME_SCALE;
     let current = step.current;
     while (!current && queue.current.length > 0 && handles) {
-      const event = queue.current.shift() as GameEvent;
-      lastSpeed.current = speedOf(event);
+      const { event, enemy } = queue.current.shift() as { event: GameEvent; enemy: boolean };
+      lastSpeed.current = enemy ? speedOf(event) : 1;
       lastType.current = event.type;
       const next = makeStep(event);
       if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current, type: lastType.current };
