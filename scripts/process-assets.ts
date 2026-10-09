@@ -9,8 +9,8 @@ import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Document, NodeIO, type Scene } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTMeshoptCompression } from '@gltf-transform/extensions';
-import { dedup, meshopt, mergeDocuments, prune, resample, textureCompress, unpartition, weld } from '@gltf-transform/functions';
-import { MeshoptEncoder } from 'meshoptimizer';
+import { dedup, meshopt, mergeDocuments, prune, resample, simplify, textureCompress, unpartition, weld } from '@gltf-transform/functions';
+import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
 import sharp from 'sharp';
 
 const KAYKIT = 'assets-src/raw/kaykit-adventurers/KayKit-Character-Pack-Adventures-1.0-main/addons/kaykit_character_pack_adventures';
@@ -128,6 +128,8 @@ const VILLAGE_PIECES = [
   'Prop_WoodenFence_Extension1',
 ] as const;
 const KIT_TEXTURE_SIZE = 1024;
+/** Kit pieces simplified within this error (share of each piece's size), seams kept: every wall is repeated. */
+const KIT_SIMPLIFY_ERROR = 0.003;
 
 async function buildVillageKit(io: NodeIO): Promise<ManifestEntry> {
   const kit = new Document();
@@ -154,6 +156,7 @@ async function buildVillageKit(io: NodeIO): Promise<ManifestEntry> {
     dedup(),
     prune(),
     weld(),
+    simplify({ simplifier: MeshoptSimplifier, ratio: 0, error: KIT_SIMPLIFY_ERROR, lockBorder: true }),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [KIT_TEXTURE_SIZE, KIT_TEXTURE_SIZE] }),
     meshopt({ encoder: MeshoptEncoder, level: 'medium' }),
   );
