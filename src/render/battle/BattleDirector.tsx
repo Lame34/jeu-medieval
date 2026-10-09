@@ -317,6 +317,8 @@ export function BattleDirector({
       if (ending) store.setEnding(ending);
       // Any order given disarms the end-of-turn warning.
       if (store.endTurnArmed && events.some((e) => e.type !== 'commandRejected')) store.armEndTurn(false);
+      // The first order given closes the opening briefing.
+      if (!store.briefed && events.some((e) => e.type !== 'commandRejected')) store.setBriefed();
       if (events.length > 0) store.setBusy(true);
     });
   }, [session]);

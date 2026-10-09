@@ -151,8 +151,6 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       const killer = event.byId && event.byId !== event.unitId ? heroRule(state, event.byId) : null;
       return `${unitLabel(state, event.unitId)} tombe.${killer ? ` ${killer.name} : « ${heroLine(state, killer.lines.kill, event.unitId.length)} »` : ''}`;
     }
-    case 'overwatchSet':
-      return `${unitLabel(state, event.unitId)} monte la garde.`;
     case 'unitMoved':
       return event.fleeing ? `${unitLabel(state, event.unitId)} fuit !` : null;
     case 'moraleChanged':

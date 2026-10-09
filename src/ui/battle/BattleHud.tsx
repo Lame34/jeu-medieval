@@ -69,7 +69,8 @@ function ActionBar({ unit, actions, onAction }: { readonly unit: UnitState; read
           {actions.map((a) => (
             <li key={a.id}>
               <button type="button" onClick={() => onAction(a.id)} disabled={a.disabled} data-armed={armed === a.id || undefined} title={a.description}>
-                <kbd>{a.key}</kbd> {a.label}
+                <kbd>{a.key}</kbd>
+                <span>{a.label}</span>
                 {a.note && <em>{a.note}</em>}
               </button>
             </li>
@@ -77,8 +78,8 @@ function ActionBar({ unit, actions, onAction }: { readonly unit: UnitState; read
         </ul>
       )}
       {hero && (
-        <p className="hud-detail" title={hero.passive.description}>
-          <strong>{hero.passive.name}</strong> : {hero.passive.description}
+        <p className="hud-detail hud-passive" title={hero.passive.description}>
+          Passif : <strong>{hero.passive.name}</strong>
         </p>
       )}
     </div>
@@ -230,6 +231,27 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
   }
 }
 
+/** The opening briefing (turn 1): the objective, the ways in, the controls. */
+function Briefing({ turnLimit, onClose }: { readonly turnLimit: number; readonly onClose: () => void }) {
+  return (
+    <section className="hud-card hud-briefing" aria-label="Objectif">
+      <h2>Prenez le château</h2>
+      <p>
+        Anéantissez la garnison ou mettez-la en fuite avant le <strong>tour {turnLimit}</strong> : passé ce délai, les renforts lèvent le siège.
+      </p>
+      <p>
+        Ouvrez-vous un chemin : la <strong>catapulte</strong> fait brèche dans la courtine, le <strong>bélier</strong> enfonce la porte une fois le pont-levis abattu, le <strong>sapeur</strong> comble la douve ou sape un mur, la <strong>tour de siège</strong> porte vos hommes sur le rempart.
+      </p>
+      <p className="hud-detail">
+        Sélectionnez une unité, cliquez pour la déplacer ou attaquer ; ses actions sont sur sa carte. <kbd>Entrée</kbd> : fin du tour.
+      </p>
+      <button type="button" onClick={onClose}>
+        Compris
+      </button>
+    </section>
+  );
+}
+
 /** Losses and structures down, for the end panel. */
 function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState; readonly onReplay: () => void; readonly onLeave: () => void }) {
   const ending = useBattleUi((s) => s.ending);
@@ -299,6 +321,8 @@ export function BattleHud({
   const busy = useBattleUi((s) => s.busy);
   const log = useBattleUi((s) => s.log);
   const armedAction = useBattleUi((s) => s.armedAction);
+  const briefed = useBattleUi((s) => s.briefed);
+  const hasSelected = useBattleUi((s) => s.hasSelected);
   if (!battle) return null;
   const selected = selectedId ? battle.units.find((u) => u.id === selectedId && u.alive) : undefined;
   const playerTurn = battle.activeFaction === PLAYER_FACTION && battle.status === 'ongoing';
@@ -333,8 +357,9 @@ export function BattleHud({
           </p>
         </section>
       )}
-      {!selected && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
-      <ol className="hud-card hud-log" aria-label="Journal">
+      {!briefed && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} onClose={() => useBattleUi.getState().setBriefed()} />}
+      {!selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
+      <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (
           <li key={`${i}-${line}`}>{line}</li>
         ))}

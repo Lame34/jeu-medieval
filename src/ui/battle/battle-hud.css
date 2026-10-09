@@ -216,6 +216,23 @@ kbd {
   display: none;
 }
 
+/* The journal steps back when nothing new happens (re-keyed on each new line). */
+.hud-log {
+  animation: hud-log-settle 1.2s ease 5s forwards;
+}
+
+@keyframes hud-log-settle {
+  to {
+    opacity: 0.6;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-log {
+    animation: none;
+  }
+}
+
 .hud-end {
   position: absolute;
   top: 40%;
@@ -397,19 +414,23 @@ kbd {
   min-height: 34px;
   text-align: left;
   font: inherit;
+  display: flex;
+  gap: 6px;
+  align-items: center;
   font-size: 13px;
   line-height: 1.2;
   padding: 5px 8px;
   color: var(--parchment);
-  background: rgb(43 35 38 / 75%);
-  border: 1px solid var(--gold, #c99a3b);
+  background: var(--wood-mid);
+  border: 1px solid var(--iron-light);
   border-radius: 3px;
   cursor: pointer;
   pointer-events: auto;
 }
 
 .hud-abilities button:not(:disabled):hover {
-  background: rgb(64 50 40 / 90%);
+  background: var(--wood-light);
+  border-color: var(--gold);
 }
 
 .hud-abilities button[data-armed] {
@@ -428,9 +449,44 @@ kbd {
   cursor: default;
 }
 
+/* The cost or cooldown, on the right. */
 .hud-abilities em {
-  display: block;
-  font-size: 11px;
+  margin-left: auto;
+  font-size: 12px;
   font-style: normal;
-  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.hud-passive {
+  margin-top: 4px;
+  cursor: help;
+}
+
+/* The opening briefing: centre top, under the banner. */
+.hud-briefing {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  width: min(520px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.hud-briefing h2 {
+  margin: 0 0 6px;
+}
+
+.hud-briefing p {
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.hud-briefing button {
+  font: inherit;
+  padding: 5px 16px;
+  color: var(--parchment);
+  background: rgb(43 35 38 / 85%);
+  border: 1px solid var(--gold, #c99a3b);
+  border-radius: 3px;
+  cursor: pointer;
 }

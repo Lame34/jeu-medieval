@@ -36,6 +36,11 @@ export interface BattleUiState {
   readonly ending: BattleEndedEvent | null;
   /** Ending the turn with units still able to act asks twice. */
   readonly endTurnArmed: boolean;
+  /** The opening briefing was read (dismissed, or the first order given). */
+  readonly briefed: boolean;
+  /** A unit was selected once (the "click a blue unit" hint is gone for good). */
+  readonly hasSelected: boolean;
+  setBriefed(): void;
   /** An action waiting for its target (ui/battle/actions.ts: the pointer aims it, a click orders it). */
   readonly armedAction: string | null;
   armAction(id: string | null): void;
@@ -49,7 +54,23 @@ export interface BattleUiState {
   reset(): void;
 }
 
-const LOG_LINES = 8;
+const LOG_LINES = 5;
+/** "Pas assez de PA. ×3": a line repeating the last one bumps its count. */
+const REPEAT_MARK = ' ×';
+
+/** Appends lines, folding a line equal to the one before it into a count. */
+function appendLog(log: readonly string[], lines: readonly string[]): string[] {
+  const out = [...log];
+  for (const line of lines) {
+    const last = out[out.length - 1];
+    const base = last?.includes(REPEAT_MARK) ? last.slice(0, last.lastIndexOf(REPEAT_MARK)) : last;
+    if (last !== undefined && base === line) {
+      const n = last.includes(REPEAT_MARK) ? Number(last.slice(last.lastIndexOf(REPEAT_MARK) + REPEAT_MARK.length)) : 1;
+      out[out.length - 1] = `${line}${REPEAT_MARK}${n + 1}`;
+    } else out.push(line);
+  }
+  return out.slice(-LOG_LINES);
+}
 
 export const useBattleUi = create<BattleUiState>((set) => ({
   battle: null,
@@ -59,14 +80,17 @@ export const useBattleUi = create<BattleUiState>((set) => ({
   log: [],
   ending: null,
   endTurnArmed: false,
+  briefed: false,
+  hasSelected: false,
+  setBriefed: () => set({ briefed: true }),
   armedAction: null,
   armAction: (armedAction) => set({ armedAction, hover: { kind: 'none' } }),
   setEnding: (ending) => set({ ending }),
   armEndTurn: (endTurnArmed) => set({ endTurnArmed }),
   setBattle: (battle) => set({ battle }),
-  select: (selectedId) => set({ selectedId, hover: { kind: 'none' }, armedAction: null }),
+  select: (selectedId) => set((s) => ({ selectedId, hover: { kind: 'none' }, armedAction: null, hasSelected: s.hasSelected || selectedId !== null })),
   setHover: (hover) => set({ hover }),
   setBusy: (busy) => set({ busy }),
-  pushLog: (lines) => set((s) => ({ log: [...s.log, ...lines].slice(-LOG_LINES) })),
-  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null }),
+  pushLog: (lines) => set((s) => ({ log: appendLog(s.log, lines) })),
+  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null, briefed: false, hasSelected: false }),
 }));
