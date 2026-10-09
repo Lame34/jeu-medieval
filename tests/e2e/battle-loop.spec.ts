@@ -203,7 +203,7 @@ test('an archer can stand guard, and an impossible order is rejected, logged, an
 
   const guarded = (await battleState(page)).units.find((u) => u.id === archer.id);
   expect(guarded?.overwatch, 'overwatch was not set').not.toBeNull();
-  await expect(page.locator('.hud-log')).toContainText('monte la garde');
+  // Guards are no longer journalled (ADR-034: shown by their float and cone); the state says it.
 
   // A move far outside the map is always rejected (`outOfBounds`, checked before pathing/AP in
   // src/core/battle/movement.ts), regardless of seed, unit or AP — a deterministic "impossible
