@@ -120,3 +120,4 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-10-03 20:14 | 00477ae | battle | portable | ×4 | 22.8 | 5.3 | 129 | 1.38 M | 75 | ❌ |
 | 2026-10-03 20:17 | 00477ae | battle | portable | ×1 | 73.9 | 31.8 | 123 | 1.38 M | 75 | ❌ |
 | 2026-10-03 20:19 | 00477ae | battle | portable | ×4 | 35.7 | 4.9 | 129 | 1.38 M | 75 | ❌ |
+| 2026-10-09 16:44 | e4c5739 | battle | portable | ×1 | 96.5 | 53.2 | 118 | 1.19 M | 75 | ✅ |
