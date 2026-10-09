@@ -5,13 +5,13 @@
  */
 import type { ReactNode } from 'react';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
-import { cooldownOf } from '../../core/battle/heroes.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
+import type { ActionButton, ActionId } from './actions.ts';
 import './battle-hud.css';
 
 const pct = (p: number) => `${Math.round(p * 100)} %`;
@@ -57,34 +57,35 @@ function Pips({ value, max }: { readonly value: number; readonly max: number }) 
   );
 }
 
-/** A hero's abilities (buttons, keys 1 and 2, cooldowns) and passive. */
-function HeroPanel({ unit, onAbility }: { readonly unit: UnitState; readonly onAbility: (index: number) => void }) {
+/** The unit's actions (buttons with their keys), and a hero's passive. */
+function ActionBar({ unit, actions, onAction }: { readonly unit: UnitState; readonly actions: readonly ActionButton[]; readonly onAction: (id: ActionId) => void }) {
+  const armed = useBattleUi((s) => s.armedAction);
   const hero = DEFAULT_RULES.heroes[unit.typeKey];
-  const armed = useBattleUi((s) => s.armedAbility);
-  if (!hero) return null;
+  if (actions.length === 0 && !hero) return null;
   return (
     <div className="hud-hero">
-      <ul className="hud-abilities">
-        {hero.abilities.map((a, i) => {
-          const wait = cooldownOf(unit, a.id);
-          return (
+      {actions.length > 0 && (
+        <ul className="hud-abilities">
+          {actions.map((a) => (
             <li key={a.id}>
-              <button type="button" onClick={() => onAbility(i)} disabled={wait > 0 || unit.ap < a.apCost} data-armed={armed === a.id || undefined} title={a.description}>
-                <kbd>{i + 1}</kbd> {a.name}
-                {wait > 0 ? <em> · recharge {wait}</em> : a.apCost > 0 ? <em> · {a.apCost} PA</em> : null}
+              <button type="button" onClick={() => onAction(a.id)} disabled={a.disabled} data-armed={armed === a.id || undefined} title={a.description}>
+                <kbd>{a.key}</kbd> {a.label}
+                {a.note && <em>{a.note}</em>}
               </button>
             </li>
-          );
-        })}
-      </ul>
-      <p className="hud-detail" title={hero.passive.description}>
-        <strong>{hero.passive.name}</strong> : {hero.passive.description}
-      </p>
+          ))}
+        </ul>
+      )}
+      {hero && (
+        <p className="hud-detail" title={hero.passive.description}>
+          <strong>{hero.passive.name}</strong> : {hero.passive.description}
+        </p>
+      )}
     </div>
   );
 }
 
-function UnitCard({ unit, onAbility }: { readonly unit: UnitState; readonly onAbility: (index: number) => void }) {
+function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; readonly actions: readonly ActionButton[]; readonly onAction: (id: ActionId) => void }) {
   const type = DEFAULT_RULES.units[unit.typeKey];
   if (!type) return null;
   const standing = moraleStanding(DEFAULT_RULES.morale, unit.morale);
@@ -111,7 +112,7 @@ function UnitCard({ unit, onAbility }: { readonly unit: UnitState; readonly onAb
       <p>
         Moral {Math.round(unit.morale)} · <span data-standing={standing}>{STANDING_LABEL[standing]}</span>
       </p>
-      <HeroPanel unit={unit} onAbility={onAbility} />
+      <ActionBar unit={unit} actions={actions} onAction={onAction} />
     </section>
   );
 }
@@ -153,6 +154,20 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
         </>
       );
     }
+    case 'order':
+      return (
+        <>
+          <p>
+            <strong>{hover.title}</strong>
+          </p>
+          {hover.lines
+            .filter((l) => l.length > 0)
+            .map((l) => (
+              <p key={l}>{l}</p>
+            ))}
+          {hover.conditions && <ConditionsLine modifiers={hover.conditions} />}
+        </>
+      );
     case 'ability': {
       const p = hover.preview;
       if (p.kind === 'attack') {
@@ -265,15 +280,17 @@ export function BattleHud({
   stillActing,
   onReplay,
   onLeave,
-  onAbility,
+  actionsFor,
+  onAction,
 }: {
   readonly onEndTurn: () => void;
   /** Units of ours that could still act (the end-of-turn warning). */
   readonly stillActing: () => number;
   readonly onReplay: () => void;
   readonly onLeave: () => void;
-  /** A hero's ability, by index (the card's buttons). */
-  readonly onAbility: (index: number) => void;
+  /** The selected unit's action buttons, and pressing one. */
+  readonly actionsFor: (unit: UnitState) => readonly ActionButton[];
+  readonly onAction: (id: ActionId) => void;
 }) {
   const battle = useBattleUi((s) => s.battle);
   const armed = useBattleUi((s) => s.endTurnArmed);
@@ -281,6 +298,7 @@ export function BattleHud({
   const hover = useBattleUi((s) => s.hover);
   const busy = useBattleUi((s) => s.busy);
   const log = useBattleUi((s) => s.log);
+  const armedAction = useBattleUi((s) => s.armedAction);
   if (!battle) return null;
   const selected = selectedId ? battle.units.find((u) => u.id === selectedId && u.alive) : undefined;
   const playerTurn = battle.activeFaction === PLAYER_FACTION && battle.status === 'ongoing';
@@ -298,12 +316,20 @@ export function BattleHud({
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} unité${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : confirmer ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
-      {selected && <UnitCard unit={selected} onAbility={onAbility} />}
+      {selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />}
       {selected && playerTurn && !busy && (
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           <p className="hud-hint">
-            Clic : déplacer, attaquer ou frapper un ouvrage (engins) · <kbd>G</kbd> garde vers le pointeur · <kbd>F</kbd> ouvrage : combler, saper, amarrer la tour, y monter · <kbd>B</kbd> flèche enflammée · <kbd>E</kbd> éteindre · <kbd>1</kbd> <kbd>2</kbd> capacités du héros · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+            {armedAction ? (
+              <>
+                Visez puis cliquez · <kbd>Échap</kbd> annuler
+              </>
+            ) : (
+              <>
+                Clic : se déplacer, attaquer · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+              </>
+            )}
           </p>
         </section>
       )}

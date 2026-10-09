@@ -5,7 +5,7 @@ import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
 import { Rain } from '../../render/vfx/Rain.tsx';
 import { MiniMap } from '../battle/MiniMap.tsx';
-import { triggerAbility } from '../battle/abilities.ts';
+import { actionsFor, triggerAction } from '../battle/actions.ts';
 import { Torches } from '../../render/vfx/Torches.tsx';
 import { BattleSoundscape } from '../../render/battle/BattleSoundscape.tsx';
 import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
@@ -227,7 +227,8 @@ export default function BattleScreen() {
           stillActing={() => unitsStillActing(session)}
           onReplay={() => window.location.reload()}
           onLeave={() => navigate(ROUTES.title)}
-          onAbility={(i) => triggerAbility(session, i)}
+          actionsFor={(u) => actionsFor(session, u)}
+          onAction={(id) => triggerAction(session, id)}
         />
       )}
       {!bench && (

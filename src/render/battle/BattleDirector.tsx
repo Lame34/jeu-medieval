@@ -16,14 +16,12 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { Raycaster, Vector2, Vector3, type Camera } from 'three';
+import { Frustum, Matrix4, Raycaster, Vector2, Vector3, type Camera } from 'three';
 import { previewAttack } from '../../core/battle/combat.ts';
-import type { BattleContext } from '../../core/battle/context.ts';
-import { distanceToCells, distanceToStructure, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
-import { isBroken, structureDef, type StructureDef } from '../../core/battle/structures.ts';
-import { fillCells, fillSiteAt, fillSurfaceM } from '../../core/battle/moat.ts';
-import { FILL_MOAT_TAG, MINE_SITE_PREFIX, UNDERMINE_TAG } from '../../core/battle/siege-works.ts';
-import { TOWER_TAG } from '../../core/battle/siege-tower.ts';
+import { distanceToCells, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
+import { structureDef, type StructureDef } from '../../core/battle/structures.ts';
+import { fillCells, fillSurfaceM } from '../../core/battle/moat.ts';
+import { MINE_SITE_PREFIX } from '../../core/battle/siege-works.ts';
 import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
 import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -31,10 +29,8 @@ import type { CastleHandle, CastleWork } from '../castle/Castle.tsx';
 import type { FireHandle } from '../vfx/Fire.tsx';
 import type { ProjectileHandle } from '../vfx/Projectiles.tsx';
 import { INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
-import { FIRE_ARROWS_TAG } from '../../core/battle/fire.ts';
 import { findUnit, planMove } from '../../core/battle/movement.ts';
-import type { BattleState, UnitState } from '../../core/battle/types.ts';
-import { previewAbility } from '../../core/battle/heroes.ts';
+import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
 import { threatsAt } from '../../core/battle/overwatch.ts';
 import type { GameEvent } from '../../core/events/types.ts';
@@ -45,7 +41,7 @@ import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent } from '../../ui/battle/describe.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
-import { triggerAbility } from '../../ui/battle/abilities.ts';
+import { actionCommand, actionPreview, aimsAtAllies, structureAt, triggerAction, type ActionId } from '../../ui/battle/actions.ts';
 import { audio, type SoundId } from '../../audio/engine.ts';
 import { useSettings } from '../../state/settings.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
@@ -67,9 +63,23 @@ const STEP_RUN_S = 0.32;
 const ENGINE_ROLL_S = 1.0;
 /** Quieter sounds: a miss, a parried blow, a spreading fire. */
 const SOFT = 0.5;
+/** Shortcut keys of the card's actions (ui/battle/actions.ts shows them on its buttons). */
+const ACTION_KEYS: Readonly<Record<string, string>> = {
+  KeyG: 'guard',
+  KeyB: 'fireArrow',
+  KeyE: 'extinguish',
+  KeyF: 'works',
+  Digit1: 'ability:0',
+  Numpad1: 'ability:0',
+  Digit2: 'ability:1',
+  Numpad2: 'ability:1',
+};
 /** A hero's ability: the pause on its name. */
 const ABILITY_PAUSE_S = 0.7;
 const TURN_BANNER_S = 0.9;
+/** The enemy's turn plays this much faster; its walks out of view, this much. */
+const ENEMY_SPEED = 1.8;
+const OUT_OF_VIEW_SPEED = 12;
 /** Pointer travel (px) above which a press is a drag, not a click. */
 const CLICK_SLOP_PX = 6;
 /** Ray march along the view ray over the heightfield (m). */
@@ -88,14 +98,10 @@ const STRUCTURE_FACE_DROP_M = 4;
 const FIRE_ARROW_AIM_M = 0.6;
 /** A beat after a projectile lands before the next event. */
 const LANDING_PAUSE_S = 0.2;
-/** A structure is under the pointer when the ground hit lies this close to its cells (m). */
-const STRUCTURE_PICK_M = 1.6;
 /** Climbing a docked tower: walk to its foot, rise inside it, step onto the wall-walk (s). */
 const CLIMB_WALK_S = 0.6;
 const CLIMB_RISE_S = 1.1;
 const CLIMB_STEP_S = 0.5;
-/** A unit can climb a tower from this close (m, as the core's reach). */
-const CLIMB_PICK_M = 2.2;
 /** Units thrown down by a collapsing wall-walk land over this fraction of the collapse. */
 const FALL_FRACTION = 0.45;
 /** Floating texts (damage, misses, guards). */
@@ -116,35 +122,6 @@ interface FloatText {
   readonly el: HTMLSpanElement;
   readonly at: Vector3;
   age: number;
-}
-
-/**
- * The structure an engine would strike at `p`: the nearest within reach, the drawbridge last (it
- * spans the ground in front of the gate), the portcullis once the gate in front of it is down.
- */
-function structureAt(ctx: BattleContext, state: BattleState, p: Vec2): StructureDef | null {
-  let best: StructureDef | null = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-  for (const def of ctx.structures) {
-    if (isBroken(state.structures, def.id)) continue;
-    const d = distanceToStructure(ctx, def, p);
-    if (d > STRUCTURE_PICK_M) continue;
-    const score = d + (def.kind === 'drawbridge' ? STRUCTURE_PICK_M * 2 : 0);
-    if (score < bestScore) {
-      best = def;
-      bestScore = score;
-    }
-  }
-  if (best?.kind === 'gate' || best?.kind === 'portcullis') {
-    const gate = ctx.structures.find((d) => d.kind === 'gate' && d.gateId === best?.gateId);
-    const portcullis = ctx.structures.find((d) => d.kind === 'portcullis' && d.gateId === best?.gateId);
-    best = gate && !isBroken(state.structures, gate.id) ? gate : (portcullis ?? best);
-  }
-  return best;
-}
-
-function hasTag(typeKey: string, tag: string): boolean {
-  return DEFAULT_RULES.units[typeKey]?.tags.includes(tag) ?? false;
 }
 
 /** How the castle should show a sappers' work at `fraction` of its turns. */
@@ -177,26 +154,6 @@ function castleWork(session: BattleSession, workId: string, kind: 'fill' | 'mine
   const dz = sapper.z - def.center.z;
   const len = Math.hypot(dx, dz) || 1;
   return { kind: 'mine', id: workId, fraction, at: sapper, out: { x: dx / len, z: dz / len }, groundM: session.standHeight(sapper.x, sapper.z), wallM: distanceToCells(ctx, def.cells, sapper) };
-}
-
-/** The ability command aimed at `target` (a unit) or `ground`, for the armed ability, or null when it has no target there. */
-function abilityCommand(session: BattleSession, unitId: string, abilityId: string, target: UnitState | undefined, ground: Vec2 | null): Extract<Command, { type: 'ability' }> | null {
-  const unit = DEFAULT_RULES.heroes[session.state.units.find((u) => u.id === unitId)?.typeKey ?? ''];
-  const ability = unit?.abilities.find((a) => a.id === abilityId);
-  if (!ability) return null;
-  switch (ability.target) {
-    case 'self':
-      return { type: 'ability', unitId, abilityId };
-    case 'enemy':
-    case 'allyEngine':
-      return target ? { type: 'ability', unitId, abilityId, targetId: target.id } : null;
-    case 'site': {
-      if (!ground) return null;
-      const def = structureAt(session.ctx, session.state, ground);
-      if (def?.kind === 'wall') return { type: 'ability', unitId, abilityId, structureId: def.id };
-      return fillSiteAt(session.ctx, ground) ? { type: 'ability', unitId, abilityId, at: ground } : null;
-    }
-  }
 }
 
 /** Footstep sound for the ground at (x, z): timber decks, stone walks, roads, grass. */
@@ -287,7 +244,28 @@ export function BattleDirector({
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as Camera;
   const queue = useRef<GameEvent[]>([]);
-  const step = useRef<{ step: Step; t: number } | null>(null);
+  const step = useRef<{ step: Step; t: number; speed: number } | null>(null);
+  const lastSpeed = useRef(1);
+  const frustum = useRef({ f: new Frustum(), m: new Matrix4(), p: new Vector3() });
+  /** Is the ground point in view (the enemy's moves out of view play at once)? */
+  const inView = (x: number, z: number): boolean => {
+    const v = frustum.current;
+    v.m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    v.f.setFromProjectionMatrix(v.m);
+    return v.f.containsPoint(v.p.set(x, session.standHeight(x, z), z));
+  };
+  /** How fast an event plays: the enemy's quicker, its walks out of view at once. */
+  const speedOf = (event: GameEvent): number => {
+    const actorId = 'unitId' in event ? event.unitId : 'attackerId' in event ? event.attackerId : 'towerId' in event ? event.towerId : null;
+    const actor = typeof actorId === 'string' ? findUnit(session.state, actorId) : undefined;
+    if (!actor || actor.faction === PLAYER_FACTION) return 1;
+    if (event.type === 'unitMoved') {
+      const a = event.path[0];
+      const b = event.path[event.path.length - 1];
+      if (a && b && !inView(a.x, a.z) && !inView(b.x, b.z)) return OUT_OF_VIEW_SPEED;
+    }
+    return ENEMY_SPEED;
+  };
   const floats = useRef<FloatText[]>([]);
   const scratch = useRef({ v: new Vector3(), ground: new Vector3(), ndc: new Vector2(), ray: new Raycaster(), p: new Vector3(), aim: new Vector3(), launch: new Vector3(), landing: new Vector3() });
   const pointer = useRef({ x: 0, y: 0, downX: 0, downY: 0, down: false, inside: false });
@@ -756,12 +734,13 @@ export function BattleDirector({
       const target = unitId ? findUnit(state, unitId) : undefined;
       let key: string;
       let hover: HoverPreview;
-      const armed = ui.armedAbility ? abilityCommand(session, selected.id, ui.armedAbility, target, ground) : null;
-      if (ui.armedAbility) {
-        key = armed ? `ability:${ui.armedAbility}:${armed.targetId ?? ''}:${armed.structureId ?? ''}:${armed.at ? `${Math.floor(armed.at.x)},${Math.floor(armed.at.z)}` : ''}` : `ability:${ui.armedAbility}:none`;
+      const armedId = ui.armedAction as ActionId | null;
+      if (armedId) {
+        // The armed action, aimed here (keyed by its order: one preview per distinct order).
+        const command = actionCommand(session, selected, armedId, target, ground);
+        key = `action:${armedId}:${command ? JSON.stringify(command, (k, v: unknown) => (typeof v === 'number' && k !== 'turn' ? Math.floor(v) : v)) : 'none'}`;
         if (key === hoverKey.current) return;
-        const result = armed ? previewAbility(session.ctx, state, armed) : null;
-        hover = !result ? { kind: 'blocked', reason: 'invalidAbilityTarget' } : result.ok ? { kind: 'ability', preview: result.preview } : { kind: 'blocked', reason: result.reason };
+        hover = actionPreview(session, selected, armedId, target, ground);
       } else if (target && target.faction !== selected.faction) {
         key = `attack:${target.id}`;
         if (key === hoverKey.current) return;
@@ -813,7 +792,8 @@ export function BattleDirector({
       if (ui.busy || state.activeFaction !== PLAYER_FACTION || state.status !== 'ongoing') return;
       const { ground, unitId } = aim();
       const clicked = unitId ? findUnit(state, unitId) : undefined;
-      const aimingAlly = ui.armedAbility !== null && DEFAULT_RULES.heroes[findUnit(state, ui.selectedId ?? '')?.typeKey ?? '']?.abilities.find((a) => a.id === ui.armedAbility)?.target === 'allyEngine';
+      const armedBy = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
+      const aimingAlly = ui.armedAction !== null && armedBy !== undefined && aimsAtAllies(armedBy, ui.armedAction as ActionId);
       if (clicked && clicked.faction === PLAYER_FACTION && !aimingAlly) {
         // A second click on the selected unit recentres the camera on it.
         if (ui.selectedId === clicked.id) focusOn?.(clicked.position);
@@ -824,10 +804,10 @@ export function BattleDirector({
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
       if (!selected?.alive) return;
       hoverKey.current = '';
-      if (ui.armedAbility) {
-        const command = abilityCommand(session, selected.id, ui.armedAbility, clicked, ground);
+      if (ui.armedAction) {
+        const command = actionCommand(session, selected, ui.armedAction as ActionId, clicked, ground);
         if (command) {
-          ui.armAbility(null);
+          ui.armAction(null);
           session.issue(command);
         }
         return;
@@ -846,7 +826,7 @@ export function BattleDirector({
         return;
       }
       if (e.code === 'Escape') {
-        if (ui.armedAbility) ui.armAbility(null);
+        if (ui.armedAction) ui.armAction(null);
         else ui.select(null);
         hoverKey.current = '';
         return;
@@ -866,37 +846,11 @@ export function BattleDirector({
       }
       if (e.code === 'Enter' || e.code === 'NumpadEnter') {
         requestEndTurn(session);
-      } else if (e.code === 'Digit1' || e.code === 'Numpad1' || e.code === 'Digit2' || e.code === 'Numpad2') {
-        triggerAbility(session, e.code.endsWith('1') ? 0 : 1);
+      } else if (ACTION_KEYS[e.code] && ui.selectedId) {
+        // The card's actions: armed (the pointer aims them) or ordered at once.
+        triggerAction(session, ACTION_KEYS[e.code] as ActionId);
         hoverKey.current = '';
         refreshHover();
-      } else if (e.code === 'KeyB' && ui.selectedId) {
-        // Archers: a fire arrow at the pointer.
-        const selected = findUnit(state, ui.selectedId);
-        const { ground } = aim();
-        if (selected && ground && hasTag(selected.typeKey, FIRE_ARROWS_TAG)) session.issue({ type: 'fireArrow', unitId: selected.id, at: ground });
-      } else if (e.code === 'KeyE' && ui.selectedId) {
-        // Anyone beside a fire: put it out.
-        const { ground } = aim();
-        if (ground) session.issue({ type: 'extinguish', unitId: ui.selectedId, at: ground });
-      } else if (e.code === 'KeyF' && ui.selectedId) {
-        // Sappers: fill the moat slot, or undermine the curtain, under the pointer.
-        const selected = findUnit(state, ui.selectedId);
-        const { ground } = aim();
-        if (!selected || !ground) return;
-        const def = structureAt(session.ctx, state, ground);
-        // A docked tower close by: climb it onto the wall-walk.
-        const tower = state.docks
-          .map((d) => findUnit(state, d.towerId))
-          .find((t) => t?.alive && Math.hypot(t.position.x - selected.position.x, t.position.z - selected.position.z) <= CLIMB_PICK_M);
-        if (hasTag(selected.typeKey, TOWER_TAG) && def?.kind === 'wall') session.issue({ type: 'dockTower', unitId: selected.id, structureId: def.id });
-        else if (tower && !hasTag(selected.typeKey, TOWER_TAG)) session.issue({ type: 'climbTower', unitId: selected.id, towerId: tower.id });
-        else if (hasTag(selected.typeKey, UNDERMINE_TAG) && def?.kind === 'wall') session.issue({ type: 'undermine', unitId: selected.id, structureId: def.id });
-        else if (hasTag(selected.typeKey, FILL_MOAT_TAG) && fillSiteAt(session.ctx, ground)) session.issue({ type: 'fillMoat', unitId: selected.id, at: ground });
-      } else if (e.code === 'KeyG' && ui.selectedId) {
-        const selected = findUnit(state, ui.selectedId);
-        const { ground } = aim();
-        if (selected && ground) session.issue({ type: 'overwatch', unitId: selected.id, direction: { x: ground.x - selected.position.x, z: ground.z - selected.position.z } });
       }
     };
     el.addEventListener('pointermove', onMove);
@@ -906,7 +860,7 @@ export function BattleDirector({
     window.addEventListener('keydown', onKey);
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
       if (s.selectedId && s.selectedId !== prev.selectedId) audio.play('ui_select');
-      if (s.selectedId !== prev.selectedId || s.busy !== prev.busy || s.armedAbility !== prev.armedAbility) {
+      if (s.selectedId !== prev.selectedId || s.busy !== prev.busy || s.armedAction !== prev.armedAction) {
         hoverKey.current = '';
         refreshHover();
       }
@@ -950,11 +904,13 @@ export function BattleDirector({
     const dt = Math.min(delta, 0.1) * TIME_SCALE;
     let current = step.current;
     while (!current && queue.current.length > 0 && handles) {
-      const next = makeStep(queue.current.shift() as GameEvent);
-      if (next) current = step.current = { step: next, t: 0 };
+      const event = queue.current.shift() as GameEvent;
+      lastSpeed.current = speedOf(event);
+      const next = makeStep(event);
+      if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current };
     }
     if (current) {
-      current.t += dt;
+      current.t += dt * current.speed;
       current.step.update(Math.min(current.t, current.step.duration), dt);
       if (current.t >= current.step.duration) {
         current.step.finish();

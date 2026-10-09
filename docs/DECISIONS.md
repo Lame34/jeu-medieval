@@ -292,6 +292,19 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Les boucles de musique ne sont pas sans couture : les versions « Loop » pèsent 10 Mo, à reprendre en J7.
 - Il manque des sons dédiés de catapulte et de bélier : ce sont des sons génériques ralentis.
 
+## ADR-034 — Allègement après le ⛳ J5 : barre d'actions, rythme, engins (J5+)
+**Contexte** : retour du ⛳ J5 : « améliore tout, la qualité, les performances et le jeu, il faut qu'il soit un peu plus simple, plus léger ». Les actions autres que se déplacer et attaquer passaient par des touches cachées (G, B, E, F, 1, 2) qui agissaient sans aperçu sous le pointeur. Une bataille durait 30 tours, et les engins mettaient une quinzaine de tours à atteindre les murs. Le tour adverse se regardait en entier, à vitesse réelle.
+**Décision** :
+- **Barre d'actions** (`ui/battle/actions.ts`) sur la carte de l'unité sélectionnée. Chaque action disponible est un bouton qui porte sa touche, son coût ou sa recharge et une infobulle : Garde, Flèche enflammée, Éteindre (seulement près d'un feu), Combler ou saper, Amarrer, Monter, et les deux capacités d'un héros.
+  - Une action sans visée (amarrer la tour à la courtine voisine, monter dans une tour accostée, Volée, Ralliement) part tout de suite.
+  - Les autres s'arment : le pointeur montre l'aperçu (chance que la flèche prenne, foyers éteints, avancée du chantier, cible d'une capacité), un clic donne l'ordre, Échap annule.
+  - L'aperçu interroge les règles : pour les ordres sans aperçu propre, la commande est appliquée à blanc, puis la grille de navigation est resynchronisée.
+  - La ligne d'aide devient « Clic : se déplacer, attaquer · Tab · Échap ».
+- **Tour adverse plus rapide** : ses événements se jouent ×1,8, et un déplacement qui ne passe pas dans le champ de la caméra ×12.
+- **Rythme** : les engins (bélier, catapulte, tour) passent de 2 à 3 PA, contre 2 dans le brief (§9.4). La limite passe de 30 à 24 tours. Dans les simulations, la première brèche tombe au tour 5 au lieu de 6 à 9.
+- **Cercles d'allégeance** inclinés selon le terrain : ils s'enfonçaient dans les pentes.
+**Conséquences** : l'écart au brief (PA des engins) est un choix de rythme, à reconfirmer à l'équilibrage J7.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

@@ -6,7 +6,7 @@
  * instanced, one batch per side (J5 perf: a mesh per unit cost a draw call each); each unit
  * carries an invisible marker the batch follows.
  */
-import { Color, DoubleSide, InstancedMesh, NormalBlending, Object3D, PlaneGeometry, ShaderMaterial } from 'three';
+import { Color, DoubleSide, InstancedMesh, NormalBlending, Object3D, PlaneGeometry, Quaternion, ShaderMaterial, Vector3 } from 'three';
 import type { Faction } from '../../core/rules/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 
@@ -107,4 +107,25 @@ export function updateRingBatch(batch: InstancedMesh, markers: readonly Object3D
   }
   batch.count = n;
   batch.instanceMatrix.needsUpdate = true;
+}
+
+/** Ground slope sampled this far either side of a unit (m); above the ground (a deck), flat. */
+const SLOPE_SAMPLE_M = 0.8;
+const ON_DECK_ABOVE_M = 0.3;
+const UP = new Vector3(0, 1, 0);
+const scratch = { n: new Vector3(), q: new Quaternion(), inv: new Quaternion() };
+
+/** Tilts a unit's ring marker to the ground under it (a flat ring sank into slopes). */
+export function alignRingToGround(marker: Object3D, root: Object3D, heightAt: (x: number, z: number) => number): void {
+  const { x, z } = root.position;
+  const h = heightAt(x, z);
+  if (root.position.y - h > ON_DECK_ABOVE_M) {
+    marker.quaternion.copy(scratch.inv.copy(root.quaternion).invert());
+    return;
+  }
+  const s = SLOPE_SAMPLE_M;
+  scratch.n.set(heightAt(x - s, z) - heightAt(x + s, z), 2 * s, heightAt(x, z - s) - heightAt(x, z + s)).normalize();
+  scratch.q.setFromUnitVectors(UP, scratch.n);
+  // In the root's frame: undo its yaw, then tilt to the ground normal.
+  marker.quaternion.copy(scratch.inv.copy(root.quaternion).invert()).multiply(scratch.q);
 }

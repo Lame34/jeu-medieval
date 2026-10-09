@@ -18,7 +18,7 @@ import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-
 import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
-import { createRingBatch, createRingMarker, RING_MAX_SCALE, RING_SCALE_DISTANCE_M, updateRingBatch } from './FactionRing.ts';
+import { alignRingToGround, createRingBatch, createRingMarker, RING_MAX_SCALE, RING_SCALE_DISTANCE_M, updateRingBatch } from './FactionRing.ts';
 import { createPennants } from './Pennants.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createEngineRig, ENGINE_HEIGHT_M, ENGINE_MODELS, engineKindOf, type EngineKind, type EngineRig } from './engines.ts';
@@ -378,6 +378,7 @@ export function Units({
   }, [built, onHandles]);
 
   const frame = useRef(0);
+  const heightAt = useMemo(() => (x: number, z: number) => sampleHeight(terrain, x, z), [terrain]);
   useFrame(({ camera }, delta) => {
     const f = frame.current++;
     for (let i = 0; i < built.animated.length; i++) {
@@ -393,6 +394,7 @@ export function Units({
     const distance = camera.position.distanceTo(paintedGlobals.uFocus.value);
     const scale = Math.min(RING_MAX_SCALE, Math.max(1, distance / RING_SCALE_DISTANCE_M));
     for (const ring of built.rings) ring.scale.setScalar(scale * ((ring.userData['engine'] as number | undefined) ?? 1));
+    for (const ring of built.rings) if (ring.parent) alignRingToGround(ring, ring.parent, heightAt);
     for (const { batch, markers } of built.ringBatches) updateRingBatch(batch, markers);
     // Far views: no unit shadows (switched only when the threshold is crossed).
     const shadows = distance < UNIT_SHADOW_MAX_DISTANCE_M;

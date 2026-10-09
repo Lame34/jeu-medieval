@@ -95,7 +95,7 @@ kbd {
   position: absolute;
   left: 16px;
   bottom: 16px;
-  width: 250px;
+  width: 290px;
 }
 
 .hud-unit h2 {
@@ -382,8 +382,10 @@ kbd {
   opacity: 0.8;
 }
 
+/* The card's action bar: two buttons a row, the key, the name, its cost or cooldown. */
 .hud-abilities {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin: 8px 0 4px;
   padding: 0;
@@ -391,9 +393,13 @@ kbd {
 }
 
 .hud-abilities button {
+  width: 100%;
+  min-height: 34px;
+  text-align: left;
   font: inherit;
   font-size: 13px;
-  padding: 4px 8px;
+  line-height: 1.2;
+  padding: 5px 8px;
   color: var(--parchment);
   background: rgb(43 35 38 / 75%);
   border: 1px solid var(--gold, #c99a3b);
@@ -402,8 +408,19 @@ kbd {
   pointer-events: auto;
 }
 
+.hud-abilities button:not(:disabled):hover {
+  background: rgb(64 50 40 / 90%);
+}
+
 .hud-abilities button[data-armed] {
-  background: rgb(201 154 59 / 45%);
+  color: var(--ink, #2b2326);
+  background: var(--gold, #c99a3b);
+  box-shadow: 0 0 0 2px rgb(201 154 59 / 45%);
+}
+
+.hud-abilities button[data-armed] kbd {
+  color: var(--ink, #2b2326);
+  border-color: var(--ink, #2b2326);
 }
 
 .hud-abilities button:disabled {
@@ -412,6 +429,8 @@ kbd {
 }
 
 .hud-abilities em {
+  display: block;
+  font-size: 11px;
   font-style: normal;
   opacity: 0.75;
 }
