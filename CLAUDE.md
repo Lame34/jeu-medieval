@@ -22,7 +22,7 @@ La bible du projet est **`docs/GAME_BRIEF.md`**, qui fait foi. La direction arti
 | `npm test` / `npm run test:cov` | Vitest (`tests/core`), couverture ≥ 80 % sur `src/core` |
 | `npm run e2e` | Playwright (`tests/e2e`) |
 | `npm run bench:core` | Micro-bench navigation 512² (budgets du core) |
-| `npm run bench:perf -- --preset portable [--scene battle] [--cpu-throttle 4] [--log]` | Bench GPU (Intel Arc obligatoire), une scène par passe (lookdev par défaut), écrit dans `docs/PERF_LOG.md` |
+| `npm run bench:perf -- --preset portable [--scene battle] [--cpu-throttle 4] [--query "live&weather=rain&hour=22"] [--log]` | Bench GPU (Intel Arc obligatoire), une scène par passe (lookdev par défaut) ; `--query live` mesure une bataille en cours (unités, torches, météo, son) ; écrit dans `docs/PERF_LOG.md`. Sur batterie, comparer en A/B alterné |
 | `npm run capture:lookdev [-- <tag> --scene battle --breakdown]` | Captures des vues × 3 heures dans `docs/captures/` (ventilation des triangles avec `--breakdown`) |
 | `node scripts/capture-siege.ts [<tag>] [--seed siege-1]` | Siège scripté via `?e2e` (pont-levis, fissures, effondrement, parc d'engins) capturé dans `docs/captures/` |
 | `node scripts/capture-weather.ts [<tag>]` | Bataille de nuit, au crépuscule, sous la pluie et dans le brouillard (`?weather=&hour=`) capturée dans `docs/captures/` |

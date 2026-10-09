@@ -29,6 +29,8 @@
 | IA dans un worker (même cœur, commandes rejouées par la session) | `ui/workers/ai.worker.ts`, `ui/battle/session.ts` (`playAiTurnAsync`) |
 | Audio : chaîne Blender (audaspace), moteur Howler, paysage sonore (ADR-033) | `scripts/audio-manifest.json`, `scripts/blender/process_audio.py`, `audio/engine.ts`, `render/battle/BattleSoundscape.tsx` |
 | HUD : heure, météo, vent, modificateurs de tir, mini-carte | `ui/battle/BattleHud.tsx`, `ui/battle/MiniMap.tsx` |
+| Barre d'actions de l'unité (garde, flèche enflammée, éteindre, ouvrages, capacités) : armer, viser, ordonner (ADR-034) | `ui/battle/actions.ts` |
+| Effets vides masqués après la précompilation des shaders | `render/drawable.ts` |
 | Partie en cours : état, journal de commandes, tour de l'IA | `ui/battle/session.ts` |
 | Miroir pour le HUD : sélection, survol, occupation, journal | `state/battle-ui.ts` |
 | File d'animation, souris et clavier, tour de l'IA | `render/battle/BattleDirector.tsx` |
