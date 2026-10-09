@@ -25,7 +25,25 @@ const CLOUD_FBM: FbmOptions = { octaves: 5, lacunarity: 2.1, gain: 0.5, frequenc
 const CLOUD_SQUASH = 2.6;
 
 /** Seamless cloud panorama: R = density, G = light (top-lit, shaded undersides). */
+/** The painted clouds (deterministic): computed once per page, shared by every sky. */
+let cloudBytes: Uint8Array | null = null;
+/** The azimuth seam is blended over this last share of the width (a second noise sample there only). */
+const CLOUD_SEAM = 0.2;
+
 function paintClouds(): DataTexture {
+  cloudBytes ??= paintCloudBytes();
+  const texture = new DataTexture(cloudBytes, CLOUD_W, CLOUD_H, RGBAFormat, UnsignedByteType);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  // No mip-maps: the atan() seam would pick the smallest level along one column.
+  texture.generateMipmaps = false;
+  texture.minFilter = LinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function paintCloudBytes(): Uint8Array {
   const noise = createSimplex(Rng.create('sky-clouds'));
   const density = new Float32Array(CLOUD_W * CLOUD_H);
   for (let j = 0; j < CLOUD_H; j++) {
@@ -33,10 +51,11 @@ function paintClouds(): DataTexture {
     // Banks gather just above the mountains and thin out towards the zenith.
     const coverage = smoothstep(0.02, 0.1, v) * (1 - smoothstep(0.3, 0.95, v));
     for (let i = 0; i < CLOUD_W; i++) {
-      // Wrap blend across the azimuth seam.
-      const w = i / CLOUD_W;
+      // Wrap blend across the azimuth seam, over its last stretch only.
+      const w = Math.max(0, (i / CLOUD_W - (1 - CLOUD_SEAM)) / CLOUD_SEAM);
       const y = j * CLOUD_SQUASH;
-      const n = fbm(noise, i, y, CLOUD_FBM) * (1 - w) + fbm(noise, i - CLOUD_W, y, CLOUD_FBM) * w;
+      const n0 = fbm(noise, i, y, CLOUD_FBM);
+      const n = w > 0 ? n0 * (1 - w) + fbm(noise, i - CLOUD_W, y, CLOUD_FBM) * w : n0;
       density[j * CLOUD_W + i] = smoothstep(0.12, 0.42, n * 0.5 + (coverage - 0.55) * 0.55);
     }
   }
@@ -52,15 +71,7 @@ function paintClouds(): DataTexture {
       bytes[k + 3] = 255;
     }
   }
-  const texture = new DataTexture(bytes, CLOUD_W, CLOUD_H, RGBAFormat, UnsignedByteType);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = ClampToEdgeWrapping;
-  // No mip-maps: the atan() seam would pick the smallest level along one column.
-  texture.magFilter = LinearFilter;
-  texture.minFilter = LinearFilter;
-  texture.generateMipmaps = false;
-  texture.needsUpdate = true;
-  return texture;
+  return bytes;
 }
 
 const vertexShader = /* glsl */ `

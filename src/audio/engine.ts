@@ -2,10 +2,12 @@
  * Audio engine (J5, brief §11), on Howler: one-shots with variants, placed in the 2.5D tactical
  * view (louder near the camera's focus, panned left or right of it), and named loops (music
  * layers, ambiences) that fade to a target volume. Sounds come from the pipeline
- * (scripts/blender/process_audio.py → public/assets/audio, audio-manifest.json). Loaded after
- * the scene is ready, never blocking it; browsers unlock audio on the first input.
+ * (scripts/blender/process_audio.py → public/assets/audio, audio-manifest.json). Howler itself
+ * is imported at the player's first input (setting up its audio context cost a third of a second
+ * of the battle's load), and the files then load a few at a time.
  */
-import { Howl, Howler } from 'howler';
+import type * as HowlerLib from 'howler';
+import type { Howl } from 'howler';
 import manifest from './audio-manifest.json' with { type: 'json' };
 
 export type SoundId = keyof typeof manifest.sounds;
@@ -48,6 +50,9 @@ class AudioEngine {
   private readonly listener: Listener = { x: 0, z: 0, rightX: 1, rightZ: 0, distance: 40 };
   private loaded = false;
   private master = 1;
+  private muted = false;
+  /** Howler, once imported. */
+  private lib: typeof HowlerLib | null = null;
 
   private entry(id: SoundId): Entry {
     return manifest.sounds[id] as Entry;
@@ -60,6 +65,15 @@ class AudioEngine {
   load(): void {
     if (this.loaded) return;
     this.loaded = true;
+    void import('howler').then((lib) => {
+      this.lib = lib;
+      lib.Howler.mute(this.muted);
+      lib.Howler.volume(this.master);
+      this.loadAll();
+    });
+  }
+
+  private loadAll(): void {
     const ids = (Object.keys(manifest.sounds) as SoundId[]).filter((id) => this.entry(id).category !== 'music');
     // Short sounds first, the long ambiences last (their decoding is the heaviest).
     ids.sort((a, b) => Number(this.entry(a).category === 'ambience') - Number(this.entry(b).category === 'ambience'));
@@ -86,7 +100,9 @@ class AudioEngine {
 
   private variants(id: SoundId): Howl[] {
     let list = this.howls.get(id);
-    if (!list) {
+    const lib = this.lib;
+    if (!list && lib) {
+      const Howl = lib.Howl;
       const e = this.entry(id);
       // Long loops (music, ambiences) stream from a media element: decoding them whole stalled
       // the picture; one-shots are decoded (instant, pannable).
@@ -98,16 +114,17 @@ class AudioEngine {
         this.pump();
       }
     }
-    return list;
+    return list ?? [];
   }
 
   setMuted(muted: boolean): void {
-    Howler.mute(muted);
+    this.muted = muted;
+    this.lib?.Howler.mute(muted);
   }
 
   setMasterVolume(v: number): void {
     this.master = Math.max(0, Math.min(1, v));
-    Howler.volume(this.master);
+    this.lib?.Howler.volume(this.master);
   }
 
   /** Where the player listens from: the camera's focus and its right on the ground. */
@@ -122,7 +139,7 @@ class AudioEngine {
 
   /** A one-shot, at a place on the field (or flat, for the interface). */
   play(id: SoundId, opts: { readonly at?: { readonly x: number; readonly z: number }; readonly volume?: number; readonly rate?: number } = {}): void {
-    if (!this.loaded) return;
+    if (!this.lib) return;
     const list = this.variants(id);
     const howl = list[Math.floor(Math.random() * list.length)];
     if (!howl) return;
@@ -147,7 +164,7 @@ class AudioEngine {
 
   /** A loop towards `volume` (0 stops it after the fade). */
   loop(id: SoundId, volume: number, fadeMs = 2000): void {
-    if (!this.loaded) return;
+    if (!this.lib) return;
     const e = this.entry(id);
     const target = BUS[e.category] * Math.max(0, Math.min(1, volume));
     let l = this.loops.get(id);

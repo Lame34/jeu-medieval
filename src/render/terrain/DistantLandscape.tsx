@@ -11,7 +11,8 @@ import { clamp, smoothstep } from '../../core/math/scalar.ts';
 import { createSimplex, fbm, type FbmOptions } from '../../core/noise/noise.ts';
 import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
-import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
+import { segmentDistance } from '../../core/worldgen/geometry.ts';
+import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WaterBody } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
@@ -135,6 +136,8 @@ function axis(size: number): number[] {
 const RIVER_BANK_M = 6;
 const RIVER_BED_BELOW_LEVEL_M = 1.6;
 const CLUMP_WATER_CLEARANCE_M = 8;
+/** River segments are bucketed in cells this wide: a point is only measured against those near it. */
+const RIVER_CELL_M = 64;
 
 export function DistantLandscape({ terrain, seed, water }: { readonly terrain: TerrainData; readonly seed: string; readonly water: readonly WaterBody[] }) {
   const built = useMemo(() => {
@@ -148,15 +151,39 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     const rivers = water
       .filter((b) => b.kind === 'river')
       .map((b) => ({ ...b, centerline: extendedRiver(b.centerline) }));
-    const riverAt = (x: number, z: number): { carve: number; level: number; distance: number } => {
-      let best = { carve: 0, level: 0, distance: Number.POSITIVE_INFINITY };
-      for (const body of rivers) {
-        const d = projectOnPolyline({ x, z }, body.centerline).distance;
-        const half = body.widthM / 2;
-        const carve = 1 - smoothstep(half * 0.55, half + RIVER_BANK_M, d);
-        if (d < best.distance) best = { carve, level: body.levelM, distance: d - half };
+    // Each river's segments, by the cells they come within reach of (beyond it a river neither
+    // carves nor keeps clumps away): measuring every vertex against every segment cost ~0.4 s.
+    type River = (typeof rivers)[number];
+    const segments = new Map<number, { readonly a: Vec2; readonly b: Vec2; readonly body: River }[]>();
+    const cellKey = (i: number, j: number) => i * 65536 + j;
+    for (const body of rivers) {
+      const reach = body.widthM / 2 + Math.max(RIVER_BANK_M, CLUMP_WATER_CLEARANCE_M);
+      for (let k = 0; k < body.centerline.length - 1; k++) {
+        const a = body.centerline[k] as Vec2;
+        const b = body.centerline[k + 1] as Vec2;
+        for (let j = Math.floor((Math.min(a.z, b.z) - reach) / RIVER_CELL_M); j <= Math.floor((Math.max(a.z, b.z) + reach) / RIVER_CELL_M); j++) {
+          for (let i = Math.floor((Math.min(a.x, b.x) - reach) / RIVER_CELL_M); i <= Math.floor((Math.max(a.x, b.x) + reach) / RIVER_CELL_M); i++) {
+            const list = segments.get(cellKey(i, j)) ?? [];
+            list.push({ a, b, body });
+            segments.set(cellKey(i, j), list);
+          }
+        }
       }
-      return best;
+    }
+    const riverAt = (x: number, z: number): { carve: number; level: number; distance: number } => {
+      const near = segments.get(cellKey(Math.floor(x / RIVER_CELL_M), Math.floor(z / RIVER_CELL_M)));
+      let bestD = Number.POSITIVE_INFINITY;
+      let body: River | null = null;
+      for (const seg of near ?? []) {
+        const d = segmentDistance(x, z, seg.a, seg.b);
+        if (d < bestD) {
+          bestD = d;
+          body = seg.body;
+        }
+      }
+      if (!body) return { carve: 0, level: 0, distance: Number.POSITIVE_INFINITY };
+      const half = body.widthM / 2;
+      return { carve: 1 - smoothstep(half * 0.55, half + RIVER_BANK_M, bestD), level: body.levelM, distance: bestD - half };
     };
     const heightAt = (x: number, z: number): number => {
       const d = outside(x, z);

@@ -111,22 +111,34 @@ export function recolorTexture(source: Texture, clothHues: readonly HueRange[], 
 /** Re-hues cloth pixels (RGBA bytes, in place) to the faction colour; gold → iron for defenders. */
 export function recolorPixels(data: Uint8ClampedArray, clothHues: readonly HueRange[], faction: Faction): void {
   const tint = FACTION_TINTS[faction];
+  // Painted atlases hold few distinct colours: each is converted once (the per-pixel HSL round
+  // trip was a third of a second of the battle's load). -1: left as it is.
+  const done = new Map<number, number>();
   for (let i = 0; i < data.length; i += 4) {
-    const [h, s, l] = rgbToHsl((data[i] as number) / BYTE, (data[i + 1] as number) / BYTE, (data[i + 2] as number) / BYTE);
-    let out: [number, number, number] | null = null;
-    const cloth = clothHues.find((r) => inRange(h, s, r));
-    if (cloth) {
-      const lit = l * (cloth.lightnessGain ?? 1) + tint.lightnessBias;
-      out = hslToRgb(tint.hue, Math.max(tint.saturation, s * 0.9), Math.min(0.92, Math.max(0.06, lit)));
-    } else if (tint.goldToIron && inRange(h, s, GOLD)) {
-      out = hslToRgb(0.6, 0.06, l * 0.75);
-    } else if (s < METAL_MAX_SATURATION && l > METAL_MIN_LIGHTNESS && l < METAL_MAX_LIGHTNESS) {
-      out = hslToRgb(h, s, Math.min(0.9, l * tint.metalGain));
+    const r = data[i] as number;
+    const g = data[i + 1] as number;
+    const b = data[i + 2] as number;
+    const key = (r << 16) | (g << 8) | b;
+    let packed = done.get(key);
+    if (packed === undefined) {
+      const [h, s, l] = rgbToHsl(r / BYTE, g / BYTE, b / BYTE);
+      let out: [number, number, number] | null = null;
+      const cloth = clothHues.find((range) => inRange(h, s, range));
+      if (cloth) {
+        const lit = l * (cloth.lightnessGain ?? 1) + tint.lightnessBias;
+        out = hslToRgb(tint.hue, Math.max(tint.saturation, s * 0.9), Math.min(0.92, Math.max(0.06, lit)));
+      } else if (tint.goldToIron && inRange(h, s, GOLD)) {
+        out = hslToRgb(0.6, 0.06, l * 0.75);
+      } else if (s < METAL_MAX_SATURATION && l > METAL_MIN_LIGHTNESS && l < METAL_MAX_LIGHTNESS) {
+        out = hslToRgb(h, s, Math.min(0.9, l * tint.metalGain));
+      }
+      packed = out ? (Math.round(out[0] * BYTE) << 16) | (Math.round(out[1] * BYTE) << 8) | Math.round(out[2] * BYTE) : -1;
+      done.set(key, packed);
     }
-    if (out) {
-      data[i] = Math.round(out[0] * BYTE);
-      data[i + 1] = Math.round(out[1] * BYTE);
-      data[i + 2] = Math.round(out[2] * BYTE);
+    if (packed >= 0) {
+      data[i] = (packed >> 16) & BYTE;
+      data[i + 1] = (packed >> 8) & BYTE;
+      data[i + 2] = packed & BYTE;
     }
   }
 }

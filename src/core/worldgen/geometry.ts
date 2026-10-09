@@ -30,7 +30,7 @@ export function projectOnPolyline(p: Vec2, line: readonly Vec2[]): SegmentProjec
 }
 
 /** Distance from (px, pz) to segment ab, with exactly the arithmetic of projectOnPolyline. */
-function segmentDistance(px: number, pz: number, a: Vec2, b: Vec2): number {
+export function segmentDistance(px: number, pz: number, a: Vec2, b: Vec2): number {
   const abx = b.x - a.x;
   const abz = b.z - a.z;
   const lenSq = abx * abx + abz * abz;

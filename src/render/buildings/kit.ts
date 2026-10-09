@@ -17,25 +17,29 @@ export interface Kit {
 
 const KEPT_ATTRIBUTES = ['position', 'normal', 'uv'] as const;
 
-/** De-quantises and keeps only position/normal/uv (meshopt + KHR_mesh_quantization input). */
+/**
+ * De-quantises, keeps only position/normal/uv (meshopt + KHR_mesh_quantization input) and
+ * un-indexes once here: every house places its pieces non-indexed (they are merged), and doing
+ * it per placed piece cost a large share of the battle's load.
+ */
 export function toFloatGeometry(source: BufferGeometry): BufferGeometry {
   const out = new BufferGeometry();
-  const count = source.getAttribute('position').count;
+  const index = source.getIndex();
+  const count = index ? index.count : source.getAttribute('position').count;
   for (const name of KEPT_ATTRIBUTES) {
     const attr = source.getAttribute(name);
     const size = name === 'uv' ? 2 : 3;
     const array = new Float32Array(count * size);
     if (attr) {
       for (let i = 0; i < count; i++) {
-        array[i * size] = attr.getX(i);
-        array[i * size + 1] = attr.getY(i);
-        if (size === 3) array[i * size + 2] = attr.getZ(i);
+        const v = index ? index.getX(i) : i;
+        array[i * size] = attr.getX(v);
+        array[i * size + 1] = attr.getY(v);
+        if (size === 3) array[i * size + 2] = attr.getZ(v);
       }
     }
     out.setAttribute(name, new BufferAttribute(array, size));
   }
-  const index = source.getIndex();
-  if (index) out.setIndex(Array.from(index.array as ArrayLike<number>));
   return out;
 }
 

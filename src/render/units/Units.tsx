@@ -434,3 +434,4 @@ export function Units({
 
 useGLTF.preload(ANIMATIONS_URL, false, true);
 for (const k of ENGINE_KINDS) useGLTF.preload(ENGINE_MODELS[k], false, true);
+for (const b of BODIES) useGLTF.preload(bodyUrl(b), false, true);
