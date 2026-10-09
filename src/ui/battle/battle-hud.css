@@ -490,3 +490,22 @@ kbd {
   border-radius: 3px;
   cursor: pointer;
 }
+
+/* Nobody left to act: the end of the turn is the next move. */
+.hud-end-turn[data-ready] {
+  border-color: var(--gold);
+  animation: hud-ready-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hud-ready-pulse {
+  50% {
+    box-shadow: 0 0 0 3px rgb(201 161 59 / 55%), var(--shadow-deep);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-end-turn[data-ready] {
+    animation: none;
+    box-shadow: 0 0 0 3px rgb(201 161 59 / 55%), var(--shadow-deep);
+  }
+}

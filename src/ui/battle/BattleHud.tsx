@@ -339,7 +339,7 @@ export function BattleHud({
         </span>
         {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
       </header>
-      <button type="button" className="hud-end-turn" data-armed={armed || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
+      <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} unité${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : confirmer ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
       {selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />}
