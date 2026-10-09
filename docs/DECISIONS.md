@@ -305,6 +305,25 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - **Cercles d'allégeance** inclinés selon le terrain : ils s'enfonçaient dans les pentes.
 **Conséquences** : l'écart au brief (PA des engins) est un choix de rythme, à reconfirmer à l'équilibrage J7.
 
+## ADR-035 — Une image et un chargement plus légers (J5+)
+**Contexte** : après le ⛳ J5, il faut un jeu plus léger. Une image de bataille comptait environ 80 appels de dessin pour l'image et 55 pour la passe d'ombres. Quinze effets vides (feu éteint, projectiles, torches de jour, cônes) passaient quand même par le moteur. Le chargement laissait le thread principal bloqué environ 1,7 s après la carte. Les mesures sur batterie (iGPU bridé) ne sont pas comparables aux anciennes.
+**Décision** :
+- **Effets vides masqués** (`render/drawable.ts`) une fois les programmes précompilés derrière l'écran de chargement. Avant, ils restent visibles pour que `compileAsync` les voie.
+- **Passe d'ombres redessinée seulement si nécessaire** : quand sa boîte bouge ou que la lumière change, sinon une image sur deux. Sous la pluie, plus d'ombre portée du tout (`uCastShadow` = 0, aucune passe). On garde `castShadow`, dont le changement recompilerait tous les programmes.
+- **Chargement** :
+  - les pièces du kit sont désindexées une seule fois ;
+  - les tronçons de rivière sont rangés en cases de 64 m pour le paysage lointain ;
+  - les nuages sont calculés une fois par page ;
+  - la recoloration d'équipe est mise en cache par couleur ;
+  - Howler n'est importé qu'au premier clic ou à la première touche ;
+  - les modèles de personnages sont préchargés.
+- **Kit du village simplifié** par meshopt (erreur 0,3 %, bords verrouillés) : 22,9 k → 15,2 k triangles.
+- **Mesures** : sur batterie, comparer en A/B alterné (`git stash`, puis bench, puis `pop`, puis bench, deux tours). `--query live` mesure une bataille en cours ; `?nosound` coupe le paysage sonore.
+**Conséquences** :
+- Chargement en production : 5,5 → 4,7 s à chaud, 7,2 → 6,7 s à froid. À froid, la compilation des 42 programmes (≈ 2,2 s) domine ; Chrome la met ensuite en cache.
+- A/B en bataille sur batterie : 50 à 56 → 57 à 58 fps.
+- Restent des blocages GPU ponctuels (1 % bas) : aucune tâche longue en JavaScript ni aucun programme compilé en cours de jeu, cause à chercher secteur branché.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
