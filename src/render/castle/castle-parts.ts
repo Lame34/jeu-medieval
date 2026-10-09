@@ -46,7 +46,7 @@ const LIFT_PLANK_FILL = 0.97;
 /** The lifting span's backing board under the planks, and its two iron bands. */
 const LIFT_BACKING_M = 0.05;
 const LIFT_BACKING_DROP_M = 0.03;
-const LIFT_BACKING_COLOR = '#4e3322';
+const LIFT_BACKING_COLOR = '#6e5034';
 const LIFT_BAND_M = 0.04;
 const LIFT_BAND_WIDTH_M = 0.16;
 const STONE_BRIDGE_SEGMENTS = 14;

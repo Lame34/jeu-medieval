@@ -1,4 +1,5 @@
 /** Journal lines (French) for core events. */
+import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { HeroRule } from '../../core/rules/types.ts';
 import type { CommandRejection } from '../../core/commands/types.ts';
@@ -153,8 +154,16 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     }
     case 'unitMoved':
       return event.fleeing ? `${unitLabel(state, event.unitId)} fuit !` : null;
-    case 'moraleChanged':
-      return event.reason === 'recovery' || Math.abs(event.delta) < 10 ? null : `${unitLabel(state, event.unitId)} : moral ${event.delta > 0 ? '+' : ''}${Math.round(event.delta)}.`;
+    case 'moraleChanged': {
+      // Only a change of standing matters to the player (shaken: −1 PA; fleeing: no orders).
+      const before = moraleStanding(DEFAULT_RULES.morale, event.morale - event.delta);
+      const after = moraleStanding(DEFAULT_RULES.morale, event.morale);
+      if (before === after) return null;
+      const who = unitLabel(state, event.unitId);
+      if (after === 'fleeing') return `${who} perd pied !`;
+      if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ébranlé.` : `${who} est ébranlé (−1 PA).`;
+      return `${who} se ressaisit.`;
+    }
     case 'turnStarted':
       return `Tour ${event.turn} : ${FACTION_LABEL[event.faction]}.`;
     case 'battleEnded':
