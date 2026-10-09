@@ -21,6 +21,7 @@ import { crackGeometry, DustPool, hash01, planCollapse, Rubble, rubbleBedGeometr
 import { bundleCapacity, causewayGeometry, createBundleMesh, mineGeometry, placeBundles } from './siege-works-fx.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { createStoneMaterial } from './stone-material.ts';
+import { setDrawable } from '../drawable.ts';
 
 const TOWER_ROOF_HEIGHT_M = 16;
 const TIMBER_HEIGHT_M = 6;
@@ -283,6 +284,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
       g.forEach((x) => x.dispose());
       crackMesh.geometry.dispose();
       crackMesh.geometry = merged ?? warmUpTriangle();
+      setDrawable(crackMesh, merged !== null);
     };
     const addRubble = (id: string, settled: boolean): Rubble | null => {
       const seg = segmentOf(id);
@@ -299,6 +301,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     assignShadowDepthMaterials(warmUp.mesh);
     rubbleGroup.add(warmUp.mesh);
     rubble.push(warmUp);
+    setDrawable(warmUp.mesh, false);
     for (const id of breached) addRubble(id, true);
     // Sappers' works: fascine piles (instanced timber, warmed up empty) and the mines' sheds.
     const worksGroup = new Group();
@@ -307,6 +310,7 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
     bundleWarmUp.geometry.setDrawRange(0, 0);
     assignShadowDepthMaterials(bundleWarmUp);
     worksGroup.add(bundleWarmUp);
+    setDrawable(bundleWarmUp, false);
     root.add(worksGroup);
     const fills = new Map<string, ReturnType<typeof createBundleMesh>>();
     const mines = new Map<string, Mesh>();

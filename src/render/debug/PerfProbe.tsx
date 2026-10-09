@@ -168,19 +168,49 @@ export function PerfProbe() {
       });
       return rows;
     };
+    // Drawable objects of the scene (name, parent, material, what they draw): who an unnamed family is.
+    api.control['objects'] = () => {
+      const rows: { name: string; type: string; parent: string; material: string; visible: boolean; vertices: number; instances: number | null }[] = [];
+      scene.traverse((o) => {
+        const m = (o as { material?: Material | Material[] }).material;
+        if (!m) return;
+        const g = (o as Mesh).geometry;
+        rows.push({
+          name: o.name,
+          type: o.type,
+          parent: o.parent ? o.parent.name || o.parent.type : '',
+          material: (Array.isArray(m) ? m[0] : m)?.name || (Array.isArray(m) ? m[0] : m)?.type || '',
+          visible: o.visible,
+          vertices: Math.min(g?.index ? g.index.count : (g?.getAttribute('position')?.count ?? 0), g?.drawRange.count ?? Infinity),
+          instances: o instanceof InstancedMesh ? o.count : null,
+        });
+      });
+      return rows;
+    };
     // Draw calls of one whole frame by object family (shadow pass included): where the calls go.
     api.control['drawList'] = () =>
       new Promise<Record<string, number>>((resolve) => {
         const counts: Record<string, number> = {};
         const original = gl.renderBufferDirect;
+        const shadowRender = gl.shadowMap.render;
+        let inShadow = false;
+        gl.shadowMap.render = function (this: typeof gl.shadowMap, ...args: Parameters<typeof shadowRender>) {
+          inShadow = true;
+          try {
+            return shadowRender.apply(this, args);
+          } finally {
+            inShadow = false;
+          }
+        };
         gl.renderBufferDirect = function (this: typeof gl, ...args: Parameters<typeof original>) {
-          const key = family(args[4]);
+          const key = `${inShadow ? 'shadow:' : ''}${family(args[4])}`;
           counts[key] = (counts[key] ?? 0) + 1;
           return original.apply(this, args);
         };
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             gl.renderBufferDirect = original;
+            gl.shadowMap.render = shadowRender;
             resolve(counts);
           }),
         );

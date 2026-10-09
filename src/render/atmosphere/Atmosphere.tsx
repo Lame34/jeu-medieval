@@ -19,6 +19,12 @@ const SHADOW_SNAP = true;
 const MIN_SHADOW_RADIUS_M = 26;
 const SHADOW_RADIUS_PER_DISTANCE = 1.25;
 const SHADOW_RADIUS_HYSTERESIS = 0.08;
+/**
+ * The shadow map is redrawn when its box moves or the light changes, and otherwise every
+ * SHADOW_EVERY frames: the units' idle motion and the swaying leaves read the same at 30 Hz, and
+ * the shadow pass was a third of the frame's CPU.
+ */
+const SHADOW_EVERY = 2;
 
 /** Lit for the scene's hour and weather (a battle's, else the settings' hour under a clear sky). */
 export function Atmosphere() {
@@ -26,7 +32,20 @@ export function Atmosphere() {
   const weather = useSceneConditions((s) => s.weather);
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const scene = useThree((s) => s.scene);
+  const gl = useThree((s) => s.gl);
   const rig = useMemo(() => resolveRig(hour, weather), [hour, weather]);
+  const shadowFrame = useRef(0);
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = false;
+    gl.shadowMap.needsUpdate = true;
+    return () => {
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl]);
+  // A new light: redraw the shadows now.
+  useEffect(() => {
+    gl.shadowMap.needsUpdate = true;
+  }, [gl, rig]);
   useEffect(() => {
     setActiveFog(WEATHER_FOG[weather]);
     return () => setActiveFog(WEATHER_FOG.clear);
@@ -86,21 +105,25 @@ export function Atmosphere() {
     // Tighten the shadow box when zoomed in: shadow texels are spent where the player looks.
     const radius = Math.min(preset.shadowRadiusM, Math.max(MIN_SHADOW_RADIUS_M, camera.position.distanceTo(focus) * SHADOW_RADIUS_PER_DISTANCE));
     const cam = sun.shadow.camera;
+    let moved = false;
     if (Math.abs(cam.right - radius) > radius * SHADOW_RADIUS_HYSTERESIS) {
       cam.left = -radius;
       cam.right = radius;
       cam.top = radius;
       cam.bottom = -radius;
       cam.updateProjectionMatrix();
+      moved = true;
     }
     const target = scratch.current.copy(focus);
     if (SHADOW_SNAP) {
       const texel = (2 * cam.right) / preset.shadowMapSize;
       target.set(Math.round(target.x / texel) * texel, target.y, Math.round(target.z / texel) * texel);
     }
+    moved ||= !sunTarget.position.equals(target);
     sunTarget.position.copy(target);
     sun.position.copy(target).addScaledVector(dir, SUN_DISTANCE_M);
     sunTarget.updateMatrixWorld();
+    if (moved || ++shadowFrame.current % SHADOW_EVERY === 0) gl.shadowMap.needsUpdate = true;
   });
 
   return null;

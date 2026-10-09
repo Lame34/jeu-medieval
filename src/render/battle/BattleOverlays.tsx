@@ -7,6 +7,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, RingGeometry, Vector3, type Camera } from 'three';
+import { setDrawable } from '../drawable.ts';
 import { findUnit, movementArea } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
@@ -145,6 +146,8 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
     path.frustumCulled = false;
     const coneMaterial = new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: CONE_OPACITY, depthWrite: false, side: DoubleSide, fog: false });
     const cones = new Mesh(new BufferGeometry(), coneMaterial);
+    cones.name = 'Overlays:cones';
+    setDrawable(cones, false);
     cones.renderOrder = 1;
     cones.frustumCulled = false;
     return { selectRing, targetRing, destRing, path, pathMaterial, cones, coneMaterial };
@@ -208,6 +211,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
         lastBattle.current = state;
         parts.cones.geometry.dispose();
         parts.cones.geometry = guardCones(session);
+        setDrawable(parts.cones, (parts.cones.geometry.getAttribute('position')?.count ?? 0) > 0);
       }
     };
     refresh();

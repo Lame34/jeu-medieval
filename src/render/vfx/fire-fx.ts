@@ -22,6 +22,7 @@ import {
   type Material,
 } from 'three';
 import { hash01 } from '../castle/siege-fx.ts';
+import { setDrawable } from '../drawable.ts';
 
 const MAX_FLAMES = 600;
 const FLAMES_PER_CELL = 3;
@@ -228,6 +229,7 @@ export class FireField {
     this.smoke.renderOrder = 6;
     this.materials = [flameMat, glowMat, scorchMat, smokeMat];
     this.group.add(this.scorch, this.glows, this.flames, this.smoke);
+    for (const o of [this.scorch, this.glows, this.flames, this.smoke]) setDrawable(o, false);
     this.group.name = 'Fire';
   }
 
@@ -260,6 +262,8 @@ export class FireField {
     });
     this.flames.count = n;
     this.glows.count = Math.min(burning.length, MAX_FLAMES);
+    setDrawable(this.flames, n > 0);
+    setDrawable(this.glows, this.glows.count > 0);
     this.flames.instanceMatrix.needsUpdate = true;
     this.glows.instanceMatrix.needsUpdate = true;
     seeds.needsUpdate = true;
@@ -272,6 +276,7 @@ export class FireField {
       this.scorch.setMatrixAt(k++, this.m);
     }
     this.scorch.count = k;
+    setDrawable(this.scorch, k > 0);
     this.scorch.instanceMatrix.needsUpdate = true;
   }
 
@@ -315,6 +320,7 @@ export class FireField {
     }
     const g = this.smoke.geometry;
     g.setDrawRange(0, live > 0 ? SMOKE_POOL : 0);
+    setDrawable(this.smoke, live > 0);
     (g.getAttribute('position') as BufferAttribute).needsUpdate = live > 0;
     (g.getAttribute('aSmoke') as BufferAttribute).needsUpdate = live > 0;
   }

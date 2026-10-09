@@ -30,6 +30,7 @@ import { finish } from '../castle/castle-geometry.ts';
 import { hash01 } from '../castle/siege-fx.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { audio } from '../../audio/engine.ts';
+import { setDrawable } from '../drawable.ts';
 import { PALETTE } from '../materials/palette.ts';
 
 const MAX_ARROWS = 24;
@@ -218,7 +219,9 @@ export class ProjectilePool {
       mesh.frustumCulled = false;
       mesh.renderOrder = order;
       mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+      setDrawable(mesh, false);
     }
+    setDrawable(this.splash, false);
     this.arrows.castShadow = true;
     this.stones.castShadow = true;
     this.splash.name = 'Projectile:splash';
@@ -284,6 +287,8 @@ export class ProjectilePool {
     }
     this.arrows.count = n;
     this.trails.count = n;
+    setDrawable(this.arrows, n > 0);
+    setDrawable(this.trails, n > 0);
     if (n > 0) {
       this.arrows.instanceMatrix.needsUpdate = true;
       this.trails.instanceMatrix.needsUpdate = true;
@@ -310,6 +315,8 @@ export class ProjectilePool {
     }
     this.stones.count = k;
     this.shadows.count = k;
+    setDrawable(this.stones, k > 0);
+    setDrawable(this.shadows, k > 0);
     if (k > 0) {
       this.stones.instanceMatrix.needsUpdate = true;
       this.shadows.instanceMatrix.needsUpdate = true;
@@ -364,6 +371,7 @@ export class ProjectilePool {
     }
     const g = this.splash.geometry;
     g.setDrawRange(0, live > 0 ? SPLASH_POOL : 0);
+    setDrawable(this.splash, live > 0);
     if (live > 0) {
       (g.getAttribute('position') as BufferAttribute).needsUpdate = true;
       (g.getAttribute('aSplash') as BufferAttribute).needsUpdate = true;

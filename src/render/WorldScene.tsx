@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo } from 'react';
 import { HalfFloatType, Vector2, WebGLRenderTarget } from 'three';
 import type { UnitMarker, WorldLayout } from '../core/worldgen/types.ts';
 import { Atmosphere } from './atmosphere/Atmosphere.tsx';
+import { markScenePrecompiled, resetScenePrecompiled } from './drawable.ts';
 import { Buildings } from './buildings/Buildings.tsx';
 import { Castle, type CastleHandle, type CastleSiegeState } from './castle/Castle.tsx';
 import { Hedges } from './fields/Hedges.tsx';
@@ -61,6 +62,7 @@ function SceneReady({ toTarget }: { readonly toTarget: boolean }) {
       document.body.dataset['compileMs'] = (performance.now() - compileStart).toFixed(0);
       document.body.dataset['programs'] = String(gl.info.programs?.length ?? 0);
       document.body.dataset['readyAtMs'] = performance.now().toFixed(0);
+      markScenePrecompiled();
       useSceneStatus.getState().setReady(true);
       const perf = window.__perf;
       if (perf) perf.control['sceneReady'] = () => true;
@@ -68,6 +70,7 @@ function SceneReady({ toTarget }: { readonly toTarget: boolean }) {
     });
     return () => {
       cancelled = true;
+      resetScenePrecompiled();
       delete document.body.dataset['sceneReady'];
       useSceneStatus.getState().setReady(false);
     };

@@ -14,6 +14,7 @@ import { useSceneConditions, useSceneHour } from '../../state/scene-conditions.t
 import { nightness } from '../atmosphere/time-of-day.ts';
 import { paintedGlobals, setTorchMap } from '../materials/painted-globals.ts';
 import { createFlameMesh } from './fire-fx.ts';
+import { setDrawable } from '../drawable.ts';
 
 /** A flame's size (× the fire's flame); gate torches stand this high, braziers before the door. */
 const TORCH_FLAME_SCALE = 0.32;
@@ -133,6 +134,7 @@ export function Torches({ layout }: { readonly layout: WorldLayout }) {
   useEffect(() => {
     // Flames only while it is dark enough (no draw call by day; the program is compiled anyway).
     flames.count = strength > 0 ? sites.length : 0;
+    setDrawable(flames, flames.count > 0);
     paintedGlobals.uTorchStrength.value = strength;
   }, [flames, sites, strength]);
 

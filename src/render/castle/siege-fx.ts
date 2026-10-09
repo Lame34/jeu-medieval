@@ -23,6 +23,7 @@ import {
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WallRun } from '../../core/worldgen/types.ts';
 import { finish } from './castle-geometry.ts';
+import { setDrawable } from '../drawable.ts';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 
@@ -466,6 +467,7 @@ export class DustPool {
     this.points.renderOrder = 4;
     // Nothing to draw until the first puff (no draw call; the program is still compiled up front).
     g.setDrawRange(0, 0);
+    setDrawable(this.points, false);
   }
 
   setPixelsPerMeter(v: number): void {
@@ -490,6 +492,7 @@ export class DustPool {
       this.params[i * 4 + 2] = hash01(s, 7);
       if ((this.life[i] as number) >= DUST_LIFE_S) this.live++;
       this.points.geometry.setDrawRange(0, DUST_POOL);
+      setDrawable(this.points, true);
       this.life[i] = 0;
     }
   }
@@ -504,7 +507,10 @@ export class DustPool {
       if (next >= DUST_LIFE_S) {
         this.params[i * 4 + 1] = 0;
         this.live--;
-        if (this.live === 0) this.points.geometry.setDrawRange(0, 0);
+        if (this.live === 0) {
+          this.points.geometry.setDrawRange(0, 0);
+          setDrawable(this.points, false);
+        }
         continue;
       }
       const k = next / DUST_LIFE_S;
