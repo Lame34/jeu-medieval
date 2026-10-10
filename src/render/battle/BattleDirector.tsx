@@ -82,6 +82,14 @@ const TURN_BANNER_S = 0.9;
 /** The enemy's turn plays this much faster; its walks out of view, this much. */
 const ENEMY_SPEED = 1.8;
 const OUT_OF_VIEW_SPEED = 12;
+/**
+ * The enemy striking one of ours out of the picture brings the camera over (its walks out of
+ * view still play at once): what happened to the archer on the left is seen, not only read.
+ * Test runs (?e2e) keep the camera where the test put it.
+ */
+const FOLLOW_ENEMY_BLOWS = typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('e2e');
+/** Well in the picture: inside this share of the screen's half-width and half-height. */
+const WELL_IN_VIEW_NDC = 0.75;
 /** Pointer travel (px) above which a press is a drag, not a click. */
 const CLICK_SLOP_PX = 6;
 /** Ray march along the view ray over the heightfield (m). */
@@ -257,6 +265,18 @@ export function BattleDirector({
     v.m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     v.f.setFromProjectionMatrix(v.m);
     return v.f.containsPoint(v.p.set(x, session.standHeight(x, z), z));
+  };
+  /** Is the point well inside the picture (not at its edge, not behind the camera)? */
+  const wellInView = (p: Vector3): boolean => {
+    const v = frustum.current.p.copy(p).project(camera);
+    return v.z < 1 && Math.abs(v.x) < WELL_IN_VIEW_NDC && Math.abs(v.y) < WELL_IN_VIEW_NDC;
+  };
+  /** The enemy's blow on one of ours out of the picture: the camera goes there. */
+  const follow = (event: GameEvent) => {
+    if (!FOLLOW_ENEMY_BLOWS || event.type !== 'unitAttacked' || event.riposte) return;
+    const target = handleOf(event.targetId);
+    if (!target?.root.visible || wellInView(target.root.position)) return;
+    focusOn?.({ x: target.root.position.x, z: target.root.position.z });
   };
   /** How fast an event of the enemy's turn plays: quicker, its walks out of view at once. */
   const speedOf = (event: GameEvent): number => {
@@ -930,6 +950,7 @@ export function BattleDirector({
       const { event, enemy } = queue.current.shift() as { event: GameEvent; enemy: boolean };
       lastSpeed.current = enemy ? speedOf(event) : 1;
       lastType.current = event.type;
+      if (enemy) follow(event);
       const next = makeStep(event);
       if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current, type: lastType.current };
     }
