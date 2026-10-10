@@ -2,7 +2,9 @@
  * Painted faction ring under each unit (brief §5.1 pillar "lisibilité tactique"): a soft,
  * brush-edged ring in the allegiance colour with an ink inner stroke, normal-blended (additive
  * blending turned red to orange on grass). Shape also encodes the side for colour-blind
- * players (attacker: full ring, defender: dashed). Rings grow with camera distance. Drawn
+ * players (attacker: full ring, defender: dashed). Rings grow with camera distance; an engine's
+ * wide ring is drawn thinner and steadier (the soldiers' broad wobbly band read as a blue puddle
+ * under a ram, reviews J5b and J7). Drawn
  * instanced, one batch per side (J5 perf: a mesh per unit cost a draw call each); each unit
  * carries an invisible marker the batch follows.
  */
@@ -17,11 +19,14 @@ export const RING_MAX_SCALE = 1.8;
 
 const vertexShader = /* glsl */ `
 varying vec2 vUv;
+varying float vScale;
 void main() {
   vUv = uv;
   #ifdef USE_INSTANCING
+  vScale = length(instanceMatrix[0].xyz);
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
   #else
+  vScale = 1.0;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   #endif
 }
@@ -32,14 +37,18 @@ uniform vec3 uColor;
 uniform vec3 uInk;
 uniform float uDashed;
 varying vec2 vUv;
+varying float vScale;
 float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 void main() {
   vec2 d = vUv * 2.0 - 1.0;
   float r = length(d);
   float angle = atan(d.y, d.x);
-  float wobble = 0.03 * sin(angle * 7.0) + 0.02 * sin(angle * 13.0 + 1.3);
-  float ring = smoothstep(0.62 + wobble, 0.7 + wobble, r) * (1.0 - smoothstep(0.86 + wobble, 0.95 + wobble, r));
-  float ink = smoothstep(0.56 + wobble, 0.62 + wobble, r) * (1.0 - smoothstep(0.62 + wobble, 0.67 + wobble, r));
+  // Past the soldiers' largest ring (an engine's), the band narrows and the brush steadies.
+  float wide = clamp((vScale - ${RING_MAX_SCALE.toFixed(2)}) / 0.8, 0.0, 1.0);
+  float inner = mix(0.62, 0.8, wide);
+  float wobble = (0.03 * sin(angle * 7.0) + 0.02 * sin(angle * 13.0 + 1.3)) * mix(1.0, 0.3, wide);
+  float ring = smoothstep(inner + wobble, inner + 0.08 + wobble, r) * (1.0 - smoothstep(0.86 + wobble, 0.95 + wobble, r));
+  float ink = smoothstep(inner - 0.06 + wobble, inner + wobble, r) * (1.0 - smoothstep(inner + wobble, inner + 0.05 + wobble, r));
   // Defender: 6 square dashes (the colour-blind pattern), attacker: full ring.
   float dash = mix(1.0, step(0.42, fract(angle / 6.2831853 * 6.0)), uDashed);
   // Outer ink rim: the ring holds by value, not only by hue, on light or orange ground.
