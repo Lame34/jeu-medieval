@@ -57,6 +57,8 @@ const TURN_RATE = 10;
 const IMPACT_AT = 0.45;
 const ATTACK_DURATION_S: readonly [number, number] = [0.7, 1.4];
 const GUARD_PAUSE_S = 0.5;
+/** The battle's last beat: the horn (or the bell), the losers laying down arms or running, before the end panel. */
+const END_PAUSE_S = 1.6;
 /** Footsteps every so often while walking, running; an engine's wheels creak more slowly (s). */
 const STEP_WALK_S = 0.45;
 const STEP_RUN_S = 0.32;
@@ -678,6 +680,22 @@ export function BattleDirector({
       case 'turnStarted':
         audio.play(event.faction === PLAYER_FACTION ? 'turn_horn' : 'turn_bell');
         return { duration: TURN_BANNER_S, update() {}, finish() {} };
+      case 'battleEnded': {
+        const won = event.status === 'attackerWon';
+        audio.play(won === (PLAYER_FACTION === 'attacker') ? 'turn_horn' : 'turn_bell');
+        // Those still alive on the losing side give up where they stand: they say so.
+        if (event.reason === 'surrendered' || event.reason === 'routed') {
+          const losers = won ? 'defender' : 'attacker';
+          for (const u of session.state.units) {
+            if (!u.alive || u.faction !== losers) continue;
+            const h = handleOf(u.id);
+            if (!h?.root.visible) continue;
+            const p = h.root.position;
+            showFloat(event.reason === 'surrendered' ? 'Se rend' : 'Fuit !', 'miss', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+          }
+        }
+        return { duration: END_PAUSE_S, update() {}, finish() {} };
+      }
       default:
         return null;
     }

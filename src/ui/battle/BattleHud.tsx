@@ -417,7 +417,7 @@ export function BattleHud({
           <li key={`${i}-${line}`}>{line}</li>
         ))}
       </ol>
-      {battle.status !== 'ongoing' && <EndPanel battle={battle} content={end(battle)} />}
+      {battle.status !== 'ongoing' && !busy && <EndPanel battle={battle} content={end(battle)} />}
     </div>
   );
 }
