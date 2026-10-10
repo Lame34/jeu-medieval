@@ -27,6 +27,7 @@ La bible du projet est **`docs/GAME_BRIEF.md`**, qui fait foi. La direction arti
 | `node scripts/capture-siege.ts [<tag>] [--seed siege-1]` | Siège scripté via `?e2e` (pont-levis, fissures, effondrement, parc d'engins) capturé dans `docs/captures/` |
 | `node scripts/capture-weather.ts [<tag>]` | Bataille de nuit, au crépuscule, sous la pluie et dans le brouillard (`?weather=&hour=`) capturée dans `docs/captures/` |
 | `node scripts/capture-campaign.ts [<tag>]` | Écrans de la campagne (menu, carte, lettre, conseil de guerre, options, leçon, briefing) capturés dans `docs/captures/` |
+| `node scripts/capture-title.ts [--hour 16.4 …]` | Illustration de l’écran-titre rendue par le jeu (Haute-Garde à l’heure dorée, sans interface) vers `public/assets/ui/title.webp` |
 | `node scripts/campaign-scout.ts [--sim] [--try <id> <graine>…]` | Cartes de la campagne : génération, validation, chaque stratagème ; `--sim` fait jouer l'IA des deux côtés |
 | `npm run assets:engines` | Blender headless : bélier et catapulte (maillages skinnés, couleurs de sommet) dans `assets-src/work/engines` |
 | `npm run assets:audio` | Blender headless (audaspace) : sons de `scripts/audio-manifest.json` normalisés et encodés en Ogg dans `public/assets/audio` |

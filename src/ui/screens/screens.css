@@ -4,14 +4,32 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: var(--wood-dark);
 }
 
-.painted-backdrop {
+/* The illustration drifts slowly (a camera breathing over the castle); the castle stays right of the menu. */
+.title-screen__art {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
+  background: url('/assets/ui/title.webp') 64% 50% / cover no-repeat;
+  transform-origin: 70% 55%;
+  animation: title-drift 50s ease-in-out infinite alternate;
+}
+
+/* Warm shade on the left: the menu sits on the hill, not on the glare. */
+.title-screen__art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgb(28 18 10 / 50%), rgb(28 18 10 / 0%) 48%),
+    radial-gradient(120% 90% at 60% 45%, transparent 60%, rgb(20 12 6 / 45%));
+}
+
+@keyframes title-drift {
+  to {
+    transform: scale(1.06) translate(-0.8%, -0.4%);
+  }
 }
 
 .title-panel {

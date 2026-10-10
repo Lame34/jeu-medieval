@@ -1,7 +1,6 @@
 import { CAMPAIGN } from '../../data/index.ts';
 import { useCampaign } from '../../state/campaign.ts';
 import { IronFrame } from '../components/IronFrame.tsx';
-import { PaintedBackdrop } from '../components/PaintedBackdrop.tsx';
 import { navigate, ROUTES } from '../router.ts';
 import './screens.css';
 
@@ -31,8 +30,9 @@ export function TitleScreen() {
   ];
   return (
     <main className="title-screen">
-      <PaintedBackdrop />
-      <section className="title-panel parchment" aria-labelledby="game-title">
+      {/* Haute-Garde at the golden hour, rendered by the game itself (scripts/capture-title.ts). */}
+      <div className="title-screen__art" aria-hidden="true" />
+      <section className="title-panel parchment-sheet" aria-labelledby="game-title">
         <IronFrame />
         <h1 id="game-title" className="title-panel__title">
           Siège
