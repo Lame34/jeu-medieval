@@ -35,51 +35,9 @@ import {
   type UnitAttackRule,
   type UnitTypeRule,
 } from './types.ts';
+import { bool, integer, num, obj, oneOf, RulesValidationError, str, strings, text } from './json.ts';
 
-export class RulesValidationError extends Error {
-  constructor(path: string, message: string) {
-    super(`${path}: ${message}`);
-    this.name = 'RulesValidationError';
-  }
-}
-
-type Json = Record<string, unknown>;
-
-function obj(value: unknown, path: string): Json {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new RulesValidationError(path, 'expected an object');
-  }
-  return value as Json;
-}
-
-function num(value: unknown, path: string, min = -Infinity, max = Infinity): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new RulesValidationError(path, 'expected a finite number');
-  if (value < min || value > max) throw new RulesValidationError(path, `expected a value in [${min}, ${max}], got ${value}`);
-  return value;
-}
-
-function integer(value: unknown, path: string, min = -Infinity, max = Infinity): number {
-  const n = num(value, path, min, max);
-  if (!Number.isInteger(n)) throw new RulesValidationError(path, `expected an integer, got ${n}`);
-  return n;
-}
-
-function bool(value: unknown, path: string): boolean {
-  if (typeof value !== 'boolean') throw new RulesValidationError(path, 'expected a boolean');
-  return value;
-}
-
-function str(value: unknown, path: string): string {
-  if (typeof value !== 'string' || value.length === 0) throw new RulesValidationError(path, 'expected a non-empty string');
-  return value;
-}
-
-function oneOf<T extends string>(value: unknown, allowed: readonly T[], path: string): T {
-  if (typeof value !== 'string' || !(allowed as readonly string[]).includes(value)) {
-    throw new RulesValidationError(path, `expected one of ${allowed.join(', ')}`);
-  }
-  return value as T;
-}
+export { RulesValidationError } from './json.ts';
 
 function record<K extends string>(value: unknown, keys: readonly K[], path: string, read: (v: unknown, p: string) => number): Record<K, number> {
   const source = obj(value, path);
@@ -290,16 +248,6 @@ function readWeather(raw: unknown): WeatherRules {
     lightRadiusM: n('lightRadiusM', 0),
     windArtilleryPenalty: n('windArtilleryPenalty', 0, 1),
   });
-}
-
-function strings(value: unknown, path: string): string[] {
-  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) throw new RulesValidationError(path, 'expected an array of strings');
-  return value as string[];
-}
-
-function text(value: unknown, path: string): string {
-  if (typeof value !== 'string' || value.length === 0) throw new RulesValidationError(path, 'expected a non-empty string');
-  return value;
 }
 
 function readHeroes(raw: unknown, units: Readonly<Record<string, UnitTypeRule>>): Record<string, HeroRule> {
