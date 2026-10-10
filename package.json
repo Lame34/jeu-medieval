@@ -5,7 +5,7 @@
   "description": "Siège — jeu de stratégie tour par tour médiéval (Three.js / React Three Fiber)",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite",
