@@ -16,7 +16,7 @@ test('title screen renders with the game font and menu', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Siège' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Atelier du peintre/ })).toBeEnabled();
+  for (const entry of [/Bataille d’essai/, /Campagne/, /Escarmouche/, /Options/]) await expect(page.getByRole('button', { name: entry })).toBeEnabled();
   const titleFont = await page.getByRole('heading', { name: 'Siège' }).evaluate((el) => getComputedStyle(el).fontFamily);
   expect(titleFont).toContain('Cinzel');
   expect(errors).toEqual([]);
@@ -33,8 +33,10 @@ test('look-dev scene boots on hardware WebGL2 without errors', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
-test('menu navigation reaches the look-dev screen and back', async ({ page }) => {
+test('menu navigation reaches the look-dev screen (through the options) and back', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: /Options/ }).click();
+  await expect(page).toHaveURL(/\/options$/);
   await page.getByRole('button', { name: /Atelier du peintre/ }).click();
   await expect(page).toHaveURL(/\/lookdev$/);
   await page.getByRole('button', { name: /Retour/ }).click();

@@ -41,9 +41,15 @@ interface TestUnitState {
 
 interface TestBattleState {
   readonly turn: number;
+  /** Past this round the defenders are relieved (a campaign's plan or `?turns=` changes it). */
+  readonly turnLimit: number;
   readonly activeFaction: TestFaction;
   readonly status: 'ongoing' | 'attackerWon' | 'defenderWon';
   readonly units: readonly TestUnitState[];
+  readonly weather: 'clear' | 'rain' | 'fog';
+  readonly startHour: number;
+  /** Sappers' works: moat fill sites and mines, with the turns of work done. */
+  readonly works: readonly { readonly id: string; readonly progress: number; readonly done: boolean }[];
 }
 
 /** Plain JSON, mirroring `Command` (src/core/commands/types.ts): safe to `JSON.stringify` across
