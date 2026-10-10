@@ -1,0 +1,119 @@
+/* La leçon de Guillaume : un panneau à droite, sous la fin du tour ; la partie du HUD nommée s'illumine. */
+.tutorial {
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  z-index: 5;
+  width: 340px;
+  max-height: calc(100% - 260px);
+  overflow-y: auto;
+  color: var(--ink);
+  animation: tutorial-in 360ms var(--ease-out) both;
+  zoom: var(--ui-scale, 1);
+}
+
+@keyframes tutorial-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.tutorial__head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.tutorial__head h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 18px;
+  color: #7a2a14;
+}
+
+.tutorial__count {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.tutorial__text {
+  margin: 8px 0;
+  font-size: 15.5px;
+  line-height: 1.45;
+}
+
+.tutorial__goal {
+  margin: 6px 0;
+  padding: 5px 9px;
+  border-radius: 4px;
+  background: rgb(160 120 70 / 16%);
+  font-weight: 600;
+}
+
+.tutorial__goal[data-done] {
+  background: rgb(63 106 42 / 18%);
+  color: #2f5a1e;
+}
+
+.tutorial__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.tutorial__actions button,
+.tutorial-tab {
+  padding: 4px 12px;
+  border: 1px solid rgb(58 42 26 / 50%);
+  border-radius: 4px;
+  background: rgb(255 250 235 / 40%);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tutorial__actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tutorial__next {
+  border-color: #5b2a12 !important;
+  background: linear-gradient(180deg, #a3301e, #7a1a10) !important;
+  color: #fbe9d6 !important;
+}
+
+.tutorial__next[data-pending] {
+  border-color: rgb(58 42 26 / 50%) !important;
+  background: rgb(255 250 235 / 40%) !important;
+  color: var(--ink) !important;
+}
+
+.tutorial-tab {
+  position: absolute;
+  top: 64px;
+  right: 16px;
+  z-index: 5;
+  background: var(--parchment);
+  box-shadow: var(--shadow-deep);
+}
+
+/* Ce que la leçon désigne. */
+[data-tutorial-highlight='endTurn'] .hud-end-turn,
+[data-tutorial-highlight='minimap'] .hud-minimap,
+[data-tutorial-highlight='unitCard'] .hud-unit,
+[data-tutorial-highlight='log'] .hud-log,
+[data-tutorial-highlight='banner'] .hud-banner {
+  animation: tutorial-glow 1.4s ease-in-out infinite;
+}
+
+@keyframes tutorial-glow {
+  50% {
+    box-shadow:
+      0 0 0 3px var(--gold-bright),
+      0 0 24px 6px rgb(230 195 90 / 65%);
+  }
+}
