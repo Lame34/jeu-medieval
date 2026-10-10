@@ -7,9 +7,10 @@
   justify-content: center;
   padding: 28px 24px;
   overflow-y: auto;
+  /* The title's castle, dimmed behind the sheet: the options stay in the same world. */
   background:
-    radial-gradient(70% 60% at 50% 40%, rgb(107 74 48 / 40%), transparent 75%),
-    repeating-linear-gradient(94deg, rgb(0 0 0 / 0%) 0 22px, rgb(0 0 0 / 7%) 22px 23px, rgb(0 0 0 / 0%) 23px 61px),
+    radial-gradient(70% 60% at 50% 45%, rgb(43 30 20 / 55%), rgb(28 18 10 / 85%)),
+    url('/assets/ui/title.webp') 64% 50% / cover no-repeat,
     var(--wood-dark);
 }
 
@@ -70,7 +71,7 @@
 .option {
   display: grid;
   grid-template-columns: 11em 1fr;
-  align-items: center;
+  align-items: baseline;
   gap: 4px 12px;
   margin: 8px 0;
 }
