@@ -110,10 +110,25 @@ export interface UnitSpawn {
   readonly facing?: Vec2;
 }
 
+/** A structure's condition before the first round (a campaign's stratagem: a lowered drawbridge, a mined wall). */
+export interface StructureStart {
+  readonly id: string;
+  /** Remaining HP over maximum, in (0, 1]. */
+  readonly hpFraction?: number;
+  /** Down from the start (a drawbridge: lowered). */
+  readonly broken?: boolean;
+}
+
 export interface Scenario {
   readonly units: readonly UnitSpawn[];
   readonly firstFaction?: Faction;
   readonly initialMorale?: number;
+  /** Starting morale by side (over initialMorale). */
+  readonly morale?: Readonly<Partial<Record<Faction, number>>>;
+  /** Structures damaged or down before the battle (intact otherwise). */
+  readonly structures?: readonly StructureStart[];
+  /** Moat fill sites already crossed by a fascine causeway. */
+  readonly filled?: readonly string[];
   /** Rounds the defenders must hold (rules.battle.turnLimit when absent). */
   readonly turnLimit?: number;
   /** Fixed weather and start hour (drawn from the seed when absent). */

@@ -5,8 +5,9 @@ import type { Faction } from '../rules/types.ts';
 import type { BattleContext } from './context.ts';
 import { initialStructures, NO_WORKS, syncNav } from './structures.ts';
 import { conditionsOf, groundOf } from './conditions.ts';
+import { fillSites } from './moat.ts';
 import { setGround } from './structures.ts';
-import { BATTLE_STATE_VERSION, type BattleState, type Scenario, type UnitState } from './types.ts';
+import { BATTLE_STATE_VERSION, type BattleState, type Scenario, type StructureState, type UnitState, type WorkState } from './types.ts';
 
 export const DEFAULT_MORALE = 70;
 const DEFAULT_FACING: Vec2 = { x: 0, z: -1 };
@@ -32,12 +33,36 @@ export function cellIndexOf(ctx: BattleContext, p: Vec2): number {
   return Math.floor(p.z / cs) * ctx.nav.width + Math.floor(p.x / cs);
 }
 
+/** The castle at the start: intact, but for the scenario's damaged and fallen structures. */
+function startStructures(ctx: BattleContext, scenario: Scenario): StructureState[] {
+  const structures = initialStructures(ctx.structures);
+  for (const start of scenario.structures ?? []) {
+    const i = structures.findIndex((s) => s.id === start.id);
+    const def = ctx.structures.find((d) => d.id === start.id);
+    if (i < 0 || !def) throw new ScenarioError(`unknown structure "${start.id}"`);
+    const f = start.hpFraction ?? 1;
+    if (!(f > 0 && f <= 1)) throw new ScenarioError(`structure "${start.id}": hpFraction ${f} outside (0, 1]`);
+    structures[i] = start.broken ? { id: start.id, hp: 0, broken: true } : { id: start.id, hp: Math.max(1, Math.round(def.maxHp * f)), broken: false };
+  }
+  return structures;
+}
+
+/** The fascine causeways laid before the battle, sorted by id. */
+function startWorks(ctx: BattleContext, scenario: Scenario): readonly WorkState[] {
+  if (!scenario.filled || scenario.filled.length === 0) return NO_WORKS;
+  const sites = fillSites(ctx);
+  const ids = [...new Set(scenario.filled)].sort();
+  for (const id of ids) if (!sites.has(id)) throw new ScenarioError(`unknown fill site "${id}"`);
+  return ids.map((id) => ({ id, progress: ctx.rules.structures.fillTurns, done: true }));
+}
+
 export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario): BattleState {
   // Spawns are checked against the intact castle.
-  const structures = initialStructures(ctx.structures);
-  syncNav(ctx, structures, NO_WORKS);
+  syncNav(ctx, initialStructures(ctx.structures), NO_WORKS);
+  const structures = startStructures(ctx, scenario);
+  const works = startWorks(ctx, scenario);
   const firstFaction: Faction = scenario.firstFaction ?? 'attacker';
-  const morale = scenario.initialMorale ?? DEFAULT_MORALE;
+  const moraleOf = (f: Faction) => scenario.morale?.[f] ?? scenario.initialMorale ?? DEFAULT_MORALE;
   const seenIds = new Set<string>();
   const occupied = new Set<number>();
   const units: UnitState[] = [];
@@ -66,7 +91,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
       ap: type.faction === firstFaction ? type.ap : 0,
       actions: type.faction === firstFaction ? ctx.rules.damage.actionsPerTurn : 0,
       overwatch: null,
-      morale,
+      morale: moraleOf(type.faction),
       alive: true,
     });
   }
@@ -79,6 +104,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
   const wind = { x: Math.sin(windAngle), z: Math.cos(windAngle), strength: WIND_STRENGTH[0] + windRng.next() * (WIND_STRENGTH[1] - WIND_STRENGTH[0]) };
   const { weather, startHour } = conditionsOf(ctx.rules, scenario);
   setGround(ctx, groundOf(weather));
+  syncNav(ctx, structures, works);
   return {
     version: BATTLE_STATE_VERSION,
     seedKey: root.seedKey,
@@ -88,7 +114,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     status: 'ongoing',
     units,
     structures,
-    works: NO_WORKS,
+    works,
     docks: [],
     wind,
     weather,
