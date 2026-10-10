@@ -104,9 +104,12 @@ export function createShieldGeometry(faction: Faction): BufferGeometry {
   bend(mark);
   const ink = new Color(arms.charge);
   paint(mark, () => ink);
-  const merged = mergeGeometries([body.toNonIndexed(), mark.toNonIndexed()]);
+  // The extruded body comes non-indexed, the flat charge indexed: both flat for the merge.
+  const flatMark = mark.toNonIndexed();
+  const merged = mergeGeometries([body, flatMark]);
   body.dispose();
   mark.dispose();
+  flatMark.dispose();
   if (!merged) throw new Error('shield: geometries could not be merged');
   merged.name = `Shield:${faction}`;
   return merged;

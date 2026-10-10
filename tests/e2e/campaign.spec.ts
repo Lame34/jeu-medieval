@@ -3,9 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 /**
  * The campaign (J6) end to end: the title menu, the campaign map (locked, open and taken castles),
  * a castle's letter, the council of war and its sealed plan carried into the battle, the
- * chronicle of a defeat and the way back to the map, the options kept across a reload, and
- * Guillaume's lessons in the trial battle. Progress lives in localStorage ('siege.campaign.v1');
- * each test starts from a fresh browser context.
+ * chronicle of a defeat and the way back to the map, the options kept across a reload,
+ * Guillaume’s lessons in the trial battle, and a battle's opening shot. Progress lives in
+ * localStorage ('siege.campaign.v1'); each test starts from a fresh browser context.
  */
 
 const IGNORED = [/THREE\.Clock/, /toNonIndexed/, /glGetProgramiv/];
@@ -183,5 +183,20 @@ test('the trial battle: Guillaume’s lessons tick off as the player acts', asyn
   // Hidden, the lesson waits on a tab.
   await lesson.getByRole('button', { name: 'Masquer' }).click();
   await expect(page.locator('.tutorial-tab')).toContainText('Leçon 4 / 15');
+  expect(errors).toEqual([]);
+});
+
+test('a campaign battle opens on the castle, then the army; a key cuts the shot short and the briefing follows', async ({ page }) => {
+  const errors = trackErrors(page);
+  // Neither ?e2e nor ?fast: the establishing shot plays.
+  await page.goto('/battle?nosound&level=roche-grise&plan=lettres');
+  await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true', undefined, { timeout: SCENE_READY_TIMEOUT_MS });
+  // Held on the castle: the briefing waits for the shot.
+  await expect(page.locator('.hud-briefing')).toHaveCount(0);
+  // The garrison's count and where it gives up, in the banner.
+  await expect(page.locator('.hud-garrison-chip')).toContainText(/Garnison \d+ · se rend à \d/);
+  await page.keyboard.press('Shift');
+  await expect(page.locator('.hud-briefing')).toBeVisible({ timeout: 3_000 });
+  await expect(page.locator('.hud-briefing')).toContainText(/hommes? debout, elle se rend/);
   expect(errors).toEqual([]);
 });
