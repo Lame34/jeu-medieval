@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { battleEffects, shapeScenario } from '../../core/campaign/scenario.ts';
+import { surrenderLine } from '../../core/battle/combat.ts';
 import type { CampaignLevel, Stratagem } from '../../core/campaign/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
@@ -134,6 +135,7 @@ export function Council({ level, resting, onClose, onMarch }: { readonly level: 
           )}
           <p className="council__legend">
             <span className="dot dot--ours" /> votre ost : {count('attacker')} · <span className="dot dot--theirs" /> la garnison : {count('defender')}
+            {surrenderLine(DEFAULT_RULES, count('defender')) > 0 && <>, se rend à {surrenderLine(DEFAULT_RULES, count('defender'))}</>}
             <br />
             <span className="mark mark--gold">◯</span> renforts · <span className="mark mark--red">✕</span> absents · <span className="mark mark--red">〰</span> ouvrage entamé
           </p>
