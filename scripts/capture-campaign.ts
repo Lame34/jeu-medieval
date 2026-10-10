@@ -1,7 +1,7 @@
 /**
  * Captures the campaign's screens (J6) in docs/captures/: the title menu, the campaign map (new
  * and with castles taken), a castle's letter, the council of war with a plan sealed, the options,
- * the trial battle with Guillaume's lesson, and a campaign battle's briefing.
+ * the trial battle with Guillaume’s lesson, and a campaign battle’s opening shot and briefing.
  * Usage: node scripts/capture-campaign.ts [tag]   (dev server on :5188, or SIEGE_URL)
  */
 import { mkdirSync } from 'node:fs';
@@ -84,7 +84,11 @@ await shot(page, 'tutorial');
 
 await page.goto(`${baseUrl()}/battle?level=brumefond&plan=lances`);
 await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true', undefined, { timeout: 120_000 });
-await page.waitForTimeout(2000);
+// The establishing shot first (the castle, then the army), the briefing after it.
+await page.waitForTimeout(1200);
+await shot(page, 'opening-castle');
+await page.locator('.hud-briefing').waitFor({ timeout: 30_000 });
+await page.waitForTimeout(600);
 await shot(page, 'briefing');
 
 await browser.close();

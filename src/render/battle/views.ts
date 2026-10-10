@@ -9,8 +9,15 @@ import type { CameraLimits, CameraView } from '../camera/TacticalCamera.tsx';
 
 export type BattleView = CameraView & { readonly id: string; readonly label: string };
 
-const OPENING_DISTANCE_M = 55;
-const OPENING_PITCH_DEG = 50;
+/** The opening view frames the main body of the army: the units within this of its densest point. */
+const MAIN_BODY_RADIUS_M = 28;
+const OPENING_DISTANCE_M = 62;
+/** The focus leads the army towards the castle: the men in the lower half, under the briefing, the road ahead above. */
+const OPENING_LEAD_M = 10;
+const OPENING_PITCH_DEG = 46;
+/** The establishing shot: the castle from the army's side, before the glide to the army. */
+const INTRO_DISTANCE_M = 115;
+const INTRO_PITCH_DEG = 30;
 
 /** Yaw (turns) of a camera looking from `from` towards `to` (camera sits at focus + (sin, cos)). */
 function yawLooking(from: Vec2, to: Vec2): number {
@@ -23,12 +30,38 @@ function centroid(points: readonly Vec2[], fallback: Vec2): Vec2 {
   return { x: sum.x / points.length, z: sum.z / points.length };
 }
 
-/** Opening view of a battle in play: over the player's units, looking towards the castle. */
-export function openingView(layout: WorldLayout, units: readonly Vec2[]): BattleView {
+function keepOf(layout: WorldLayout): Vec2 {
   const center = { x: (layout.playable.minX + layout.playable.maxX) / 2, z: (layout.playable.minZ + layout.playable.maxZ) / 2 };
-  const keep = layout.keeps[0]?.center ?? centroid(layout.towers.map((t) => t.center), center);
-  const focus = units.length > 0 ? centroid(units, layout.focus) : layout.focus;
-  return { id: 'opening', label: 'Vos troupes', focus, distance: OPENING_DISTANCE_M, yawTurns: yawLooking(focus, keep), pitchDeg: OPENING_PITCH_DEG };
+  return layout.keeps[0]?.center ?? centroid(layout.towers.map((t) => t.center), center);
+}
+
+/**
+ * The army's main body: the units around the one with the most comrades within
+ * MAIN_BODY_RADIUS_M (the first such in order), not the empty middle of scattered groups.
+ */
+function mainBody(units: readonly Vec2[], fallback: Vec2): Vec2 {
+  let best: Vec2[] = [];
+  for (const u of units) {
+    const near = units.filter((p) => Math.hypot(p.x - u.x, p.z - u.z) <= MAIN_BODY_RADIUS_M);
+    if (near.length > best.length) best = near;
+  }
+  return centroid(best, fallback);
+}
+
+/** Opening view of a battle in play: over the army's main body, looking towards the castle. */
+export function openingView(layout: WorldLayout, units: readonly Vec2[]): BattleView {
+  const body = mainBody(units, layout.focus);
+  const keep = keepOf(layout);
+  const d = Math.hypot(keep.x - body.x, keep.z - body.z) || 1;
+  const focus = { x: body.x + ((keep.x - body.x) / d) * OPENING_LEAD_M, z: body.z + ((keep.z - body.z) / d) * OPENING_LEAD_M };
+  return { id: 'opening', label: 'Vos troupes', focus, distance: OPENING_DISTANCE_M, yawTurns: yawLooking(body, keep), pitchDeg: OPENING_PITCH_DEG };
+}
+
+/** The establishing shot's first view: the castle, seen from where the army stands. */
+export function introView(layout: WorldLayout, units: readonly Vec2[]): BattleView {
+  const keep = keepOf(layout);
+  const army = units.length > 0 ? centroid(units, layout.focus) : layout.focus;
+  return { id: 'intro', label: 'Le château', focus: keep, distance: INTRO_DISTANCE_M, yawTurns: yawLooking(army, keep), pitchDeg: INTRO_PITCH_DEG };
 }
 
 export function battleViews(layout: WorldLayout): readonly BattleView[] {

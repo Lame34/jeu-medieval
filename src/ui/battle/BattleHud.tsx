@@ -371,6 +371,7 @@ export function BattleHud({
   const log = useBattleUi((s) => s.log);
   const armedAction = useBattleUi((s) => s.armedAction);
   const briefed = useBattleUi((s) => s.briefed);
+  const introDone = useBattleUi((s) => s.introDone);
   const hasSelected = useBattleUi((s) => s.hasSelected);
   const hints = useSettings((s) => s.hints);
   const textScale = useSettings((s) => TEXT_SCALES[s.textScale]);
@@ -409,7 +410,7 @@ export function BattleHud({
           </p>}
         </section>
       )}
-      {briefing && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing battle={battle} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
+      {briefing && introDone && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing battle={battle} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
       {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (

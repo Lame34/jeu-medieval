@@ -105,9 +105,11 @@ export function Tutorial({ session, layout, getView, focusOn, onDone }: { readon
     };
   }, [session]);
 
-  // The camera lesson: has the view moved, turned or zoomed since the start?
+  // The camera lesson: has the view moved, turned or zoomed since the start (once the opening
+  // shot, which moves it on its own, is over)?
+  const introDone = useBattleUi((s) => s.introDone);
   useEffect(() => {
-    if (record.cameraMoved) return undefined;
+    if (record.cameraMoved || !introDone) return undefined;
     const start = getView();
     const timer = window.setInterval(() => {
       const v = getView();
@@ -118,7 +120,7 @@ export function Tutorial({ session, layout, getView, focusOn, onDone }: { readon
       if (moved || turned || zoomed) mark({ cameraMoved: true });
     }, CAMERA_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [getView, record.cameraMoved]);
+  }, [getView, record.cameraMoved, introDone]);
 
   // A lesson done: on to the next, after a moment.
   useEffect(() => {

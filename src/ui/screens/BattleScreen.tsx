@@ -15,8 +15,8 @@ import { Projectiles, type ProjectileHandle } from '../../render/vfx/Projectiles
 import { TerrainLayer } from '../../core/rules/types.ts';
 import { BattleDirector } from '../../render/battle/BattleDirector.tsx';
 import { BattleOverlays } from '../../render/battle/BattleOverlays.tsx';
-import { battleLimits, battleViews, openingView } from '../../render/battle/views.ts';
-import { TacticalCamera, type CameraHandle, type CameraView } from '../../render/camera/TacticalCamera.tsx';
+import { battleLimits, battleViews, introView, openingView } from '../../render/battle/views.ts';
+import { TacticalCamera, type CameraHandle, type CameraIntro, type CameraView } from '../../render/camera/TacticalCamera.tsx';
 import { isBenchMode } from '../../render/debug/PerfProbe.tsx';
 import { GameCanvas } from '../../render/GameCanvas.tsx';
 import { WorldScene } from '../../render/WorldScene.tsx';
@@ -64,6 +64,18 @@ function battleShape(setup: BattleSetup, resting: readonly string[]): BattleShap
   const turns = testTurnLimit();
   if (turns === null) return shape;
   return { effects: [...(shape?.effects ?? []), { turnLimit: turns }], ...(shape?.absentHeroes ? { absentHeroes: shape.absentHeroes } : {}) };
+}
+
+/**
+ * The establishing shot (the castle, then the army) opens a battle, except in test runs (?e2e,
+ * ?fast), with instant animations or for a player who asked the system for less motion.
+ */
+function wantsIntro(): boolean {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('e2e') || params.has('fast')) return false;
+  if (useSettings.getState().animation === 'instant') return false;
+  return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 /** ?nosound: no soundscape (benches comparing with and without audio). */
@@ -232,6 +244,15 @@ export default function BattleScreen() {
 
   const playerUnits = session ? session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position) : [];
   const initial = session && layout ? openingView(layout, playerUnits) : (views[OPENING_VIEW] ?? views[0]);
+  // Chosen once per battle: the shot plays when the scene shows, and the briefing waits for it.
+  const [withIntro] = useState(() => !bench && wantsIntro());
+  const intro: CameraIntro | undefined = useMemo(
+    () => (session && layout && withIntro ? { from: introView(layout, session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position)), play: false, onDone: () => useBattleUi.getState().setIntroDone() } : undefined),
+    [session, layout, withIntro],
+  );
+  useEffect(() => {
+    if (session && !intro) useBattleUi.getState().setIntroDone();
+  }, [session, intro]);
   const getView = useCallback(() => camera.current?.getView() ?? null, []);
   const focusOn = (p: { x: number; z: number }) => {
     const view = camera.current?.getView();
@@ -250,7 +271,7 @@ export default function BattleScreen() {
         {session && <Projectiles waterAt={waterAt} groundAt={heightAt} onHandle={setProjectiles} />}
         {session && <BattleDirector session={session} handles={handles} castle={castle} fire={fire} projectiles={projectiles} terrain={layout.terrain} focusOn={focusOn} />}
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
-        <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} />
+        <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} {...(intro ? { intro: { ...intro, play: sceneReady } } : {})} />
       </GameCanvas>
       {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
       {session && sceneReady && <MiniMap layout={layout} session={session} getView={getView} onFocus={focusOn} />}

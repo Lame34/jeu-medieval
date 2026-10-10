@@ -41,6 +41,9 @@ export interface BattleUiState {
   /** A unit was selected once (the "click a blue unit" hint is gone for good). */
   readonly hasSelected: boolean;
   setBriefed(): void;
+  /** The opening shot (the castle, then the army) is over: the briefing may show. */
+  readonly introDone: boolean;
+  setIntroDone(): void;
   /** An action waiting for its target (ui/battle/actions.ts: the pointer aims it, a click orders it). */
   readonly armedAction: string | null;
   armAction(id: string | null): void;
@@ -83,6 +86,8 @@ export const useBattleUi = create<BattleUiState>((set) => ({
   briefed: false,
   hasSelected: false,
   setBriefed: () => set({ briefed: true }),
+  introDone: false,
+  setIntroDone: () => set({ introDone: true }),
   armedAction: null,
   armAction: (armedAction) => set({ armedAction, hover: { kind: 'none' } }),
   setEnding: (ending) => set({ ending }),
@@ -92,5 +97,5 @@ export const useBattleUi = create<BattleUiState>((set) => ({
   setHover: (hover) => set({ hover }),
   setBusy: (busy) => set({ busy }),
   pushLog: (lines) => set((s) => ({ log: appendLog(s.log, lines) })),
-  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null, briefed: false, hasSelected: false }),
+  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null, briefed: false, introDone: false, hasSelected: false }),
 }));

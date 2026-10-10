@@ -3,6 +3,8 @@
  * (KeyW/A/S/D = ZQSD on AZERTY, arrows), screen-edge scrolling, wheel zoom, Q/E (A/E on
  * AZERTY) or middle-drag rotation. Pitch follows zoom inside a limited band; the camera never
  * dips under the relief. Publishes the focus to the painted globals (fog, grass radius, shadows).
+ * A battle may open on an establishing shot: held on the castle, then a glide to the army; any
+ * input or new view cuts it short.
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
@@ -36,6 +38,23 @@ const EDGE_PX = 14;
 const DAMPING = 7;
 const GROUND_CLEARANCE_M = 3;
 const MIDDLE_DRAG_TURNS_PER_PX = 0.0012;
+/** The opening shot: held on its first view, then a glide to the initial one. */
+const INTRO_HOLD_S = 1.6;
+const INTRO_GLIDE_S = 3.2;
+
+/** The opening shot of a battle: where it starts, and when it may begin to move. */
+export interface CameraIntro {
+  readonly from: CameraView;
+  /** False while the scene is still hidden (loading): the shot waits on its first view. */
+  readonly play: boolean;
+  /** The shot is over (finished or cut short). */
+  readonly onDone: () => void;
+}
+
+/** Smootherstep (zero speed and acceleration at both ends). */
+const ease = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+/** Shortest turn from a to b (turns, in [-0.5, 0.5)). */
+const turnDelta = (a: number, b: number) => ((((b - a + 0.5) % 1) + 1) % 1) - 0.5;
 
 export interface CameraHandle {
   setView(view: CameraView, immediate?: boolean): void;
@@ -48,17 +67,29 @@ export function TacticalCamera({
   limits,
   handleRef,
   inputEnabled = true,
+  intro,
 }: {
   readonly terrain: TerrainData;
   readonly initial: CameraView;
   readonly limits: CameraLimits;
   readonly handleRef?: { current: CameraHandle | null };
   readonly inputEnabled?: boolean;
+  readonly intro?: CameraIntro;
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const target = useRef({ ...initial, focus: { ...initial.focus } });
-  const current = useRef({ ...initial, focus: { ...initial.focus } });
+  const start = intro?.from ?? initial;
+  const current = useRef({ ...start, focus: { ...start.focus } });
+  /** The opening shot under way (seconds since it began to play), null once over. */
+  const shot = useRef<{ t: number } | null>(intro ? { t: 0 } : null);
+  const introRef = useRef(intro);
+  introRef.current = intro;
+  const endShot = useRef(() => {
+    if (!shot.current) return;
+    shot.current = null;
+    introRef.current?.onDone();
+  });
   const keys = useRef(new Set<string>());
   const pointer = useRef({ x: 0.5, y: 0.5, inside: false, dragging: false, lastX: 0 });
   const scratch = useRef(new Vector3());
@@ -67,6 +98,7 @@ export function TacticalCamera({
     if (!handleRef) return undefined;
     handleRef.current = {
       setView: (view, immediate = false) => {
+        endShot.current();
         target.current = { ...view, focus: { ...view.focus } };
         if (immediate) current.current = { ...view, focus: { ...view.focus } };
       },
@@ -80,11 +112,15 @@ export function TacticalCamera({
   useEffect(() => {
     if (!inputEnabled) return undefined;
     const el = gl.domElement;
-    const onKeyDown = (e: KeyboardEvent) => keys.current.add(e.code);
+    const onKeyDown = (e: KeyboardEvent) => {
+      keys.current.add(e.code);
+      endShot.current();
+    };
     const onKeyUp = (e: KeyboardEvent) => keys.current.delete(e.code);
     const onBlur = () => keys.current.clear();
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      endShot.current();
       const factor = 1 + Math.sign(e.deltaY) * ZOOM_STEP;
       target.current.distance = MathUtils.clamp(target.current.distance * factor, limits.minDistance, limits.maxDistance);
     };
@@ -99,6 +135,7 @@ export function TacticalCamera({
       }
     };
     const onDown = (e: PointerEvent) => {
+      endShot.current();
       if (e.button === 1) {
         pointer.current.dragging = true;
         pointer.current.lastX = e.clientX;
@@ -166,6 +203,18 @@ export function TacticalCamera({
     t.focus.z = MathUtils.clamp(t.focus.z, limits.bounds.minZ, limits.bounds.maxZ);
 
     const c = current.current;
+    if (shot.current && introRef.current) {
+      // The opening shot: held, then eased from its first view to the target.
+      const from = introRef.current.from;
+      if (introRef.current.play) shot.current.t += delta;
+      const k = ease(MathUtils.clamp((shot.current.t - INTRO_HOLD_S) / INTRO_GLIDE_S, 0, 1));
+      c.focus.x = MathUtils.lerp(from.focus.x, t.focus.x, k);
+      c.focus.z = MathUtils.lerp(from.focus.z, t.focus.z, k);
+      c.distance = MathUtils.lerp(from.distance, t.distance, k);
+      c.yawTurns = from.yawTurns + turnDelta(from.yawTurns, t.yawTurns) * k;
+      c.pitchDeg = MathUtils.lerp(from.pitchDeg, t.pitchDeg, k);
+      if (k >= 1) endShot.current();
+    }
     const a = 1 - Math.exp(-DAMPING * delta);
     c.focus.x += (t.focus.x - c.focus.x) * a;
     c.focus.z += (t.focus.z - c.focus.z) * a;
