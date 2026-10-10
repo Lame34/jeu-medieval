@@ -114,7 +114,7 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
     out.push({ id: 'fireArrow', label: 'Flèche enflammée', key: 'B', description: 'Met le feu au point visé : champ, haie, bois. Le feu se propage avec le vent.', note: `${cost} PA`, disabled: !canAct || unit.ap < cost });
   }
   if (fireNear(ctx, state, unit)) {
-    out.push({ id: 'extinguish', label: 'Éteindre', key: 'E', description: 'Étouffe le foyer visé et ses voisins.', note: null, disabled: !canAct });
+    out.push({ id: 'extinguish', label: 'Éteindre', key: 'X', description: 'Étouffe le foyer visé et ses voisins.', note: null, disabled: !canAct });
   }
   if (hasTag(unit, TOWER_TAG) && !dockOf(state, unit.id)) {
     const wall = wallToDock(ctx, state, unit);

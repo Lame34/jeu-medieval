@@ -67,7 +67,7 @@ const SOFT = 0.5;
 const ACTION_KEYS: Readonly<Record<string, string>> = {
   KeyG: 'guard',
   KeyB: 'fireArrow',
-  KeyE: 'extinguish',
+  KeyX: 'extinguish',
   KeyF: 'works',
   Digit1: 'ability:0',
   Numpad1: 'ability:0',

@@ -28,7 +28,7 @@ const CONTROLS: readonly (readonly [string, string])[] = [
   ['Molette', 'Zoomer'],
   ['Tab', 'Unité suivante'],
   ['Clic sur la mini-carte', 'Y porter la caméra'],
-  ['G · B · E · F', 'Garde · flèche enflammée · éteindre · travaux de siège'],
+  ['G · B · X · F', 'Garde · flèche enflammée · éteindre · travaux de siège'],
   ['1 · 2', 'Capacités du héros'],
   ['Échap', 'Annuler, désélectionner'],
   ['Entrée', 'Fin du tour'],
