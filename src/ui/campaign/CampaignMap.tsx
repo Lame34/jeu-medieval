@@ -182,13 +182,40 @@ function Pennants({ banners }: { readonly banners: Banners }) {
   );
 }
 
-/** The wax seal of a castle taken (stamped once, the first time the map shows it). */
+/** The seal's wax: a disc pressed out of round (lobes of two frequencies), as a path. */
+const SEAL_RADIUS = 15;
+const SEAL_POINTS = 48;
+const WAX_OUTLINE = (() => {
+  const pts: string[] = [];
+  for (let i = 0; i < SEAL_POINTS; i++) {
+    const a = (i / SEAL_POINTS) * Math.PI * 2;
+    const r = SEAL_RADIUS + 1.3 * Math.sin(7 * a) + 0.7 * Math.sin(11 * a + 1.3);
+    pts.push(`${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`);
+  }
+  return `M${pts.join('L')}Z`;
+})();
+/** The countess's fleur-de-lis pressed into the wax (centred, about 18 units tall). */
+const FLEUR =
+  'M0,-9C2.6,-6 3,-2.8 1.1,0.2L-1.1,0.2C-3,-2.8 -2.6,-6 0,-9Z' +
+  'M1.4,-0.6C3.6,-4.4 8.2,-3.6 7.4,0.4C6.9,2.6 4.4,2.6 3.6,0.9C4.9,1.2 5.6,0.4 5.2,-0.6C4.6,-2 2.8,-1.6 1.4,1Z' +
+  'M-1.4,-0.6C-3.6,-4.4 -8.2,-3.6 -7.4,0.4C-6.9,2.6 -4.4,2.6 -3.6,0.9C-4.9,1.2 -5.6,0.4 -5.2,-0.6C-4.6,-2 -2.8,-1.6 -1.4,1Z' +
+  'M-4.2,1.2H4.2V3H-4.2Z' +
+  'M-1.1,3H1.1L1.8,7.4C0.6,6.6 -0.6,6.6 -1.8,7.4Z';
+
+/**
+ * The wax seal of a castle taken, hanging from its two silk tails (a « sceau pendant »): the
+ * countess's blue wax, its rim pressed up, her fleur-de-lis sunk in it. Stamped once, the first
+ * time the map shows it.
+ */
 function Seal({ fresh }: { readonly fresh: boolean }) {
   return (
     <g className={fresh ? 'map-seal map-seal--fresh' : 'map-seal'}>
-      <circle r={15} fill="#1f4fc4" stroke="#0f2a6e" strokeWidth={2} />
-      <circle r={11} fill="none" stroke="#e6c35a" strokeWidth={1} opacity={0.8} />
-      <path d="M-6,1 l4,4 l8,-9" fill="none" stroke="#e6c35a" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M-4,10 L-9,27 L-5.5,25.5 L-3.5,29 L0,11Z" fill="#c9a13b" stroke="#7a5a1e" strokeWidth={0.8} />
+      <path d="M3,10 L7,28 L9.5,25 L12.5,26.5 L6,9Z" fill="#a8322a" stroke="#5e1712" strokeWidth={0.8} />
+      <path d={WAX_OUTLINE} fill="#2a4fa8" stroke="#142c66" strokeWidth={1.4} />
+      <circle r={10.5} fill="#24479a" stroke="#4f74cc" strokeWidth={1.2} />
+      <path d={FLEUR} fill="#163574" stroke="#5c80d6" strokeWidth={0.5} />
+      <path d="M-11,-6 A12,12 0 0 1 -4,-12" fill="none" stroke="#9db4ee" strokeWidth={1.6} strokeLinecap="round" opacity={0.7} />
     </g>
   );
 }

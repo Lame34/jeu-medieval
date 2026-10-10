@@ -8,6 +8,7 @@ import type { CampaignBattle, CampaignLevel } from '../../core/campaign/types.ts
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { bannerTotal, isUnlocked, useCampaign, type CastleRecord } from '../../state/campaign.ts';
 import { CampaignMap, type MapNode } from '../campaign/CampaignMap.tsx';
+import { HeroEmblem } from '../campaign/HeroEmblem.tsx';
 import { Council, EffectList } from '../campaign/Council.tsx';
 import { castleLines } from '../campaign/effects-text.ts';
 import { navigate, ROUTES } from '../router.ts';
@@ -49,6 +50,36 @@ function BannerRow({ record, level }: { readonly record: CastleRecord; readonly 
   );
 }
 
+/** The army's companions, in the council's order. */
+const COMPANIONS = ['heroArcher', 'heroEngineer', 'heroKnight'] as const;
+
+/** The three companions under the prologue: who they are, what they bring, who rests. */
+function Companions({ resting }: { readonly resting: readonly string[] }) {
+  return (
+    <>
+      <h3 className="letter__heading">Vos compagnons</h3>
+      <ul className="companions">
+        {COMPANIONS.map((id) => {
+          const hero = DEFAULT_RULES.heroes[id];
+          if (!hero) return null;
+          const hurt = resting.includes(id);
+          return (
+            <li key={id} data-resting={hurt || undefined}>
+              <HeroEmblem hero={id} size={44} muted={hurt} />
+              <div>
+                <strong>{hero.name}</strong>, {hero.title}
+                {hurt && <em> · au repos</em>}
+                <span>{hero.personality}</span>
+                <span className="companions__gift">{hero.passive.name} : {hero.passive.description}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
 function Overview() {
   const conquered = useCampaign((s) => s.conquered);
   const resting = useCampaign((s) => s.resting);
@@ -67,6 +98,7 @@ function Overview() {
         </div>
       )}
       <p className="letter__hint">{taken === 0 ? 'Commencez par le Fortin du Gué pour apprendre le siège, ou marchez droit sur Roche-Grise.' : 'Choisissez un château sur la carte.'}</p>
+      <Companions resting={resting} />
     </>
   );
 }
