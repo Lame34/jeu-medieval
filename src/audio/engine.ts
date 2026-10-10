@@ -13,8 +13,15 @@ import manifest from './audio-manifest.json' with { type: 'json' };
 export type SoundId = keyof typeof manifest.sounds;
 type Category = 'sfx' | 'ui' | 'ambience' | 'music';
 
-/** Bus volumes (× each sound's normalised level). */
+/** Bus volumes (× each sound's normalised level), before the player's own (Options). */
 const BUS: Readonly<Record<Category, number>> = { sfx: 0.9, ui: 0.6, ambience: 0.55, music: 0.45 };
+
+/** The player's volumes by bus (the interface's sounds follow the effects'). */
+export interface BusVolumes {
+  readonly music: number;
+  readonly sfx: number;
+  readonly ambience: number;
+}
 /** A sound at the focus plays at full volume; it fades with distance beyond this (m). */
 const NEAR_M = 18;
 const FALLOFF = 0.8;
@@ -25,6 +32,8 @@ const PAN_ACROSS_M = 30;
 const PAN_MAX = 0.75;
 /** Pitch variation of one-shots, ±. */
 const PITCH_JITTER = 0.06;
+/** Loops fade this fast to a new volume set in the options (ms). */
+const FADE_TO_OPTION_MS = 300;
 /** Files decoded at once while loading. */
 const LOAD_CONCURRENCY = 3;
 
@@ -46,7 +55,8 @@ interface Listener {
 
 class AudioEngine {
   private readonly howls = new Map<SoundId, Howl[]>();
-  private readonly loops = new Map<SoundId, { howl: Howl; id: number; target: number }>();
+  private readonly loops = new Map<SoundId, { howl: Howl; id: number; target: number; level: number }>();
+  private readonly bus: Record<Category, number> = { ...BUS };
   private readonly listener: Listener = { x: 0, z: 0, rightX: 1, rightZ: 0, distance: 40 };
   private loaded = false;
   private master = 1;
@@ -127,6 +137,15 @@ class AudioEngine {
     this.lib?.Howler.volume(this.master);
   }
 
+  /** The player's bus volumes (Options): one-shots from now on, loops fade to them. */
+  setBusVolumes(v: BusVolumes): void {
+    this.bus.music = BUS.music * v.music;
+    this.bus.sfx = BUS.sfx * v.sfx;
+    this.bus.ui = BUS.ui * v.sfx;
+    this.bus.ambience = BUS.ambience * v.ambience;
+    for (const [id, l] of this.loops) if (l.target > 0) this.loop(id, l.level, FADE_TO_OPTION_MS);
+  }
+
   /** Where the player listens from: the camera's focus and its right on the ground. */
   setListener(x: number, z: number, yawTurns: number, distance: number): void {
     const yaw = yawTurns * 2 * Math.PI;
@@ -144,7 +163,7 @@ class AudioEngine {
     const howl = list[Math.floor(Math.random() * list.length)];
     if (!howl) return;
     const e = this.entry(id);
-    let gain = BUS[e.category] * (opts.volume ?? 1);
+    let gain = this.bus[e.category] * (opts.volume ?? 1);
     let pan = 0;
     if (opts.at) {
       const dx = opts.at.x - this.listener.x;
@@ -166,7 +185,8 @@ class AudioEngine {
   loop(id: SoundId, volume: number, fadeMs = 2000): void {
     if (!this.lib) return;
     const e = this.entry(id);
-    const target = BUS[e.category] * Math.max(0, Math.min(1, volume));
+    const level = Math.max(0, Math.min(1, volume));
+    const target = this.bus[e.category] * level;
     let l = this.loops.get(id);
     if (!l) {
       if (target <= 0) return;
@@ -174,9 +194,10 @@ class AudioEngine {
       if (!howl) return;
       const sid = howl.play();
       howl.volume(0, sid);
-      l = { howl, id: sid, target: 0 };
+      l = { howl, id: sid, target: 0, level };
       this.loops.set(id, l);
     }
+    l.level = level;
     if (Math.abs(l.target - target) < 0.005) return;
     const from = l.howl.volume(l.id) as number;
     l.howl.fade(from, target, fadeMs, l.id);

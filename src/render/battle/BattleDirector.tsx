@@ -43,7 +43,7 @@ import { describeEvent } from '../../ui/battle/describe.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
 import { actionCommand, actionPreview, aimsAtAllies, structureAt, triggerAction, type ActionId } from '../../ui/battle/actions.ts';
 import { audio, type SoundId } from '../../audio/engine.ts';
-import { useSettings } from '../../state/settings.ts';
+import { ANIMATION_SPEEDS, useSettings } from '../../state/settings.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
 
@@ -905,7 +905,8 @@ export function BattleDirector({
 
   // --- Frame: play the queue, move floating texts, start the AI turn -----------------------
   useFrame((_, delta) => {
-    const dt = Math.min(delta, 0.1) * TIME_SCALE;
+    // The player's animation speed (×1, ×2, at once) on top of the tests' own.
+    const dt = Math.min(delta, 0.1) * TIME_SCALE * ANIMATION_SPEEDS[useSettings.getState().animation];
     let current = step.current;
     while (!current && queue.current.length > 0 && handles) {
       const { event, enemy } = queue.current.shift() as { event: GameEvent; enemy: boolean };

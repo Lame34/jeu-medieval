@@ -88,3 +88,37 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Feuille de parchemin dont seul le fond est déchiré : le texte et les images qu'elle porte
+ * (lettre d'un château, plan des éclaireurs, options) restent nets.
+ */
+.parchment-sheet {
+  position: relative;
+  isolation: isolate;
+  color: var(--ink);
+}
+
+.parchment-sheet::before,
+.parchment-sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.parchment-sheet::before {
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgb(255 250 235 / 55%), transparent 70%),
+    radial-gradient(80% 60% at 20% 90%, rgb(160 120 70 / 25%), transparent 70%),
+    var(--parchment);
+  filter: url(#paper-edge) drop-shadow(0 6px 14px rgb(10 6 3 / 45%));
+}
+
+.parchment-sheet::after {
+  filter: url(#paper-grain);
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+}

@@ -1,24 +1,121 @@
+/**
+ * The player's options (Options screen), kept in the browser between sessions. Reading or
+ * writing storage can fail (private window, blocked site data): the defaults then hold.
+ */
 import { create } from 'zustand';
-import type { QualityPresetId } from '../render/quality/presets.ts';
+import { QUALITY_PRESET_IDS, type QualityPresetId } from '../render/quality/presets.ts';
 
-export interface SettingsState {
+/** How fast the battle's animations play: ×1, ×2, or at once (brief §10). */
+export const ANIMATION_SPEEDS = { normal: 1, fast: 2, instant: 30 } as const;
+export type AnimationSpeed = keyof typeof ANIMATION_SPEEDS;
+
+/** Camera pan and rotation speed factors. */
+export const CAMERA_SPEEDS = { slow: 0.6, normal: 1, fast: 1.6 } as const;
+export type CameraSpeed = keyof typeof CAMERA_SPEEDS;
+
+/** Size of the battle's interface text. */
+export const TEXT_SCALES = { normal: 1, large: 1.15, larger: 1.3 } as const;
+export type TextScale = keyof typeof TEXT_SCALES;
+
+export type VolumeBus = 'master' | 'music' | 'sfx' | 'ambience';
+export type Volumes = Readonly<Record<VolumeBus, number>>;
+
+/** What is saved (the look-dev hour is not). */
+export interface SavedSettings {
   readonly quality: QualityPresetId;
+  readonly muted: boolean;
+  readonly volumes: Volumes;
+  readonly animation: AnimationSpeed;
+  /** Ending the turn with units still able to act asks for a confirmation. */
+  readonly confirmEndTurn: boolean;
+  /** The opening briefing and the battle's hint lines. */
+  readonly hints: boolean;
+  /** The camera pans when the pointer touches a screen edge. */
+  readonly edgeScroll: boolean;
+  readonly cameraSpeed: CameraSpeed;
+  readonly textScale: TextScale;
+}
+
+export interface SettingsState extends SavedSettings {
   /** Local hour of the day for look-dev / battle start (decimal hours). */
   readonly hour: number;
-  /** Sound off (M in battle). */
-  readonly muted: boolean;
   setQuality(quality: QualityPresetId): void;
   setHour(hour: number): void;
   setMuted(muted: boolean): void;
+  setVolume(bus: VolumeBus, value: number): void;
+  /** Any saved option. */
+  set<K extends keyof SavedSettings>(key: K, value: SavedSettings[K]): void;
+  /** Every option back to its default. */
+  restoreDefaults(): void;
 }
 
 export const DEFAULT_HOUR = 16.5;
+const STORAGE_KEY = 'siege.settings.v1';
+
+export const DEFAULT_SETTINGS: SavedSettings = {
+  quality: 'portable',
+  muted: false,
+  volumes: { master: 1, music: 0.8, sfx: 1, ambience: 0.8 },
+  animation: 'normal',
+  confirmEndTurn: true,
+  hints: true,
+  edgeScroll: true,
+  cameraSpeed: 'normal',
+  textScale: 'normal',
+};
+
+const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => ((allowed as readonly unknown[]).includes(v) ? (v as T) : fallback);
+const unit = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback);
+const flag = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback);
+
+/** Saved options, each checked (an old or hand-edited save keeps what is valid). */
+function load(): SavedSettings {
+  let raw: Record<string, unknown> = {};
+  try {
+    const text = window.localStorage.getItem(STORAGE_KEY);
+    if (text) raw = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+  const d = DEFAULT_SETTINGS;
+  const v = (raw['volumes'] ?? {}) as Record<string, unknown>;
+  return {
+    quality: oneOf(raw['quality'], QUALITY_PRESET_IDS, d.quality),
+    muted: flag(raw['muted'], d.muted),
+    volumes: { master: unit(v['master'], d.volumes.master), music: unit(v['music'], d.volumes.music), sfx: unit(v['sfx'], d.volumes.sfx), ambience: unit(v['ambience'], d.volumes.ambience) },
+    animation: oneOf(raw['animation'], Object.keys(ANIMATION_SPEEDS) as AnimationSpeed[], d.animation),
+    confirmEndTurn: flag(raw['confirmEndTurn'], d.confirmEndTurn),
+    hints: flag(raw['hints'], d.hints),
+    edgeScroll: flag(raw['edgeScroll'], d.edgeScroll),
+    cameraSpeed: oneOf(raw['cameraSpeed'], Object.keys(CAMERA_SPEEDS) as CameraSpeed[], d.cameraSpeed),
+    textScale: oneOf(raw['textScale'], Object.keys(TEXT_SCALES) as TextScale[], d.textScale),
+  };
+}
+
+const SAVED_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof SavedSettings)[];
+
+function save(s: SavedSettings): void {
+  const out = Object.fromEntries(SAVED_KEYS.map((k) => [k, s[k]]));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+  } catch {
+    // Not saved: the options hold for this session.
+  }
+}
 
 export const useSettings = create<SettingsState>((set) => ({
-  quality: 'portable',
+  ...(typeof window !== 'undefined' ? load() : DEFAULT_SETTINGS),
   hour: DEFAULT_HOUR,
-  muted: false,
   setQuality: (quality) => set({ quality }),
   setHour: (hour) => set({ hour }),
   setMuted: (muted) => set({ muted }),
+  setVolume: (bus, value) => set((s) => ({ volumes: { ...s.volumes, [bus]: Math.max(0, Math.min(1, value)) } })),
+  set: (key, value) => set({ [key]: value } as Partial<SettingsState>),
+  restoreDefaults: () => set({ ...DEFAULT_SETTINGS }),
 }));
+
+if (typeof window !== 'undefined') {
+  useSettings.subscribe((s, prev) => {
+    if (SAVED_KEYS.some((k) => s[k] !== prev[k])) save(s);
+  });
+}

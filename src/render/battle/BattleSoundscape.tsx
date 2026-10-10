@@ -45,6 +45,7 @@ function waterCells(terrain: TerrainData): Float32Array {
 
 export function BattleSoundscape({ session, terrain }: { readonly session: BattleSession; readonly terrain: TerrainData }) {
   const muted = useSettings((s) => s.muted);
+  const volumes = useSettings((s) => s.volumes);
   const water = useMemo(() => waterCells(terrain), [terrain]);
   const clock = useRef(AMBIENCE_EVERY_S);
   const lastBlowRound = useRef(Number.NEGATIVE_INFINITY);
@@ -66,6 +67,10 @@ export function BattleSoundscape({ session, terrain }: { readonly session: Battl
     };
   }, []);
   useEffect(() => audio.setMuted(muted), [muted]);
+  useEffect(() => {
+    audio.setMasterVolume(volumes.master);
+    audio.setBusVolumes(volumes);
+  }, [volumes]);
 
   // Music: the layer for the state of the battle.
   useEffect(() => {

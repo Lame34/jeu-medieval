@@ -10,6 +10,7 @@ import { MathUtils, Vector3 } from 'three';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { paintedGlobals, updateFogForCamera } from '../materials/painted-globals.ts';
+import { CAMERA_SPEEDS, useSettings } from '../../state/settings.ts';
 
 export interface CameraView {
   readonly focus: Vec2;
@@ -140,7 +141,10 @@ export function TacticalCamera({
     if (k.has('KeyS') || k.has('ArrowDown')) forward -= 1;
     if (k.has('KeyD') || k.has('ArrowRight')) right += 1;
     if (k.has('KeyA') || k.has('ArrowLeft')) right -= 1;
-    if (inputEnabled && pointer.current.inside && !pointer.current.dragging) {
+    // The player's options: edge scrolling on or off, the pan and turn speed.
+    const options = useSettings.getState();
+    const pace = CAMERA_SPEEDS[options.cameraSpeed];
+    if (inputEnabled && options.edgeScroll && pointer.current.inside && !pointer.current.dragging) {
       const w = gl.domElement.clientWidth;
       const h = gl.domElement.clientHeight;
       if (pointer.current.x * w < EDGE_PX) right -= 1;
@@ -148,11 +152,11 @@ export function TacticalCamera({
       if (pointer.current.y * h < EDGE_PX) forward += 1;
       if (pointer.current.y * h > h - EDGE_PX) forward -= 1;
     }
-    if (k.has('KeyQ')) t.yawTurns += ROTATE_SPEED_TURNS * delta;
-    if (k.has('KeyE')) t.yawTurns -= ROTATE_SPEED_TURNS * delta;
+    if (k.has('KeyQ')) t.yawTurns += ROTATE_SPEED_TURNS * pace * delta;
+    if (k.has('KeyE')) t.yawTurns -= ROTATE_SPEED_TURNS * pace * delta;
     if (forward !== 0 || right !== 0) {
       const yaw = t.yawTurns * 2 * Math.PI;
-      const speed = t.distance * PAN_SPEED_PER_DISTANCE * delta;
+      const speed = t.distance * PAN_SPEED_PER_DISTANCE * pace * delta;
       const fx = -Math.sin(yaw);
       const fz = -Math.cos(yaw);
       t.focus.x += (fx * forward + -fz * right) * speed;
