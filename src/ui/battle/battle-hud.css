@@ -361,6 +361,29 @@ kbd {
   opacity: 0.85;
 }
 
+/* The garrison still standing, and where it gives up: the player's measure of the assault. */
+.hud-garrison-chip {
+  padding: 0 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--parchment);
+  border-left: 3px solid var(--defender);
+  pointer-events: auto;
+  cursor: help;
+}
+
+.hud-garrison-chip small {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Two men from surrender: the chip warms to gold. */
+.hud-garrison-chip[data-near] {
+  color: var(--gold-bright);
+}
+
 .hud-conditions-chip[data-night] {
   color: #c8d4f5;
 }

@@ -4,6 +4,7 @@
  * journal. Reads the battle UI store only; orders go through the session.
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { garrisonStrength } from '../../core/battle/combat.ts';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
@@ -234,6 +235,18 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
   }
 }
 
+/** The garrison's men still standing, and the count at which it surrenders. */
+function GarrisonChip({ battle }: { readonly battle: BattleState }) {
+  const g = garrisonStrength(DEFAULT_RULES, battle.units);
+  const title = g.surrendersAt > 0 ? `La garnison se rend quand il ne lui reste que ${g.surrendersAt} homme${g.surrendersAt > 1 ? 's' : ''} debout (ni morts ni en fuite).` : 'La garnison se bat jusqu’au dernier homme.';
+  return (
+    <span className="hud-garrison-chip" title={title} data-near={(g.standing - g.surrendersAt <= 2 && battle.status === 'ongoing') || undefined}>
+      Garnison {g.standing}
+      {g.surrendersAt > 0 && <small> · se rend à {g.surrendersAt}</small>}
+    </span>
+  );
+}
+
 /** What the opening briefing tells beyond the objective: a campaign castle's name, its lord, the plan. */
 export interface BriefingContent {
   readonly title: string;
@@ -241,13 +254,21 @@ export interface BriefingContent {
 }
 
 /** The opening briefing (turn 1): the objective, the ways in, the controls. */
-function Briefing({ turnLimit, content, onClose }: { readonly turnLimit: number; readonly content: BriefingContent; readonly onClose: () => void }) {
+function Briefing({ battle, content, onClose }: { readonly battle: BattleState; readonly content: BriefingContent; readonly onClose: () => void }) {
+  const { surrendersAt } = garrisonStrength(DEFAULT_RULES, battle.units);
   return (
     <section className="hud-card hud-briefing" aria-label="Objectif">
       <h2>{content.title}</h2>
       {content.lead}
       <p>
-        Anéantissez la garnison ou mettez-la en fuite avant le <strong>tour {turnLimit}</strong> : passé ce délai, les renforts lèvent le siège.
+        Abattez ou mettez en fuite la garnison avant le <strong>tour {battle.turnLimit}</strong>
+        {surrendersAt > 0 && (
+          <>
+            {' '}
+            : réduite à <strong>{surrendersAt} homme{surrendersAt > 1 ? 's' : ''} debout</strong>, elle se rend
+          </>
+        )}
+        . Passé ce délai, les renforts lèvent le siège.
       </p>
       <p>
         Ouvrez-vous un chemin : la <strong>catapulte</strong> fait brèche dans la courtine, le <strong>bélier</strong> enfonce la porte une fois le pont-levis abattu, le <strong>sapeur</strong> comble la douve ou sape un mur, la <strong>tour de siège</strong> porte vos hommes sur le rempart.
@@ -365,6 +386,7 @@ export function BattleHud({
         <span className="hud-conditions-chip" data-night={isNight(DEFAULT_RULES, hourOf(DEFAULT_RULES, battle)) || undefined}>
           {clock(hourOf(DEFAULT_RULES, battle))} · {WEATHER_LABEL[battle.weather]} · {windLabel(battle.wind.strength)}
         </span>
+        <GarrisonChip battle={battle} />
         {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
       </header>
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
@@ -387,7 +409,7 @@ export function BattleHud({
           </p>}
         </section>
       )}
-      {briefing && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
+      {briefing && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing battle={battle} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
       {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (

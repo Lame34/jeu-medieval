@@ -42,14 +42,18 @@ const { shakenBelow, fleeBelow } = DEFAULT_RULES.morale;
 const s = DEFAULT_RULES.structures;
 const catapultRange = DEFAULT_RULES.units['catapult']?.attack?.rangeM ?? 0;
 
-export function tutorialSteps(turnLimit: number): readonly TutorialStep[] {
+/** "deux hommes debout": the garrison's surrender line in words. */
+const NUMBERS = ['aucun homme', 'un homme', 'deux hommes', 'trois hommes', 'quatre hommes', 'cinq hommes'] as const;
+const surrenderLine = (n: number) => `${NUMBERS[n] ?? `${n} hommes`} debout`;
+
+export function tutorialSteps(turnLimit: number, surrendersAt: number): readonly TutorialStep[] {
   return [
     {
       id: 'welcome',
       title: 'Bienvenue au Fortin du Gué',
       text: (
         <>
-          Approche, recrue. Une bande de brigands tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, anéantis la garnison ou mets-la en fuite avant le <strong>tour {turnLimit}</strong>.
+          Approche, recrue. Une bande de brigands tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, abats ou mets en fuite la garnison avant le <strong>tour {turnLimit}</strong> ; quand il ne lui reste que {surrenderLine(surrendersAt)}, elle se rend. Le compte est en haut de l’écran.
         </>
       ),
     },

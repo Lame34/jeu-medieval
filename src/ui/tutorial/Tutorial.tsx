@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
+import { garrisonStrength } from '../../core/battle/combat.ts';
 import { garrisonGroupOf } from '../../core/worldgen/garrison.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -77,7 +78,7 @@ function flagsOf(event: GameEvent, state: BattleState): Partial<TutorialRecord> 
 }
 
 export function Tutorial({ session, layout, getView, focusOn, onDone }: { readonly session: BattleSession; readonly layout: WorldLayout; readonly getView: () => CameraView | null; readonly focusOn: (p: Vec2) => void; readonly onDone: () => void }) {
-  const steps = useMemo(() => tutorialSteps(session.state.turnLimit), [session]);
+  const steps = useMemo(() => tutorialSteps(session.state.turnLimit, garrisonStrength(session.ctx.rules, session.state.units).surrendersAt), [session]);
   const [index, setIndex] = useState(0);
   const [record, setRecord] = useState<TutorialRecord>(EMPTY_RECORD);
   const [hidden, setHidden] = useState(false);
