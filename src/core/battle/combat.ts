@@ -18,11 +18,11 @@ import { distance, normalize, sub, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { traverseSegment } from '../nav-grid/traverse.ts';
 import { Rng } from '../rng.ts';
-import { COVER_LEVELS, type ArmorClass, type CoverLevel, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
+import { COVER_LEVELS, type ArmorClass, type CoverLevel, type GameRules, type MoraleRules, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
 import { conditionedRange, NO_CONDITIONS, shotConditions, type ShotModifier } from './conditions.ts';
 import { deckAt, type BattleContext } from './context.ts';
-import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
+import { moraleAfterBlows, moraleStanding, type BlowOutcome } from './morale.ts';
 import { syncNav } from './structures.ts';
 import { findUnit, unitType } from './movement.ts';
 import type { BattleState, BattleStatus, UnitState } from './types.ts';
@@ -223,11 +223,47 @@ export function faceTowards(from: Vec2, to: Vec2, fallback: Vec2): Vec2 {
   return dir.x === 0 && dir.z === 0 ? fallback : dir;
 }
 
-export function battleStatus(units: readonly UnitState[]): BattleStatus {
-  const attackers = units.some((u) => u.alive && u.faction === 'attacker');
-  const defenders = units.some((u) => u.alive && u.faction === 'defender');
+/** Still in the fight: alive and not fleeing (a side put to flight has lost, brief §9.7). */
+function standing(rules: MoraleRules, u: UnitState): boolean {
+  return u.alive && moraleStanding(rules, u.morale) !== 'fleeing';
+}
+
+/** Rounding slack of the surrender line (0.3 × 10 is 3.0000000000000004). */
+const SURRENDER_EPSILON = 1e-9;
+
+/**
+ * The garrison's men still standing, and the count at which it surrenders (J7): its men times
+ * the surrender share, rounded down (0 for a garrison too small to surrender).
+ */
+export function garrisonStrength(rules: Pick<GameRules, 'morale' | 'battle'>, units: readonly UnitState[]): { readonly standing: number; readonly men: number; readonly surrendersAt: number } {
+  const men = units.filter((u) => u.faction === 'defender');
+  return { standing: men.filter((u) => standing(rules.morale, u)).length, men: men.length, surrendersAt: Math.floor(men.length * rules.battle.garrisonSurrenderShare + SURRENDER_EPSILON) };
+}
+
+/**
+ * A side has lost when none of its men still stands (dead or fleeing); a garrison surrenders
+ * earlier, down to its surrender line.
+ */
+export function battleStatus(rules: Pick<GameRules, 'morale' | 'battle'>, units: readonly UnitState[]): BattleStatus {
+  const attackers = units.some((u) => u.faction === 'attacker' && standing(rules.morale, u));
+  const garrison = garrisonStrength(rules, units);
+  const defenders = garrison.standing > garrison.surrendersAt;
   if (attackers && defenders) return 'ongoing';
   return attackers ? 'attackerWon' : 'defenderWon';
+}
+
+/**
+ * The battle's status after blows, its end announced: the losers all fallen, the last of them
+ * broken and running, or the garrison laying down its arms.
+ */
+export function statusAfterBlows(rules: Pick<GameRules, 'morale' | 'battle'>, units: readonly UnitState[], events: GameEvent[]): BattleStatus {
+  const status = battleStatus(rules, units);
+  if (status !== 'ongoing') {
+    const losers = units.filter((u) => u.alive && u.faction === (status === 'attackerWon' ? 'defender' : 'attacker'));
+    const reason = losers.length === 0 ? 'eliminated' : losers.every((u) => !standing(rules.morale, u)) ? 'routed' : 'surrendered';
+    events.push({ type: 'battleEnded', status, reason });
+  }
+  return status;
 }
 
 /** Rolls a previewed attack (and its riposte) against the battle's RNG stream. */
@@ -269,7 +305,6 @@ export function resolveAttack(ctx: BattleContext, state: BattleState, preview: A
   };
   const struck = state.units.map((u) => (u.id === attacker.id ? updatedAttacker : u.id === target.id ? updatedTarget : u));
   const units = moraleAfterBlows(ctx, struck, blows, events);
-  const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
+  const status = statusAfterBlows(ctx.rules, units, events);
   return { state: { ...state, units, status, rng: rng.getState() }, events };
 }

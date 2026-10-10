@@ -167,6 +167,8 @@ export interface MoraleRules {
 export interface BattleRules {
   /** The defenders hold out this many rounds: relief arrives and they win. */
   readonly turnLimit: number;
+  /** The garrison surrenders when fewer than this share of its men still stand (J7). */
+  readonly garrisonSurrenderShare: number;
 }
 
 /** Fire (J4, brief §9.9). */

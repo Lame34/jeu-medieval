@@ -12,6 +12,7 @@ import {
   TERRAIN_LAYER_KEYS,
   TerrainLayer,
   type ArmorClass,
+  type BattleRules,
   type CoverLevel,
   type DamageRules,
   type DamageType,
@@ -195,6 +196,13 @@ function readStructures(raw: unknown): StructureRules {
   });
 }
 
+function readBattle(raw: Readonly<Record<string, unknown>>): BattleRules {
+  return Object.freeze({
+    turnLimit: num(raw['turnLimit'], 'damage.battle.turnLimit', 1),
+    garrisonSurrenderShare: num(raw['garrisonSurrenderShare'], 'damage.battle.garrisonSurrenderShare', 0, 1),
+  });
+}
+
 function readFire(raw: unknown): FireRules {
   const f = obj(raw, 'damage.fire');
   const n = (k: string, min?: number, max?: number) => num(f[k], `damage.fire.${k}`, min, max);
@@ -324,7 +332,7 @@ export function validateRules(raw: RawRuleFiles): GameRules {
     morale: readMorale(obj(raw.damage, 'damage')['morale']),
     structures: readStructures(obj(raw.damage, 'damage')['structures']),
     fire: readFire(obj(raw.damage, 'damage')['fire']),
-    battle: Object.freeze({ turnLimit: num(obj(obj(raw.damage, 'damage')['battle'], 'damage.battle')['turnLimit'], 'damage.battle.turnLimit', 1) }),
+    battle: readBattle(obj(obj(raw.damage, 'damage')['battle'], 'damage.battle')),
     weather: readWeather(obj(raw.damage, 'damage')['weather']),
   });
 }

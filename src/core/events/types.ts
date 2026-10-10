@@ -190,7 +190,7 @@ export interface MoraleChangedEvent {
 }
 
 /** How a battle ended: a side wiped out, a side routed, or the defenders relieved (turn limit). */
-export type BattleEndReason = 'eliminated' | 'routed' | 'relieved';
+export type BattleEndReason = 'eliminated' | 'routed' | 'surrendered' | 'relieved';
 
 export interface BattleEndedEvent {
   readonly type: 'battleEnded';

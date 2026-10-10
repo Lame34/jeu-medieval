@@ -15,7 +15,7 @@ import type { GameEvent } from '../events/types.ts';
 import { distance, normalize, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { Rng } from '../rng.ts';
-import { battleStatus, heightSteps } from './combat.ts';
+import { heightSteps, statusAfterBlows } from './combat.ts';
 import { deckAt, type BattleContext } from './context.ts';
 import { cellIndexOf } from './create.ts';
 import { findUnit, unitType } from './movement.ts';
@@ -254,7 +254,6 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
   for (const n of lit) fires.push({ cell: n, turnsLeft: fuelOf(ctx, state, n) });
   if (lit.length > 0) events.push({ type: 'fireStarted', cells: [...lit].sort((a, b) => a - b) });
   if (out.length > 0) events.push({ type: 'fireOut', cells: out.sort((a, b) => a - b), byId: null });
-  const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
+  const status = statusAfterBlows(ctx.rules, units, events);
   return { ...state, units, structures, fires: sortFires(fires), burnt: [...burnt].sort((a, b) => a - b), status, rng: rng.getState() };
 }

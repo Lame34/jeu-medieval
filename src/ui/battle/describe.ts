@@ -10,8 +10,8 @@ export const FACTION_LABEL = { attacker: 'Assaillants', defender: 'Défenseurs' 
 
 /** The journal's last line, by winner and by how the battle ended. */
 export const END_LABEL = {
-  attackerWon: { eliminated: 'La garnison est anéantie : le château est à vous !', routed: 'La garnison s’enfuit : le château est à vous !', relieved: 'Victoire des assaillants !' },
-  defenderWon: { eliminated: 'Votre armée est anéantie.', routed: 'Votre armée se débande.', relieved: 'Les renforts arrivent : le siège est levé.' },
+  attackerWon: { eliminated: 'La garnison est anéantie : le château est à vous !', routed: 'La garnison s’enfuit : le château est à vous !', surrendered: 'La garnison se rend : le château est à vous !', relieved: 'Victoire des assaillants !' },
+  defenderWon: { eliminated: 'Votre armée est anéantie.', routed: 'Votre armée se débande.', surrendered: 'Votre armée dépose les armes.', relieved: 'Les renforts arrivent : le siège est levé.' },
 } as const;
 
 export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {

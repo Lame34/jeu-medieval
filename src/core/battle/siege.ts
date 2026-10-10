@@ -15,7 +15,7 @@ import type { FallenUnit, GameEvent } from '../events/types.ts';
 import { distance, type Vec2 } from '../math/vec2.ts';
 import { Rng } from '../rng.ts';
 import type { BattleContext } from './context.ts';
-import { battleStatus, faceTowards, INDIRECT_FIRE_TAG, oddsAgainst, rollBlow, type BlowOdds } from './combat.ts';
+import { faceTowards, INDIRECT_FIRE_TAG, oddsAgainst, rollBlow, statusAfterBlows, type BlowOdds } from './combat.ts';
 import { cellIndexOf } from './create.ts';
 import { moraleAfterBlows, moraleAfterCollapse, type BlowOutcome } from './morale.ts';
 import { findUnit, unitType } from './movement.ts';
@@ -136,8 +136,7 @@ export function resolveStructureAttack(ctx: BattleContext, state: BattleState, p
   let units: readonly UnitState[] = state.units.map((u) => (u.id === acted.id ? acted : u));
   const structures = state.structures.map((s) => (s.id === def.id ? { id: s.id, hp: hpAfter, broken: hpAfter === 0 } : s));
   if (hpAfter === 0) units = bringDown(ctx, units, def, attacker.id, events);
-  const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
+  const status = statusAfterBlows(ctx.rules, units, events);
   return { state: { ...state, units, structures, status, rng: rng.getState() }, events };
 }
 

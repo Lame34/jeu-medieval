@@ -8,7 +8,7 @@
 import type { CommandRejection } from '../commands/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import type { Vec2 } from '../math/vec2.ts';
-import { battleStatus, faceTowards } from './combat.ts';
+import { faceTowards, statusAfterBlows } from './combat.ts';
 import type { BattleContext } from './context.ts';
 import { fillCells, fillSiteAt } from './moat.ts';
 import { findUnit, unitType } from './movement.ts';
@@ -109,7 +109,6 @@ export function resolveWork(ctx: BattleContext, state: BattleState, preview: Wor
       units = bringDown(ctx, units, def, unit.id, events);
     }
   }
-  const status = battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
+  const status = statusAfterBlows(ctx.rules, units, events);
   return { state: { ...state, units, structures, works, status }, events };
 }

@@ -9,11 +9,13 @@ import {
   COVER_LEVELS,
   DAMAGE_TYPES,
   applyCommand,
+  battleStatus,
   blowOdds,
   coverAgainst,
   createBattle,
   createBattleContext,
   findUnit,
+  garrisonStrength,
   hashBattleState,
   hashValue,
   heightSteps,
@@ -21,6 +23,7 @@ import {
   replay,
   resolveAttack,
   setHeightAtCorner,
+  statusAfterBlows,
   TerrainLayer,
   vec2,
   type ArmorClass,
@@ -29,6 +32,7 @@ import {
   type Command,
   type CoverLevel,
   type DamageType,
+  type GameEvent,
   type GameRules,
   type Scenario,
   type TerrainData,
@@ -738,6 +742,101 @@ describe('resolveAttack: deterministic outcomes under guaranteed hit / no crit',
     expect(findUnit(after, 'atk')!.hp).toBe(0);
     expect(events.filter((e) => e.type === 'unitDied')).toEqual([{ type: 'unitDied', unitId: 'atk', byId: 'def' }]);
     expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'defenderWon', reason: 'eliminated' }]);
+  });
+
+  it('a kill that breaks the last defender standing ends the battle: the garrison is put to flight', () => {
+    const ctx = makeCtx(10, 10, rules);
+    const M = rules.morale;
+    // The survivor stands beside the victim, one ally's death away from running.
+    const state = meleeDuelState(ctx, {
+      units: [
+        { id: 'atk', typeKey: 'soldier', position: centerOf(1, 1) },
+        { id: 'def', typeKey: 'wallGuard', position: centerOf(2, 1) },
+        { id: 'last', typeKey: 'militia', position: centerOf(3, 1) },
+      ],
+    });
+    const preview = previewAttack(ctx, state, 'atk', 'def');
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+    const set: BattleState = {
+      ...state,
+      units: state.units.map((u) => (u.id === 'def' ? { ...u, hp: preview.preview.blow.damage.min } : u.id === 'last' ? { ...u, morale: M.fleeBelow + M.allyDeathLoss - 1 } : u)),
+    };
+    const { state: after, events } = resolveAttack(ctx, set, preview.preview);
+    expect(findUnit(after, 'last')!.alive).toBe(true);
+    expect(events.filter((e) => e.type === 'battleEnded')).toEqual([{ type: 'battleEnded', status: 'attackerWon', reason: 'routed' }]);
+    expect(after.status).toBe('attackerWon');
+  });
+
+  it('a kill leaves the battle going while one defender still stands, even shaken', () => {
+    const ctx = makeCtx(10, 10, rules);
+    const M = rules.morale;
+    const state = meleeDuelState(ctx, {
+      units: [
+        { id: 'atk', typeKey: 'soldier', position: centerOf(1, 1) },
+        { id: 'def', typeKey: 'wallGuard', position: centerOf(2, 1) },
+        { id: 'last', typeKey: 'militia', position: centerOf(3, 1) },
+      ],
+    });
+    const preview = previewAttack(ctx, state, 'atk', 'def');
+    if (!preview.ok) throw new Error('no attack');
+    const set: BattleState = {
+      ...state,
+      units: state.units.map((u) => (u.id === 'def' ? { ...u, hp: preview.preview.blow.damage.min } : u.id === 'last' ? { ...u, morale: M.fleeBelow + M.allyDeathLoss } : u)),
+    };
+    const { state: after, events } = resolveAttack(ctx, set, preview.preview);
+    expect(after.status).toBe('ongoing');
+    expect(events.some((e) => e.type === 'battleEnded')).toBe(false);
+  });
+});
+
+describe('battleStatus: a side with no man standing (dead or fleeing) has lost, a garrison surrenders first', () => {
+  const R = DEFAULT_RULES;
+  const M = R.morale;
+  const man = (id: string, faction: 'attacker' | 'defender', morale: number, alive = true) =>
+    ({ id, typeKey: 'soldier', faction, position: vec2(0.5, 0.5), facing: vec2(0, 1), hp: alive ? 10 : 0, ap: 4, actions: 1, overwatch: null, morale, alive }) as const;
+  /** A garrison of `men`, the first `standing` of them still up, the rest dead. */
+  const garrison = (men: number, standing: number) => Array.from({ length: men }, (_, i) => man(`d${i}`, 'defender', 70, i < standing));
+
+  it('goes on while both sides keep someone standing, shaken or steady', () => {
+    expect(battleStatus(R, [man('a', 'attacker', M.fleeBelow), man('d', 'defender', M.max)])).toBe('ongoing');
+  });
+
+  it('is won by the side still standing when every survivor of the other runs', () => {
+    expect(battleStatus(R, [man('a', 'attacker', 70), man('d1', 'defender', M.fleeBelow - 1), man('d2', 'defender', 70, false)])).toBe('attackerWon');
+    expect(battleStatus(R, [man('a', 'attacker', 0), man('d', 'defender', 70)])).toBe('defenderWon');
+  });
+
+  it('ends when the garrison falls to its surrender line (men × share, rounded down), never for the attackers', () => {
+    const men = 10;
+    const line = Math.floor(men * R.battle.garrisonSurrenderShare + 1e-9);
+    expect(line).toBeGreaterThan(0);
+    expect(battleStatus(R, [man('a', 'attacker', 70), ...garrison(men, line + 1)])).toBe('ongoing');
+    expect(battleStatus(R, [man('a', 'attacker', 70), ...garrison(men, line)])).toBe('attackerWon');
+    // A garrison too small to surrender fights to its last man.
+    expect(battleStatus(R, [man('a', 'attacker', 70), ...garrison(2, 1)])).toBe('ongoing');
+    // One attacker left of many fights on.
+    const army = Array.from({ length: men }, (_, i) => man(`a${i}`, 'attacker', 70, i === 0));
+    expect(battleStatus(R, [...army, ...garrison(men, men)])).toBe('ongoing');
+  });
+
+  it('tells a rout, a surrender and a slaughter apart in the end it announces', () => {
+    const routed: GameEvent[] = [];
+    expect(statusAfterBlows(R, [man('a', 'attacker', 70), man('d', 'defender', 0)], routed)).toBe('attackerWon');
+    expect(routed).toEqual([{ type: 'battleEnded', status: 'attackerWon', reason: 'routed' }]);
+    const surrendered: GameEvent[] = [];
+    statusAfterBlows(R, [man('a', 'attacker', 70), ...garrison(10, 1)], surrendered);
+    expect(surrendered).toEqual([{ type: 'battleEnded', status: 'attackerWon', reason: 'surrendered' }]);
+    const slain: GameEvent[] = [];
+    statusAfterBlows(R, [man('a', 'attacker', 70), man('d', 'defender', 70, false)], slain);
+    expect(slain).toEqual([{ type: 'battleEnded', status: 'attackerWon', reason: 'eliminated' }]);
+    const none: GameEvent[] = [];
+    expect(statusAfterBlows(R, [man('a', 'attacker', 70), man('d', 'defender', 70)], none)).toBe('ongoing');
+    expect(none).toEqual([]);
+  });
+
+  it('counts the garrison standing against its surrender line', () => {
+    expect(garrisonStrength(R, [man('a', 'attacker', 70), ...garrison(10, 4), man('f', 'defender', 0)])).toEqual({ standing: 4, men: 11, surrendersAt: Math.floor(11 * R.battle.garrisonSurrenderShare + 1e-9) });
   });
 });
 

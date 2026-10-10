@@ -9,7 +9,7 @@ import { distance, dot, normalize, sub, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { Rng } from '../rng.ts';
 import { deckAt, type BattleContext } from './context.ts';
-import { battleStatus, blowOdds, coverAgainst, faceTowards, heightSteps, rollBlow, type BlowOdds } from './combat.ts';
+import { blowOdds, coverAgainst, faceTowards, heightSteps, rollBlow, statusAfterBlows, type BlowOdds } from './combat.ts';
 import { snapToCellCenter } from './create.ts';
 import { moraleAfterBlows, type BlowOutcome } from './morale.ts';
 import { unitType, type MovePlan } from './movement.ts';
@@ -147,8 +147,8 @@ export function moveThroughOverwatch(ctx: BattleContext, state: BattleState, mov
   }
   current = { ...current, ap: mover.ap - plan.apSpent };
   units = units.map((u) => (u.id === mover.id ? current : u));
-  // Only a death can end the battle (a scenario may start with one side absent).
-  const status = current.alive ? state.status : battleStatus(units);
-  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: 'eliminated' });
+  // Only a blow can end the battle (a scenario may start with one side absent).
+  const struck = events.some((e) => e.type === 'unitAttacked');
+  const status = struck ? statusAfterBlows(ctx.rules, units, events) : state.status;
   return { state: { ...state, units, status, rng: rng ? rng.getState() : state.rng }, events };
 }
