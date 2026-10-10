@@ -259,7 +259,7 @@ export default function BattleScreen() {
     if (view) camera.current?.setView({ ...view, focus: { x: p.x, z: p.z } });
   };
   if (error) return <LoadingScreen label={`Échec de la génération : ${error}`} />;
-  if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" />;
+  if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" tips />;
   return (
     <main className="scene-screen">
       <GameCanvas>
@@ -273,7 +273,7 @@ export default function BattleScreen() {
         {session && <BattleOverlays session={session} handles={handles} terrain={layout.terrain} />}
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} {...(intro ? { intro: { ...intro, play: sceneReady } } : {})} />
       </GameCanvas>
-      {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" />}
+      {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" tips />}
       {session && sceneReady && <MiniMap layout={layout} session={session} getView={getView} onFocus={focusOn} />}
       {session && (
         <BattleHud

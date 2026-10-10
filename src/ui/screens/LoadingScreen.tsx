@@ -1,6 +1,38 @@
-import './screens.css';
+import { useEffect, useState } from 'react';
+import { DEFAULT_RULES } from '../../data/index.ts';
+import { HeroEmblem } from '../campaign/HeroEmblem.tsx';
+import { LOADING_TIPS } from './loading-tips.ts';
 
-export function LoadingScreen({ label, progress }: { readonly label: string; readonly progress?: number }) {
+/** A hero's word changes this often while the battle loads (ms). */
+const TIP_MS = 7000;
+/**
+ * The tip shown, kept across the loading screens of one load (the map, then the painter): a
+ * different one for each visit, never one already read in the same wait.
+ */
+let tipIndex = Math.floor(Math.random() * LOADING_TIPS.length);
+
+function LoadingTip() {
+  const [index, setIndex] = useState(tipIndex);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      tipIndex = (tipIndex + 1) % LOADING_TIPS.length;
+      setIndex(tipIndex);
+    }, TIP_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tip = LOADING_TIPS[index];
+  if (!tip) return null;
+  return (
+    <p className="loading-screen__tip" key={index}>
+      <HeroEmblem hero={tip.hero} size={40} />
+      <span>
+        « {tip.text} »<cite>— {DEFAULT_RULES.heroes[tip.hero]?.name}</cite>
+      </span>
+    </p>
+  );
+}
+
+export function LoadingScreen({ label, progress, tips = false }: { readonly label: string; readonly progress?: number; readonly tips?: boolean }) {
   const pct = progress === undefined ? undefined : Math.round(Math.min(Math.max(progress, 0), 1) * 100);
   return (
     <div className="loading-screen" role="status" aria-live="polite">
@@ -16,6 +48,7 @@ export function LoadingScreen({ label, progress }: { readonly label: string; rea
           <span style={{ width: `${pct}%` }} />
         </div>
       )}
+      {tips && <LoadingTip />}
     </div>
   );
 }
