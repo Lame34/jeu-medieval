@@ -1,0 +1,798 @@
+/* Campagne (J6) : carte sur parchemin, lettre du château, conseil de guerre. STYLE_BIBLE §5. */
+.campaign-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(70% 60% at 50% 40%, rgb(107 74 48 / 40%), transparent 75%),
+    repeating-linear-gradient(94deg, rgb(0 0 0 / 0%) 0 22px, rgb(0 0 0 / 7%) 22px 23px, rgb(0 0 0 / 0%) 23px 61px),
+    var(--wood-dark);
+}
+
+.campaign-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: linear-gradient(180deg, var(--wood-light), var(--wood-mid));
+  border-bottom: 3px solid var(--iron);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 45%);
+}
+
+.campaign-bar h1 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 24px;
+  letter-spacing: 0.08em;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 2px rgb(0 0 0 / 55%);
+}
+
+.campaign-bar__back,
+.letter__close {
+  justify-self: start;
+  padding: 6px 14px;
+  border: 1px solid var(--iron-light);
+  border-radius: 4px;
+  background: var(--wood-dark);
+  cursor: pointer;
+}
+
+.campaign-bar__back:hover,
+.letter__close:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.campaign-bar__progress {
+  justify-self: end;
+  margin: 0;
+  font-style: italic;
+  color: var(--parchment-shade);
+}
+
+.campaign-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 18px;
+  padding: 18px;
+}
+
+.campaign-map-frame {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.campaign-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.campaign-map__land,
+.campaign-map__marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The land is painted once, on its own layer: the animations above it never repaint it. */
+.campaign-map__land {
+  filter: drop-shadow(0 10px 22px rgb(0 0 0 / 55%));
+  will-change: transform;
+}
+
+/* Lettrage de la carte. */
+.map-lettering text,
+.map-lettering__small,
+.map-lettering__tiny {
+  font-family: var(--font-body);
+  fill: #5b4630;
+  text-anchor: middle;
+}
+
+.map-lettering__range {
+  font-family: var(--font-title);
+  font-size: 26px;
+  letter-spacing: 0.4em;
+  fill: #6b5236;
+  text-anchor: middle;
+}
+
+.map-lettering__small {
+  font-size: 18px;
+  font-style: italic;
+}
+
+.map-lettering__tiny {
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.map-lettering__river {
+  font-family: var(--font-body);
+  font-size: 20px;
+  font-style: italic;
+  fill: #3f5c64;
+  letter-spacing: 0.2em;
+}
+
+.map-cartouche__title {
+  font-family: var(--font-title);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  fill: #7a2a14;
+  text-anchor: middle;
+}
+
+.map-cartouche__sub {
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-style: italic;
+  fill: #5b4630;
+  text-anchor: middle;
+}
+
+.map-compass__n {
+  font-family: var(--font-title);
+  font-size: 20px;
+  fill: #3a2a1a;
+  text-anchor: middle;
+}
+
+/* Le chemin de l'ost. */
+.map-route {
+  fill: none;
+  stroke: #8e1b12;
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-dasharray: 11 9;
+}
+
+.map-route--walked {
+  stroke-dasharray: none;
+  opacity: 0.85;
+}
+
+.map-route--next {
+  animation: route-march 1.6s linear infinite;
+}
+
+.map-route--ahead {
+  opacity: 0.3;
+}
+
+@keyframes route-march {
+  to {
+    stroke-dashoffset: -40;
+  }
+}
+
+/* Les châteaux. */
+.map-castle {
+  cursor: pointer;
+  outline: none;
+}
+
+.map-castle__halo {
+  fill: rgb(230 195 90 / 0%);
+  transition: fill 200ms var(--ease-out);
+}
+
+.map-castle--open .map-castle__halo {
+  animation: castle-halo 2.6s ease-in-out infinite;
+}
+
+.map-castle:hover .map-castle__halo,
+.map-castle:focus-visible .map-castle__halo,
+.map-castle[data-selected] .map-castle__halo {
+  fill: rgb(230 195 90 / 30%);
+  animation: none;
+}
+
+@keyframes castle-halo {
+  50% {
+    fill: rgb(230 195 90 / 22%);
+  }
+}
+
+.map-castle--locked .vignette {
+  opacity: 0.42;
+  filter: grayscale(0.8);
+}
+
+.map-castle--locked {
+  cursor: help;
+}
+
+.map-castle__ribbon {
+  fill: #efe3c3;
+  stroke: #5b4630;
+  stroke-width: 1.4;
+}
+
+.map-castle[data-selected] .map-castle__ribbon {
+  fill: #f6e7b8;
+  stroke: #8e1b12;
+  stroke-width: 2;
+}
+
+.map-castle__name {
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  fill: #3a2a1a;
+  text-anchor: middle;
+}
+
+.map-castle__epithet {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-style: italic;
+  fill: #5b4630;
+  text-anchor: middle;
+}
+
+.map-castle--locked .map-castle__name,
+.map-castle--locked .map-castle__epithet,
+.map-castle--locked .map-castle__ribbon {
+  opacity: 0.55;
+}
+
+.vignette-flag {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: flag-wave 2.2s ease-in-out infinite;
+}
+
+@keyframes flag-wave {
+  50% {
+    transform: scaleX(0.82) skewY(-6deg);
+  }
+}
+
+.vignette-torch {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: torch-flicker 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes torch-flicker {
+  to {
+    transform: scale(0.8, 1.15);
+    opacity: 0.8;
+  }
+}
+
+.map-seal--fresh {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seal-stamp 900ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+@keyframes seal-stamp {
+  from {
+    transform: scale(3) rotate(-25deg);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+/* La lettre du château. */
+.campaign-letter {
+  position: relative;
+  width: min(390px, 34vw);
+  overflow-y: auto;
+  padding: 26px 26px 20px;
+  border-radius: var(--radius-plaque);
+  font-size: 17px;
+  animation: letter-in 380ms var(--ease-out) both;
+}
+
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+.letter__title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 28px;
+  color: #7a2a14;
+  letter-spacing: 0.04em;
+}
+
+.letter__epithet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 14px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.letter__shields {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.letter__lord {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 3px solid #8e1b12;
+  background: rgb(160 120 70 / 12%);
+  font-style: italic;
+}
+
+.letter__lord cite {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+  font-style: normal;
+  color: var(--ink-soft);
+}
+
+.letter__lord cite::before {
+  content: '— ';
+}
+
+.letter__story {
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.letter__heading {
+  margin: 14px 0 6px;
+  font-family: var(--font-title);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+
+.letter__hint,
+.letter__locked {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.letter__resting p {
+  margin: 6px 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgb(142 27 18 / 10%);
+  font-size: 15px;
+}
+
+.letter__actions {
+  margin-top: 18px;
+}
+
+.letter__go,
+.council__march {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--iron);
+  border-radius: 5px;
+  background: linear-gradient(180deg, #a3301e, #7a1a10);
+  box-shadow:
+    inset 0 1px 0 rgb(255 210 180 / 35%),
+    0 4px 10px rgb(40 10 5 / 35%);
+  color: #fbe9d6;
+  font-family: var(--font-title);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out);
+}
+
+.letter__go:hover,
+.council__march:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--gold);
+}
+
+.council__march:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.letter__close {
+  margin-top: 14px;
+  color: var(--parchment);
+}
+
+.letter__banners {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.letter__banners li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
+.letter__banners li[data-won] {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.letter__banners svg path {
+  fill: none;
+  stroke: #7a5c14;
+}
+
+.letter__banners li[data-won] svg path {
+  fill: var(--gold);
+}
+
+/* Le conseil de guerre. */
+.council {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 28px;
+  background:
+    radial-gradient(80% 70% at 50% 50%, rgb(120 82 50 / 55%), transparent 80%),
+    repeating-linear-gradient(2deg, rgb(0 0 0 / 0%) 0 40px, rgb(0 0 0 / 9%) 40px 42px),
+    #3a281a;
+  animation: council-in 420ms var(--ease-out) both;
+}
+
+@keyframes council-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.council__head {
+  position: relative;
+  text-align: center;
+}
+
+.council__head h2 {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 32px;
+  letter-spacing: 0.1em;
+  color: var(--gold-bright);
+  text-shadow: 0 2px 3px rgb(0 0 0 / 60%);
+}
+
+.council__head p {
+  margin: 4px 0 0;
+  font-style: italic;
+  color: var(--parchment-shade);
+}
+
+.council__close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--iron-light);
+  border-radius: 50%;
+  background: var(--wood-dark);
+  cursor: pointer;
+}
+
+.council__table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+}
+
+.council__plan {
+  /* The scouts' sheet: as large as the screen's height allows. */
+  --plan-size: clamp(300px, 54vh, 520px);
+  flex: none;
+  padding: 16px 18px 12px;
+  border-radius: var(--radius-plaque);
+  transform: rotate(-1.2deg);
+}
+
+.council__plan h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.scout-plan {
+  position: relative;
+  width: var(--plan-size);
+  height: var(--plan-size);
+  border: 2px solid #5b4630;
+  box-shadow: inset 0 0 18px rgb(90 60 30 / 35%);
+}
+
+.scout-plan canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scout-plan--pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  color: var(--ink-soft);
+  background: #e3d2a6;
+}
+
+.council__legend {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.dot--ours {
+  background: var(--attacker);
+}
+
+.dot--theirs {
+  background: var(--defender);
+}
+
+.mark--gold {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.mark--red {
+  color: var(--defender);
+  font-weight: 700;
+}
+
+.council__cards {
+  flex: 0 1 620px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.plan-card {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 12px 16px 12px 12px;
+  border: 2px solid rgb(58 42 26 / 55%);
+  border-radius: var(--radius-plaque);
+  background:
+    radial-gradient(120% 90% at 30% 20%, rgb(255 250 235 / 55%), transparent 70%),
+    var(--parchment);
+  box-shadow: 0 6px 14px rgb(10 6 3 / 40%);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms var(--ease-out),
+    box-shadow 180ms var(--ease-out),
+    border-color 180ms var(--ease-out);
+}
+
+.plan-card:hover:not(:disabled) {
+  transform: translateX(4px);
+  border-color: var(--gold);
+}
+
+.plan-card[data-chosen] {
+  border-color: #8e1b12;
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 8px 18px rgb(10 6 3 / 50%);
+  transform: translateX(8px);
+}
+
+.plan-card[data-resting] {
+  background: #cdbf9c;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.plan-card__key {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-family: var(--font-title);
+  font-size: 13px;
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
+.plan-card .hero-emblem {
+  flex: none;
+}
+
+.plan-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.plan-card__who {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.plan-card__name {
+  font-family: var(--font-title);
+  font-size: 19px;
+  font-weight: 600;
+  color: #7a2a14;
+}
+
+.plan-card__pitch {
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.38;
+}
+
+.plan-card__seal {
+  position: absolute;
+  right: 18px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 46% 54% 50% 50%;
+  background: radial-gradient(circle at 35% 30%, #c0392b, #7a1a10 72%);
+  box-shadow:
+    0 3px 6px rgb(40 10 5 / 50%),
+    inset 0 1px 1px rgb(255 200 180 / 40%);
+  color: #f4d9b0;
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 700;
+  animation: seal-stamp 520ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.council__foot {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.council__foot p {
+  margin: 0;
+  font-style: italic;
+  color: var(--parchment);
+}
+
+.council__march {
+  width: auto;
+  min-width: 360px;
+}
+
+@media (max-width: 980px) {
+  .campaign-body,
+  .council__table {
+    flex-direction: column;
+  }
+
+  .campaign-letter {
+    width: 100%;
+  }
+}
+
+/* Les écritures de la carte gardent un halo de papier sur les forêts et la rivière. */
+.map-lettering text,
+.map-camp text,
+.map-scale text,
+.map-castle__epithet {
+  paint-order: stroke;
+  stroke: #ecdfba;
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* Petits écrans (720 px de haut) : le conseil se resserre pour que les trois lettres tiennent. */
+@media (max-height: 820px) {
+  .council {
+    padding: 10px 24px;
+  }
+
+  .council__head h2 {
+    font-size: 26px;
+  }
+
+  .council__table {
+    padding: 8px 0;
+  }
+
+  .council__cards {
+    gap: 8px;
+  }
+
+  .plan-card {
+    gap: 10px;
+    padding: 7px 12px 7px 10px;
+  }
+
+  .plan-card .hero-emblem {
+    width: 46px;
+    height: 46px;
+  }
+
+  .plan-card__name {
+    font-size: 17px;
+  }
+
+  .plan-card__pitch {
+    font-size: 13.5px;
+    line-height: 1.3;
+  }
+
+  .plan-card .effect-list {
+    font-size: 13.5px;
+  }
+
+  .plan-card .effect-list li {
+    margin: 0;
+  }
+
+  .plan-card__seal {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .campaign-body {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .campaign-letter {
+    padding: 20px 20px 16px;
+    font-size: 16px;
+  }
+}

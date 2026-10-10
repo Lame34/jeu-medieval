@@ -215,3 +215,39 @@
 .scene-back:hover {
   background: rgb(74 52 35 / 92%);
 }
+
+/* Cachet de cire « Commencez ici » sur une entrée du menu. */
+.title-menu__item {
+  position: relative;
+}
+
+.title-menu__mark {
+  position: absolute;
+  top: -11px;
+  right: -20px;
+  transform: rotate(7deg);
+  padding: 4px 9px 5px;
+  border-radius: 12px 14px 11px 15px;
+  background: radial-gradient(circle at 35% 30%, #c0392b, #8e1b12 70%);
+  box-shadow:
+    0 2px 4px rgb(40 10 5 / 45%),
+    inset 0 1px 0 rgb(255 200 180 / 35%);
+  color: #fbe9d6;
+  font-family: var(--font-title);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  animation: mark-beat 2.4s var(--ease-out) infinite;
+}
+
+@keyframes mark-beat {
+  0%,
+  70%,
+  100% {
+    transform: rotate(7deg) scale(1);
+  }
+  80% {
+    transform: rotate(7deg) scale(1.08);
+  }
+}

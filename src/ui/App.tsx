@@ -7,6 +7,8 @@ import { ROUTES, useRoute } from './router.ts';
 // 3D screens are code-split: the title screen stays light and loads instantly.
 const LookdevScreen = lazy(() => import('./screens/LookdevScreen.tsx'));
 const BattleScreen = lazy(() => import('./screens/BattleScreen.tsx'));
+const CampaignScreen = lazy(() => import('./screens/CampaignScreen.tsx'));
+const OptionsScreen = lazy(() => import('./screens/OptionsScreen.tsx'));
 
 function CurrentScreen() {
   const path = useRoute();
@@ -15,6 +17,10 @@ function CurrentScreen() {
       return <LookdevScreen />;
     case ROUTES.battle:
       return <BattleScreen />;
+    case ROUTES.campaign:
+      return <CampaignScreen />;
+    case ROUTES.options:
+      return <OptionsScreen />;
     default:
       return <TitleScreen />;
   }
