@@ -4,6 +4,7 @@
  * the relief, a castle hugging the butte (towers, gatehouse, keep, moat), a village strung along
  * the main road, farms, Voronoi field parcels with hedges, forests covering ~30 % of the map.
  */
+import { GARRISON_ID_PREFIX } from './garrison.ts';
 import { clamp, smoothstep } from '../math/scalar.ts';
 import type { Vec2 } from '../math/vec2.ts';
 import { createSimplex, fbm, ridged, warpedFbm, type FbmOptions } from '../noise/noise.ts';
@@ -75,7 +76,7 @@ const OUTPOST = { types: ['militia', 'crossbowman', 'militia', 'sallyKnight'], r
  */
 const SIEGE_PARK = { types: ['ram', 'catapult', 'sapper', 'siegeTower'], distanceM: 62, spacingM: 7, maxGrade: 0.28 } as const;
 /** The gate-tower archer who works the drawbridge winch (J4): killing them drops the bridge. */
-const WINCH_OPERATOR_ID = 'def-tower-0';
+const WINCH_OPERATOR_ID = `${GARRISON_ID_PREFIX.tower}0`;
 const OPEN_LAYERS = [TerrainLayer.Plain, TerrainLayer.Road, TerrainLayer.Field] as const;
 
 export interface BattleMapParams {
@@ -445,17 +446,17 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const runLength = polylineLength(mainWall.points);
     GARRISON.wall.forEach((typeKey, i) => {
       const spot = onRampart(pointAlong(mainWall.points, ((i + 1) / (GARRISON.wall.length + 1)) * runLength));
-      if (spot) units.push({ id: `def-wall-${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: spot.x - castleCenter.x, z: spot.z - castleCenter.z }), elevationM: walkTop });
+      if (spot) units.push({ id: `${GARRISON_ID_PREFIX.wall}${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: spot.x - castleCenter.x, z: spot.z - castleCenter.z }), elevationM: walkTop });
     });
   }
   castle.towers.filter((tw) => tw.id.includes('gate-tower')).forEach((tower, i) => {
     const spot = onRampart(tower.center);
-    if (spot) units.push({ id: `def-tower-${i}`, faction: 'defender', typeKey: 'towerArcher', position: spot, facingTurns: turnsFacing(gateOut), elevationM: walkTop });
+    if (spot) units.push({ id: `${GARRISON_ID_PREFIX.tower}${i}`, faction: 'defender', typeKey: 'towerArcher', position: spot, facingTurns: turnsFacing(gateOut), elevationM: walkTop });
   });
   GARRISON.courtyard.forEach((typeKey, i) => {
     const a = (i / GARRISON.courtyard.length) * 2 * Math.PI;
     const p = { x: castleCenter.x + Math.cos(a) * castleRadius * 0.3, z: castleCenter.z + Math.sin(a) * castleRadius * 0.3 };
-    units.push({ id: `def-${i}`, faction: 'defender', typeKey, position: { x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 }, facingTurns: turnsFacing(gateOut) });
+    units.push({ id: `${GARRISON_ID_PREFIX.courtyard}${i}`, faction: 'defender', typeKey, position: { x: Math.floor(p.x) + 0.5, z: Math.floor(p.z) + 0.5 }, facingTurns: turnsFacing(gateOut) });
   });
   // J4: the siege park, on the approach road short of the castle.
   const parkAlong = (() => {
@@ -495,7 +496,7 @@ export function generateBattleMap(params: BattleMapParams): GeneratedMap {
     const spot = nearestOpenCell(t, { x: villageCenter.x + Math.cos(a) * OUTPOST.radiusM, z: villageCenter.z + Math.sin(a) * OUTPOST.radiusM }, taken);
     if (!spot) return;
     taken.add(`${spot.x},${spot.z}`);
-    units.push({ id: `def-out-${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: deployCenter.x - spot.x, z: deployCenter.z - spot.z }) });
+    units.push({ id: `${GARRISON_ID_PREFIX.outpost}${i}`, faction: 'defender', typeKey, position: spot, facingTurns: turnsFacing({ x: deployCenter.x - spot.x, z: deployCenter.z - spot.z }) });
   });
 
   const bridges: BridgeSite[] = [{ id: 'bridge', from: bridgeSouth, to: bridgeNorth, widthM: BRIDGE.widthM, deckHeightM: RIVER.levelM + BRIDGE.deckAboveWaterM }];
