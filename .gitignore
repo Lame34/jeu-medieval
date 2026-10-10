@@ -22,3 +22,6 @@ docs/captures/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Vercel: the linked project (vercel link) and the local build output (vercel build)
+.vercel/
