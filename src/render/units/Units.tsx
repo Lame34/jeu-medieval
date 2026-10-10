@@ -11,7 +11,7 @@ import { HERO_TAG } from '../../core/battle/tags.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, MeshBasicMaterial, SkinnedMesh, Sphere, Vector3, type AnimationAction, type AnimationClip, type Material, type Object3D, type Texture } from 'three';
+import { AnimationMixer, Color, GreaterDepth, Group, LoopOnce, LoopRepeat, Mesh, MeshBasicMaterial, SkinnedMesh, Sphere, Vector3, type AnimationAction, type AnimationClip, type BufferGeometry, type Material, type Object3D, type Texture } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -23,6 +23,7 @@ import { createPennants } from './Pennants.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createEngineRig, ENGINE_HEIGHT_M, ENGINE_MODELS, engineKindOf, type EngineKind, type EngineRig } from './engines.ts';
 import { BODY_CLOTH_HUES, recolorTexture } from './team-colors.ts';
+import { createShieldGeometry } from './shield.ts';
 
 const ANIMATIONS_URL = '/assets/characters/rpg-animations.glb';
 const ENGINE_KINDS = Object.keys(ENGINE_MODELS) as EngineKind[];
@@ -116,6 +117,14 @@ const LOADOUTS: Readonly<Record<string, Loadout>> = {
   heroKnight: { body: 'warrior', idle: 'Idle' },
 };
 const DEFAULT_LOADOUT = LOADOUTS['knight'] as Loadout;
+/** Infantry that carries a heater shield on its left fist (shield wall, rampart guards). */
+const SHIELD_BEARERS: ReadonlySet<string> = new Set(['soldier', 'wallGuard']);
+/**
+ * The shield on the left fist bone ("Fist.L", named FistL by the glTF loader), in the bone's frame
+ * (+x the body's front, +y towards the fingers, +z out of the arm): on the forearm, upside up,
+ * turned 0.9 rad towards the front so the arms show from the front and the side.
+ */
+const SHIELD_POSE = { at: [0.05, -0.15, 0.1], turn: [0, 0.9, Math.PI] } as const;
 
 export function loadoutFor(typeKey: string): Loadout {
   return LOADOUTS[typeKey] ?? DEFAULT_LOADOUT;
@@ -204,6 +213,14 @@ export function Units({
         return [kind, m];
       }),
     ) as Record<EngineKind, ReturnType<typeof createPaintedMaterial>>;
+    // Shields: one geometry per side, one material for both (the arms are in the vertex colours).
+    const shieldGeometries = new Map<Faction, BufferGeometry>();
+    const shieldGeometryFor = (faction: Faction) => {
+      let g = shieldGeometries.get(faction);
+      if (!g) shieldGeometries.set(faction, (g = createShieldGeometry(faction)));
+      return g;
+    };
+    let shieldMaterial: Material | null = null;
     const engines: EngineRig[] = [];
     /** Pennant anchors: a unit's root position, or a point lifted to an engine's top. */
     const anchors: Vector3[] = [];
@@ -272,6 +289,22 @@ export function Units({
         shadowCasters.push(o);
       });
       body.scale.setScalar(UNIT_SCALE);
+      const fist = SHIELD_BEARERS.has(unit.typeKey) ? (body.getObjectByName('FistL') ?? body.getObjectByName('Fist.L')) : undefined;
+      if (fist) {
+        shieldMaterial ??= createPaintedMaterial({ name: 'Unit:shield', vertexColors: true, gradientBase: 1, gradientTop: 1, gradientSaturation: 0, hueNoiseAmp: 0, valueNoiseAmp: 0.03, groundAO: 0, rim: RIM, saturationCeiling: false });
+        materials.set('shield', shieldMaterial);
+        const shield = new Mesh(shieldGeometryFor(unit.faction), shieldMaterial);
+        shield.name = 'Shield';
+        // In metres whatever the bone's scale (the converted rig and UNIT_SCALE).
+        body.updateMatrixWorld(true);
+        const s = fist.getWorldScale(new Vector3()).x;
+        shield.scale.setScalar(1 / s);
+        shield.position.set(SHIELD_POSE.at[0] / s, SHIELD_POSE.at[1] / s, SHIELD_POSE.at[2] / s);
+        shield.rotation.set(...SHIELD_POSE.turn);
+        shield.castShadow = true;
+        shadowCasters.push(shield);
+        fist.add(shield);
+      }
       const root = new Group();
       root.name = `Unit:${unit.id}`;
       const ring = createRingMarker();
@@ -368,7 +401,7 @@ export function Units({
       const markers = rings.filter((_, i) => factionOf[i] === faction);
       return { batch: createRingBatch(faction, markers.length), markers };
     });
-    return { roots, rings, ringBatches, shadowCasters, shadowsOn: { value: true }, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, hidden, animElapsed: new Float32Array(mixers.length) };
+    return { geometries: [...shieldGeometries.values()], roots, rings, ringBatches, shadowCasters, shadowsOn: { value: true }, mixers, animated, engines, lifted, starts, materials, textures, pennants, handles, alive, hidden, animElapsed: new Float32Array(mixers.length) };
   }, [anims, bodies, engineModels, units, terrain]);
 
   // Actions start and stop with the effect (StrictMode remounts must restart them).
@@ -420,6 +453,7 @@ export function Units({
     () => () => {
       built.materials.forEach((m) => m.dispose());
       built.textures.forEach((t) => t.dispose());
+      built.geometries.forEach((g) => g.dispose());
       built.pennants.forEach(({ pennants }) => pennants.dispose());
     },
     [built],
