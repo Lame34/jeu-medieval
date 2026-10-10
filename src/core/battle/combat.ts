@@ -232,12 +232,17 @@ function standing(rules: MoraleRules, u: UnitState): boolean {
 const SURRENDER_EPSILON = 1e-9;
 
 /**
- * The garrison's men still standing, and the count at which it surrenders (J7): its men times
- * the surrender share, rounded down (0 for a garrison too small to surrender).
+ * The count of men standing at which a garrison of `men` surrenders (J7): its men times the
+ * surrender share, rounded down (0 for a garrison too small to surrender).
  */
+export function surrenderLine(rules: Pick<GameRules, 'battle'>, men: number): number {
+  return Math.floor(men * rules.battle.garrisonSurrenderShare + SURRENDER_EPSILON);
+}
+
+/** The garrison's men still standing, and the count at which it surrenders. */
 export function garrisonStrength(rules: Pick<GameRules, 'morale' | 'battle'>, units: readonly UnitState[]): { readonly standing: number; readonly men: number; readonly surrendersAt: number } {
   const men = units.filter((u) => u.faction === 'defender');
-  return { standing: men.filter((u) => standing(rules.morale, u)).length, men: men.length, surrendersAt: Math.floor(men.length * rules.battle.garrisonSurrenderShare + SURRENDER_EPSILON) };
+  return { standing: men.filter((u) => standing(rules.morale, u)).length, men: men.length, surrendersAt: surrenderLine(rules, men.length) };
 }
 
 /**

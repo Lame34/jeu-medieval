@@ -24,6 +24,7 @@ import {
   resolveAttack,
   setHeightAtCorner,
   statusAfterBlows,
+  surrenderLine,
   TerrainLayer,
   vec2,
   type ArmorClass,
@@ -833,6 +834,12 @@ describe('battleStatus: a side with no man standing (dead or fleeing) has lost, 
     const none: GameEvent[] = [];
     expect(statusAfterBlows(R, [man('a', 'attacker', 70), man('d', 'defender', 70)], none)).toBe('ongoing');
     expect(none).toEqual([]);
+  });
+
+  it('draws the surrender line as men × share rounded down, free of the float rounding of 0.3 × 10', () => {
+    const share = R.battle.garrisonSurrenderShare;
+    for (const men of [0, 1, 3, 7, 9, 10, 11, 12, 20]) expect(surrenderLine(R, men)).toBe(Math.floor(Math.round(men * share * 1e6) / 1e6));
+    expect(surrenderLine({ battle: { turnLimit: 24, garrisonSurrenderShare: 0.3 } }, 10)).toBe(3);
   });
 
   it('counts the garrison standing against its surrender line', () => {
