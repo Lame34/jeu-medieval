@@ -71,6 +71,17 @@ Trois causes :
 ## Bataille après le rendu du siège (J4, 02/10)
 Les mesures de 3403468 (64,1 FPS, 1 % low 29,5) ont été prises après une journée de charge GPU continue (captures, e2e). Un A/B enchaîné sur le même état thermique donne : de6c368 (avant le chargement sans image) à 65,4 FPS et 1 % low 33,8 ; 3403468 à 67,0 FPS et 1 % low 32,2. Pas de régression du rendu du siège ni du chargement. La marge s'est tout de même réduite depuis le 30/09 : 120 → 145 appels, vue d'ensemble à 55–58 FPS. Une passe de performance est à faire avant ⛳ J5.
 
+## Passe de polish (J7, 10/10, ADR-037)
+Bataille en cours (`--scene battle --query live`), sur secteur, A/B contre le commit d'avant la passe (5849c63, dans un worktree) :
+
+| Version | Moyenne | 1 % bas | Appels max | Triangles max | Chargement |
+|---|---|---|---|---|---|
+| Avant (5849c63) | 99,6 i/s | 23,4 | 110 | 1,05 M | 5,0 s |
+| Après (écus, plan d'ouverture, anneaux) | 103,2 i/s | 24,9 | 114 | 1,05 M | 4,3 s |
+
+- Les écus coûtent 4 appels de dessin ; le plan d'ouverture et la caméra qui suit les coups ennemis, rien de mesurable.
+- Le 1 % bas sous 40 vient de la machine ce jour-là, et non du code : les deux versions font pareil, avec 5 à 24 à-coups de plus de 25 ms par vue. Le relevé du 09/10 donnait 53 i/s pour le même code de départ.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.

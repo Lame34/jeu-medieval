@@ -50,6 +50,16 @@
 | Progression et options sauvegardées (localStorage) | `state/campaign.ts`, `state/settings.ts`, `ui/screens/OptionsScreen.tsx` |
 | Graines de la campagne : carte, approches, chaque plan, simulation IA | `scripts/campaign-scout.ts`, `tests/core/campaign-maps.test.ts` |
 
+## Polish (J7, ADR-037)
+| Rôle | Où |
+|---|---|
+| Fin de bataille : camp sans homme debout, capitulation de la garnison à sa ligne (`garrisonSurrenderShare`) | `core/battle/combat.ts` (`battleStatus`, `statusAfterBlows`, `surrenderLine`, `garrisonStrength`), `data/damage.json` |
+| Plan d'ouverture : château, puis glissé vers le gros de l'armée ; le briefing attend | `render/camera/TacticalCamera.tsx` (`CameraIntro`), `render/battle/views.ts` (`introView`, `openingView`), `state/battle-ui.ts` (`introDone`) |
+| Dernier temps de la bataille, caméra sur les coups ennemis hors champ | `render/battle/BattleDirector.tsx` |
+| Écus des soldats et des gardes de rempart | `render/units/shield.ts`, `render/units/Units.tsx` |
+| Écran-titre rendu par le jeu | `scripts/capture-title.ts` → `public/assets/ui/title.webp`, `ui/screens/TitleScreen.tsx` |
+| Conseils des héros au chargement, touches nommées selon le clavier | `ui/screens/loading-tips.ts`, `state/keyboard.ts` |
+
 ## Siège (J4, ADR-024 à ADR-028)
 Le château se casse, se comble, s'escalade et brûle sans quitter le cadre du core : l'état de bataille ne porte que des faits sérialisables (PV et chute des ouvrages, chantiers, amarrages, foyers, vent), et la grille de navigation est une fonction pure de la carte et de ces faits. `syncNav` la reconstruit une fois par combinaison, puis la garde en cache ; elle est appelée autour de chaque commande et à l'entrée de chaque aperçu.
 

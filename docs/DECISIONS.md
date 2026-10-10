@@ -350,10 +350,51 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
   - défilement aux bords et vitesse de la caméra ;
   - liste des commandes, effacement de la campagne.
 - **La carte du conseil sert à la bataille** : elle est gardée (`ui/campaign/battle-map.ts`), et la bataille ne la régénère pas.
-- **Graines validées** par `scripts/campaign-scout.ts` (carte, approches, chaque plan) et par le test `campaign-maps`. En simulation IA contre IA, l'IA assaillante ouvre deux à sept ouvrages mais ne finit jamais la garnison avant le délai. C'est la faiblesse de l'IA en fin d'assaut, pas une mesure de la difficulté pour un joueur.
+- **Graines validées** par `scripts/campaign-scout.ts` (carte, approches, chaque plan) et par le test `campaign-maps`. En simulation IA contre IA, l'IA assaillante ouvre deux à sept ouvrages mais ne finit jamais la garnison avant le délai. C'est la faiblesse de l'IA en fin d'assaut, pas une mesure de la difficulté pour un joueur (corrigé par la capitulation, ADR-037).
 **Conséquences** :
 - Écarts au brief : cinq châteaux au lieu de quatre, tutoriel séparé, pas de recrutement, de forge, d'XP ni d'arbre technologique. Les cartes du générateur se ressemblent (butte au nord, rivière au sud) : les châteaux se distinguent par l'heure, la météo, la garnison et les plans.
 - L'équilibrage fin des stratagèmes et de la difficulté revient à J7.
+
+## ADR-037 — Passe de polish J7 : capitulation, plan d'ouverture, écus, écran-titre rendu par le jeu
+**Contexte** : demande de l'utilisateur après J6 : « améliore encore, pas de nouvelles features, sois créatif et efficace pour améliorer tous les aspects ». Constats de départ :
+- en simulation IA contre IA, l'assaut échouait 16 fois sur 16 : la garnison tombait à un ou deux hommes, mais le dernier, sur un chemin de ronde, tenait jusqu'au délai ;
+- le briefing promettait « mettez-la en fuite », alors que seule la mort finissait une bataille ;
+- le plan d'ouverture montrait trois unités entre deux maisons, ni l'armée ni le château ;
+- treize types d'unités sur trois corps, et des anneaux d'engins lus comme des flaques ;
+- un écran-titre plat, très en deçà du rendu 3D, et un menu au texte déformé par le filtre parchemin ;
+- la touche E qui à la fois pivote la caméra et éteint un feu.
+**Décision** :
+- **Fin de bataille** (`core/battle/combat.ts`) :
+  - un camp sans homme debout (mort ou en fuite) a perdu après n'importe quel coup, comme le promet le briefing ;
+  - la garnison **capitule** quand ses hommes debout tombent à `floor(hommes × damage.battle.garrisonSurrenderShare)` (0,3, avec une marge d'arrondi : 0,3 × 10 vaut 3,000…04) ; une garnison de moins de quatre hommes se bat jusqu'au bout ; les assaillants, eux, ne capitulent pas ;
+  - l'événement `battleEnded` distingue `eliminated`, `routed` et `surrendered`.
+- **Équilibrage par simulations** (`scripts/campaign-scout.ts --sim`) : l'IA assaillante gagne 11 assauts sur 16. Pierre-Ardente, seul château à 0 sur 3 (la nuit tombe au huitième tour), perd un archer de tour et gagne deux tours (2 sur 3, comme Haute-Garde). Résultat par château, du fortin au dernier : 1/1, 3/3, 2/3, 2/3, 2/3, 2/3.
+- **Lisibilité de la règle** :
+  - une pastille « Garnison N · se rend à M » dans le bandeau de tour ;
+  - la ligne de reddition dans le briefing, dans la première leçon et dans la légende du plan des éclaireurs, plan par plan ;
+  - à la fin, le cor (ou le glas) sonne, et les perdants restants affichent « Se rend » ou « Fuit ! » ; le panneau de fin attend la fin de l'animation.
+- **Plan d'ouverture** (`render/camera/TacticalCamera.tsx`, `render/battle/views.ts`) :
+  - la caméra tient 1,6 s sur le château vu du côté de l'armée, puis glisse en 3,2 s (smootherstep) vers le gros de l'armée (le groupe le plus dense, avancé de 10 m vers le château) ;
+  - le briefing s'affiche ensuite ; une touche, la molette ou un clic coupe le plan ;
+  - il est sauté en test (`?e2e`, `?fast`), avec les animations instantanées et sous `prefers-reduced-motion`.
+- **Tour adverse** : un coup ennemi porté hors champ sur une de nos unités y amène la caméra ; ses marches hors champ restent instantanées.
+- **Écus** (`render/units/shield.ts`) : écu à talon construit par le code, colorié aux sommets sous un seul matériau peint, porté sur l'os du poing gauche des soldats et des gardes de rempart. Il porte le chevron d'or sur azur de la comtesse, ou la fasce de fer sur gueules du Félon. Coût mesuré : 4 appels de dessin.
+- **Anneaux** : au-delà de la taille maximale d'un anneau de soldat (un engin), la bande s'affine et le trait se calme.
+- **Écran-titre rendu par le jeu** (`scripts/capture-title.ts`) :
+  - Haute-Garde à 16 h 24, l'armée et sa tour de siège dans le village, sans interface ;
+  - WebP de 2400 px (121 Ko), animé d'une lente dérive ; il sert aussi de fond, assombri, aux options ;
+  - le menu passe sur `.parchment-sheet` (le filtre ne déforme plus le texte) ; `PaintedBackdrop` et la règle `.parchment` sont supprimés.
+- **Carte de campagne** :
+  - les châteaux pris portent un sceau de cire pendant, à la fleur de lys de la comtesse, au lieu d'une coche ;
+  - la lettre présente les trois compagnons (caractère, talent, repos).
+- **Divers** :
+  - quinze conseils des héros pendant le chargement, dont les chiffres sont lus dans les règles ;
+  - les touches de la caméra sont nommées d'après le clavier du joueur (API Keyboard, AZERTY par défaut) ;
+  - Éteindre passe sur **X**.
+**Conséquences** :
+- La capitulation est une règle nouvelle, au service de la promesse du briefing et de la demande « plus simple » (ADR-036) : plus de chasse au dernier défenseur. Elle se règle d'un nombre dans `damage.json`.
+- Performance (A/B sur secteur contre le commit d'avant la passe) : 103,2 contre 99,6 i/s en moyenne, 114 contre 110 appels, chargement de 4,3 contre 5,0 s. Le 1 % bas est faible ce jour-là sur les deux versions (environ 24 i/s) : c'est l'état de la machine, pas le code.
+- Restent : des cartes qui se ressemblent (butte au nord, rivière au sud) ; pas de cheval pour la cavalerie (elle a un corps de chevalier) ; l'arbalétrier porte l'arc du ranger.
 
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
