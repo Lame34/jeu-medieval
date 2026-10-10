@@ -324,6 +324,37 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - A/B en bataille sur batterie : 50 à 56 → 57 à 58 fps.
 - Restent des blocages GPU ponctuels (1 % bas) : aucune tâche longue en JavaScript ni aucun programme compilé en cours de jeu, cause à chercher secteur branché.
 
+## ADR-036 — Campagne du Val d'Orle : bataille d'essai, cinq châteaux, conseil de guerre (J6)
+**Contexte** : demande de l'utilisateur pour J6 : « commence la campagne, 5 niveaux faciles avec une interface créative de choix ; d'abord une bataille d'essai, toujours la même, qui explique le jeu en détail ; le bouton Campagne qui mène au choix, et les options ». Le brief (§9.1, §9.13) prévoit 4 châteaux, un tutoriel intégré au premier, et une méta lourde : recrutement, forge, XP, arbre technologique. Le retour du ⛳ J5 demandait un jeu plus simple.
+**Décision** :
+- **Cinq châteaux faciles** au lieu de quatre, à la demande de l'utilisateur. Ils sont décrits dans `src/data/campaign.json`, validé au chargement par `core/campaign/validate.ts` contre les règles :
+  - Roche-Grise, Moulins-sur-Orle, Brumefond (brouillard), Pierre-Ardente (crépuscule), Haute-Garde (château 3) ;
+  - la difficulté monte de 1 à 5 par la taille de la garnison, l'heure, la météo et le château ;
+  - un récit : le Félon a pris les cinq châteaux de la comtesse Isabeau.
+- **Bataille d'essai à part**, toujours la même : graine, heure, météo et garnison fixes, 30 tours. Les 15 leçons de Guillaume (`ui/tutorial/`) se cochent quand le joueur agit (caméra, sélection, déplacement, attaque, garde, fin de tour, capacité, pont-levis, bélier, catapulte, travaux). Chaque leçon peut porter la caméra sur ce dont elle parle et illuminer la partie du HUD qu'elle nomme. On peut la passer, la relire ou la masquer.
+- **Le choix créatif est le conseil de guerre**, qui remplace recrutement, forge, XP et arbre technologique (reportés, peut-être abandonnés).
+  - À chaque château, chacun des trois héros propose un stratagème dans sa voix : Aude la ruse, Bertrand les ouvrages (qui coûtent du temps), Guillaume le fer et le moral.
+  - Le joueur en scelle un sur le plan des éclaireurs : la vraie carte de la bataille, à l'encre sépia. Ce que le plan change y est marqué : absents barrés, renforts cerclés d'or, ouvrages entamés en rouge.
+  - Les effets (`BattleEffects`) s'écrivent dans le `Scenario`, donc la bataille se rejoue à l'identique : garnison réduite, renforts, ouvrage de chaque sorte le plus proche entamé ou abattu, tronçon de douve déjà comblé face au mur le plus proche de la tour, heure, météo, délai, moral par camp.
+  - Bornes : le délai ne descend pas sous 8 tours ; aucun camp ne part ébranlé ; le treuilliste n'est jamais retiré.
+- **Persistance légère** (`state/campaign.ts`, localStorage) : châteaux pris, meilleurs étendards (pris ; pris avant les deux tiers du délai ; au plus 3 pertes), bataille d'essai faite. Un héros gravement blessé manque la bataille suivante (§9.5) : sa lettre au conseil est grisée.
+- **Core** : le `Scenario` accepte `morale` par camp, `structures` (état de départ des ouvrages) et `filled` (chaussées posées). `createBattle` les valide (`ScenarioError`) et resynchronise la navigation.
+- **Écrans** :
+  - menu dans l'ordre Bataille d'essai, Campagne, Escarmouche (carte au hasard), Options ; l'atelier du peintre passe dans les Options ;
+  - carte de campagne en SVG : le paysage est peint une fois sur sa propre couche, les drapeaux et la route animés au-dessus ;
+  - chronique de fin de bataille : récit du château, étendards, mot d'un héros, blessés.
+- **Options** (`state/settings.ts`, localStorage) :
+  - qualité, taille du texte en bataille, son (général, musique, effets, ambiances) ;
+  - vitesse des animations (×1, ×2, instantané) ;
+  - confirmation de fin de tour, conseils en bataille ;
+  - défilement aux bords et vitesse de la caméra ;
+  - liste des commandes, effacement de la campagne.
+- **La carte du conseil sert à la bataille** : elle est gardée (`ui/campaign/battle-map.ts`), et la bataille ne la régénère pas.
+- **Graines validées** par `scripts/campaign-scout.ts` (carte, approches, chaque plan) et par le test `campaign-maps`. En simulation IA contre IA, l'IA assaillante ouvre deux à sept ouvrages mais ne finit jamais la garnison avant le délai. C'est la faiblesse de l'IA en fin d'assaut, pas une mesure de la difficulté pour un joueur.
+**Conséquences** :
+- Écarts au brief : cinq châteaux au lieu de quatre, tutoriel séparé, pas de recrutement, de forge, d'XP ni d'arbre technologique. Les cartes du générateur se ressemblent (butte au nord, rivière au sud) : les châteaux se distinguent par l'heure, la météo, la garnison et les plans.
+- L'équilibrage fin des stratagèmes et de la difficulté revient à J7.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
