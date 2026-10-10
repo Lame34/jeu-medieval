@@ -6,6 +6,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { QUALITY_PRESET_IDS, QUALITY_PRESETS } from '../../render/quality/presets.ts';
 import { useCampaign } from '../../state/campaign.ts';
+import { cameraKeys, useKeyLabels } from '../../state/keyboard.ts';
 import { ANIMATION_SPEEDS, CAMERA_SPEEDS, TEXT_SCALES, useSettings, type SavedSettings, type VolumeBus } from '../../state/settings.ts';
 import { IronFrame } from '../components/IronFrame.tsx';
 import { navigate, ROUTES } from '../router.ts';
@@ -21,10 +22,11 @@ const CAMERA_LABEL = { slow: 'Lente', normal: 'Normale', fast: 'Rapide' } as con
 const TEXT_LABEL = { normal: 'Normal', large: 'Grand', larger: 'Très grand' } as const;
 const VOLUME_LABEL: Readonly<Record<VolumeBus, string>> = { master: 'Volume général', music: 'Musique', sfx: 'Effets', ambience: 'Ambiances' };
 
-const CONTROLS: readonly (readonly [string, string])[] = [
+/** The controls, the camera's keys as the player's keyboard prints them. */
+const controls = (keys: ReturnType<typeof cameraKeys>): readonly (readonly [string, string])[] => [
   ['Clic gauche', 'Sélectionner, se déplacer, attaquer'],
-  ['Z Q S D ou flèches', 'Déplacer la caméra (bords de l’écran aussi)'],
-  ['A / E, clic molette', 'Pivoter la caméra'],
+  [`${keys.move.join(' ')} ou flèches`, 'Déplacer la caméra (bords de l’écran aussi)'],
+  [`${keys.turn.join(' / ')}, clic molette`, 'Pivoter la caméra'],
   ['Molette', 'Zoomer'],
   ['Tab', 'Unité suivante'],
   ['Clic sur la mini-carte', 'Y porter la caméra'],
@@ -105,6 +107,7 @@ function ResetCampaign() {
 
 export default function OptionsScreen() {
   const s = useSettings();
+  const layout = useKeyLabels((k) => k.layout);
   const set = <K extends keyof SavedSettings>(key: K) => (v: SavedSettings[K]) => s.set(key, v);
   return (
     <main className="options-screen">
@@ -137,7 +140,7 @@ export default function OptionsScreen() {
             <Choice label="Vitesse" value={s.cameraSpeed} options={(Object.keys(CAMERA_SPEEDS) as (keyof typeof CAMERA_SPEEDS)[]).map((k) => [k, CAMERA_LABEL[k]] as const)} onChange={set('cameraSpeed')} />
             <h2>Commandes</h2>
             <dl className="options-controls">
-              {CONTROLS.map(([key, what]) => (
+              {controls(cameraKeys(layout)).map(([key, what]) => (
                 <div key={key}>
                   <dt>{key}</dt>
                   <dd>{what}</dd>

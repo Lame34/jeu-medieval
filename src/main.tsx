@@ -8,6 +8,9 @@ import './ui/theme/theme.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './ui/App.tsx';
+import { loadKeyboardLayout } from './state/keyboard.ts';
+
+loadKeyboardLayout();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('#root introuvable');

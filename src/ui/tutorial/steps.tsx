@@ -46,7 +46,7 @@ const catapultRange = DEFAULT_RULES.units['catapult']?.attack?.rangeM ?? 0;
 const NUMBERS = ['aucun homme', 'un homme', 'deux hommes', 'trois hommes', 'quatre hommes', 'cinq hommes'] as const;
 const surrenderLine = (n: number) => `${NUMBERS[n] ?? `${n} hommes`} debout`;
 
-export function tutorialSteps(turnLimit: number, surrendersAt: number): readonly TutorialStep[] {
+export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { readonly move: readonly string[]; readonly turn: readonly string[] }): readonly TutorialStep[] {
   return [
     {
       id: 'welcome',
@@ -62,7 +62,11 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number): readonly
       title: 'Regarder le terrain',
       text: (
         <>
-          Déplace la caméra avec <kbd>Z</kbd> <kbd>Q</kbd> <kbd>S</kbd> <kbd>D</kbd> (ou les flèches), ou en touchant les bords de l’écran. La molette zoome ; <kbd>A</kbd> et <kbd>E</kbd> font pivoter. La mini-carte, en haut à gauche, y porte la caméra d’un clic.
+          Déplace la caméra avec{' '}
+          {keys.move.map((k) => (
+            <kbd key={k}>{k}</kbd>
+          ))}{' '}
+          (ou les flèches), ou en touchant les bords de l’écran. La molette zoome ; <kbd>{keys.turn[0]}</kbd> et <kbd>{keys.turn[1]}</kbd> font pivoter. La mini-carte, en haut à gauche, y porte la caméra d’un clic.
         </>
       ),
       goal: { label: 'Déplacez la caméra', flag: 'cameraMoved' },

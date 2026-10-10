@@ -14,6 +14,7 @@ import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import type { CameraView } from '../../render/camera/TacticalCamera.tsx';
 import { useBattleUi } from '../../state/battle-ui.ts';
+import { cameraKeys, useKeyLabels } from '../../state/keyboard.ts';
 import { HeroEmblem } from '../campaign/HeroEmblem.tsx';
 import { PLAYER_FACTION, type BattleSession } from '../battle/session.ts';
 import { EMPTY_RECORD, tutorialSteps, type FocusTarget, type TutorialRecord } from './steps.tsx';
@@ -78,7 +79,8 @@ function flagsOf(event: GameEvent, state: BattleState): Partial<TutorialRecord> 
 }
 
 export function Tutorial({ session, layout, getView, focusOn, onDone }: { readonly session: BattleSession; readonly layout: WorldLayout; readonly getView: () => CameraView | null; readonly focusOn: (p: Vec2) => void; readonly onDone: () => void }) {
-  const steps = useMemo(() => tutorialSteps(session.state.turnLimit, garrisonStrength(session.ctx.rules, session.state.units).surrendersAt), [session]);
+  const keyboard = useKeyLabels((s) => s.layout);
+  const steps = useMemo(() => tutorialSteps(session.state.turnLimit, garrisonStrength(session.ctx.rules, session.state.units).surrendersAt, cameraKeys(keyboard)), [session, keyboard]);
   const [index, setIndex] = useState(0);
   const [record, setRecord] = useState<TutorialRecord>(EMPTY_RECORD);
   const [hidden, setHidden] = useState(false);
