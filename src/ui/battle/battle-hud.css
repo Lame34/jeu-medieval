@@ -10,6 +10,8 @@
 
 .battle-hud > * {
   pointer-events: auto;
+  /* Options: the battle's text size (cards, banner, journal). */
+  zoom: var(--ui-scale, 1);
 }
 
 .hud-card {
@@ -508,4 +510,73 @@ kbd {
     animation: none;
     box-shadow: 0 0 0 3px rgb(201 161 59 / 55%), var(--shadow-deep);
   }
+}
+
+/* Chronique de fin de bataille (campagne, leçon). */
+.hud-end {
+  max-width: min(560px, calc(100% - 32px));
+}
+
+.hud-end-story {
+  margin: 0 0 10px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.hud-end-banners {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin: 12px 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.hud-end-banners li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.45;
+}
+
+.hud-end-banners li[data-won] {
+  opacity: 1;
+  color: var(--gold-bright);
+}
+
+.hud-end-banners svg path {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.4;
+}
+
+.hud-end-banners li[data-won] svg path {
+  fill: var(--gold);
+}
+
+.hud-end-hero {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: 10px 0 0;
+  font-style: italic;
+}
+
+.hud-end-note {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #f0b0a0;
+}
+
+.hud-end-actions button[data-primary] {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, #a3301e, #7a1a10);
+  color: #fbe9d6;
+}
+
+.hud-briefing-lead {
+  font-style: italic;
 }

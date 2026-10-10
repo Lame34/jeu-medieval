@@ -25,17 +25,21 @@ import { useBattleUi } from '../../state/battle-ui.ts';
 import { useSceneStatus } from '../../state/scene-status.ts';
 import { useSettings } from '../../state/settings.ts';
 import { BattleHud } from '../battle/BattleHud.tsx';
-import { BattleSession, PLAYER_FACTION } from '../battle/session.ts';
+import { BattleSession, PLAYER_FACTION, type BattleShape } from '../battle/session.ts';
 import { requestEndTurn, unitsStillActing } from '../battle/end-turn.ts';
 import { navigate, ROUTES } from '../router.ts';
-import type { WorldgenRequest, WorldgenResponse } from '../workers/worldgen.worker.ts';
+import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
+import { CAMPAIGN } from '../../data/index.ts';
+import { useCampaign } from '../../state/campaign.ts';
+import { requestBattleMap } from '../campaign/battle-map.ts';
+import { battleSetupFrom, shapeOf, type BattleSetup } from '../campaign/battle-setup.ts';
+import { briefingFor, endFor } from '../campaign/battle-story.tsx';
+import { Tutorial } from '../tutorial/Tutorial.tsx';
 import { LoadingScreen } from './LoadingScreen.tsx';
 import './screens.css';
 
-const DEFAULT_SEED = 'siege-1';
 const OPENING_VIEW = 1;
 
-/** Seed and castle from the URL (`/battle?seed=…&castle=1..4`), for benches and replays. */
 /** Fixed weather and hour for captures and tests (?weather=rain&hour=21); drawn from the seed otherwise. */
 function conditionsParams(): Partial<BattleConditions> {
   const query = new URLSearchParams(window.location.search);
@@ -47,14 +51,23 @@ function conditionsParams(): Partial<BattleConditions> {
   };
 }
 
+/** Tests (?e2e&turns=N): the garrison holds only N rounds, so a test reaches the battle's end quickly. */
+function testTurnLimit(): number | null {
+  const query = new URLSearchParams(window.location.search);
+  const n = Number(query.get('turns'));
+  return query.has('e2e') && Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** The battle's shape, with a test's deadline last (it wins over the castle's). */
+function battleShape(setup: BattleSetup, resting: readonly string[]): BattleShape | undefined {
+  const shape = shapeOf(setup.mode, resting);
+  const turns = testTurnLimit();
+  if (turns === null) return shape;
+  return { effects: [...(shape?.effects ?? []), { turnLimit: turns }], ...(shape?.absentHeroes ? { absentHeroes: shape.absentHeroes } : {}) };
+}
+
 /** ?nosound: no soundscape (benches comparing with and without audio). */
 const NO_SOUND = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('nosound');
-
-function mapParams(): WorldgenRequest {
-  const query = new URLSearchParams(window.location.search);
-  const castle = Number(query.get('castle') ?? '1');
-  return { seed: query.get('seed') ?? DEFAULT_SEED, castleIndex: castle === 2 || castle === 3 || castle === 4 ? castle : 1 };
-}
 
 /** Markers of a battle's units, for the unit renderer (standing on decks where there are). */
 function markersOf(session: BattleSession): UnitMarker[] {
@@ -76,30 +89,33 @@ function siegeOf(session: BattleSession): CastleSiegeState[] {
   });
 }
 
-/** Generates the 500 m battle map in a worker (the page stays responsive), then shows it. */
-function useBattleMap(): { layout: WorldLayout | null; error: string | null } {
+/** Generates the 500 m battle map in a worker (the page stays responsive) — or takes the one the council drew its plan from — then shows it. */
+function useBattleMap(setup: BattleSetup): { layout: WorldLayout | null; error: string | null } {
   const [state, setState] = useState<{ layout: WorldLayout | null; error: string | null }>({ layout: null, error: null });
   useEffect(() => {
-    const worker = new Worker(new URL('../workers/worldgen.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (event: MessageEvent<WorldgenResponse>) => {
-      const data = event.data;
-      if (data.ok) {
+    let live = true;
+    requestBattleMap(setup.seed, setup.castleIndex).then(
+      (g) => {
+        if (!live) return;
         // Read by the bench and capture scripts (load-time budget, brief §7).
-        document.body.dataset['worldgenMs'] = data.ms.toFixed(0);
+        document.body.dataset['worldgenMs'] = g.ms.toFixed(0);
         document.body.dataset['layoutAtMs'] = performance.now().toFixed(0);
-        setState({ layout: data.layout, error: null });
-      } else setState({ layout: null, error: data.error });
-      worker.terminate();
+        setState({ layout: g.layout, error: null });
+      },
+      (e: unknown) => live && setState({ layout: null, error: e instanceof Error ? e.message : String(e) }),
+    );
+    return () => {
+      live = false;
     };
-    worker.onerror = (event) => setState({ layout: null, error: event.message });
-    worker.postMessage(mapParams());
-    return () => worker.terminate();
-  }, []);
+  }, [setup]);
   return state;
 }
 
 export default function BattleScreen() {
-  const { layout, error } = useBattleMap();
+  // The battle the URL asks for (tutorial, campaign castle, skirmish), and the heroes resting.
+  const setup = useMemo(() => battleSetupFrom(window.location.search), []);
+  const resting = useMemo(() => (setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []), [setup]);
+  const { layout, error } = useBattleMap(setup);
   const views = useMemo(() => (layout ? battleViews(layout) : []), [layout]);
   const camera = useRef<CameraHandle | null>(null);
   const setHour = useSettings((s) => s.setHour);
@@ -107,7 +123,7 @@ export default function BattleScreen() {
   // The battle itself (not in bench mode: measurements keep the map's fixed markers), unless
   // the bench asks for a live one (?bench&live: units, torches, weather, sound; no input).
   const live = !bench || new URLSearchParams(window.location.search).has('live');
-  const session = useMemo(() => (layout && live ? new BattleSession(layout, mapParams().seed, conditionsParams()) : null), [layout, live]);
+  const session = useMemo(() => (layout && live ? new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, resting)) : null), [layout, live, setup, resting]);
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
@@ -137,6 +153,23 @@ export default function BattleScreen() {
   );
   const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
+
+  // The campaign keeps the outcome: the castle taken and its banners, the heroes wounded (they rest
+  // through the next battle); the tutorial won is done.
+  useEffect(() => {
+    if (!session || setup.mode.kind === 'skirmish') return undefined;
+    const mode = setup.mode;
+    return session.subscribe((events, state) => {
+      if (!events.some((e) => e.type === 'battleEnded')) return;
+      if (mode.kind === 'tutorial') {
+        if (state.status === 'attackerWon') useCampaign.getState().finishTutorial();
+        return;
+      }
+      useCampaign.getState().recordBattle(mode.level.id, mode.stratagem?.id ?? null, bannersOf(CAMPAIGN, state), state.turn, woundedHeroes(session.ctx, state));
+    });
+  }, [session, setup]);
+  const toMap = useCallback(() => navigate(ROUTES.campaign), []);
+  const finishTutorial = useCallback(() => useCampaign.getState().finishTutorial(), []);
 
   // The scene is lit for the battle's hour and weather, round after round; under fog the
   // enemies none of the player's men can see are hidden (fog of war).
@@ -225,15 +258,16 @@ export default function BattleScreen() {
         <BattleHud
           onEndTurn={() => requestEndTurn(session)}
           stillActing={() => unitsStillActing(session)}
-          onReplay={() => window.location.reload()}
-          onLeave={() => navigate(ROUTES.title)}
+          briefing={briefingFor(setup.mode, resting)}
+          end={(battle) => endFor(setup.mode, battle, { replay: () => window.location.reload(), toMap, toTitle: () => navigate(ROUTES.title) })}
           actionsFor={(u) => actionsFor(session, u)}
           onAction={(id) => triggerAction(session, id)}
         />
       )}
+      {session && sceneReady && setup.mode.kind === 'tutorial' && <Tutorial session={session} layout={layout} getView={getView} focusOn={focusOn} onDone={finishTutorial} />}
       {!bench && (
-        <button type="button" className="scene-back" onClick={() => navigate(ROUTES.title)}>
-          ← Retour
+        <button type="button" className="scene-back" onClick={setup.mode.kind === 'skirmish' ? () => navigate(ROUTES.title) : toMap}>
+          {setup.mode.kind === 'skirmish' ? '← Retour' : '← Carte'}
         </button>
       )}
     </main>

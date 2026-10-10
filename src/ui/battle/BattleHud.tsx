@@ -3,12 +3,13 @@
  * preview under the pointer (move: AP and exposure; attack: odds, damage, riposte) and the
  * journal. Reads the battle UI store only; orders go through the session.
  */
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
+import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
 import { END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
@@ -233,11 +234,18 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
   }
 }
 
+/** What the opening briefing tells beyond the objective: a campaign castle's name, its lord, the plan. */
+export interface BriefingContent {
+  readonly title: string;
+  readonly lead?: ReactNode;
+}
+
 /** The opening briefing (turn 1): the objective, the ways in, the controls. */
-function Briefing({ turnLimit, onClose }: { readonly turnLimit: number; readonly onClose: () => void }) {
+function Briefing({ turnLimit, content, onClose }: { readonly turnLimit: number; readonly content: BriefingContent; readonly onClose: () => void }) {
   return (
     <section className="hud-card hud-briefing" aria-label="Objectif">
-      <h2>Prenez le château</h2>
+      <h2>{content.title}</h2>
+      {content.lead}
       <p>
         Anéantissez la garnison ou mettez-la en fuite avant le <strong>tour {turnLimit}</strong> : passé ce délai, les renforts lèvent le siège.
       </p>
@@ -254,8 +262,23 @@ function Briefing({ turnLimit, onClose }: { readonly turnLimit: number; readonly
   );
 }
 
+/** A button of the end panel. */
+export interface EndAction {
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly primary?: boolean;
+}
+
+/** What the end panel tells: a title and a story (a campaign's chronicle), more below the figures, the ways on. */
+export interface EndContent {
+  readonly title?: string;
+  readonly story?: ReactNode;
+  readonly extra?: ReactNode;
+  readonly actions: readonly EndAction[];
+}
+
 /** Losses and structures down, for the end panel. */
-function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState; readonly onReplay: () => void; readonly onLeave: () => void }) {
+function EndPanel({ battle, content }: { readonly battle: BattleState; readonly content: EndContent }) {
   const ending = useBattleUi((s) => s.ending);
   const won = battle.status === 'attackerWon';
   const side = (f: 'attacker' | 'defender') => {
@@ -273,7 +296,8 @@ function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState;
   if (filled > 0) works.push(`${filled} tronçon${filled > 1 ? 's' : ''} de douve comblé${filled > 1 ? 's' : ''}`);
   return (
     <div className="hud-end" role="status">
-      <h2>{won ? 'Victoire' : 'Défaite'}</h2>
+      <h2>{content.title ?? (won ? 'Victoire' : 'Défaite')}</h2>
+      {content.story}
       <p>{ending ? END_LABEL[battle.status === 'attackerWon' ? 'attackerWon' : 'defenderWon'][ending.reason] : won ? 'Les assaillants tiennent le terrain.' : 'Les défenseurs ont repoussé l’assaut.'}</p>
       <dl className="hud-end-stats">
         <dt>Tours</dt>
@@ -287,13 +311,13 @@ function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState;
         <dt>Siège</dt>
         <dd>{works.length > 0 ? works.join(', ') : 'aucun ouvrage tombé'}</dd>
       </dl>
+      {content.extra}
       <div className="hud-end-actions">
-        <button type="button" onClick={onReplay}>
-          Rejouer
-        </button>
-        <button type="button" onClick={onLeave}>
-          Retour
-        </button>
+        {content.actions.map((a) => (
+          <button key={a.label} type="button" onClick={a.onClick} data-primary={a.primary || undefined}>
+            {a.label}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -302,16 +326,18 @@ function EndPanel({ battle, onReplay, onLeave }: { readonly battle: BattleState;
 export function BattleHud({
   onEndTurn,
   stillActing,
-  onReplay,
-  onLeave,
+  briefing,
+  end,
   actionsFor,
   onAction,
 }: {
   readonly onEndTurn: () => void;
   /** Units of ours that could still act (the end-of-turn warning). */
   readonly stillActing: () => number;
-  readonly onReplay: () => void;
-  readonly onLeave: () => void;
+  /** The opening briefing (null: none, the tutorial guides instead). */
+  readonly briefing: BriefingContent | null;
+  /** The end panel, for the battle's final state. */
+  readonly end: (battle: BattleState) => EndContent;
   /** The selected unit's action buttons, and pressing one. */
   readonly actionsFor: (unit: UnitState) => readonly ActionButton[];
   readonly onAction: (id: ActionId) => void;
@@ -325,11 +351,13 @@ export function BattleHud({
   const armedAction = useBattleUi((s) => s.armedAction);
   const briefed = useBattleUi((s) => s.briefed);
   const hasSelected = useBattleUi((s) => s.hasSelected);
+  const hints = useSettings((s) => s.hints);
+  const textScale = useSettings((s) => TEXT_SCALES[s.textScale]);
   if (!battle) return null;
   const selected = selectedId ? battle.units.find((u) => u.id === selectedId && u.alive) : undefined;
   const playerTurn = battle.activeFaction === PLAYER_FACTION && battle.status === 'ongoing';
   return (
-    <div className="battle-hud">
+    <div className="battle-hud" style={{ '--ui-scale': textScale } as CSSProperties}>
       <header className="hud-banner" data-faction={battle.activeFaction}>
         <span>
           Tour {battle.turn} / {battle.turnLimit} · {FACTION_LABEL[battle.activeFaction]}
@@ -346,7 +374,7 @@ export function BattleHud({
       {selected && playerTurn && !busy && (
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
-          <p className="hud-hint">
+          {hints && <p className="hud-hint">
             {armedAction ? (
               <>
                 Visez puis cliquez · <kbd>Échap</kbd> annuler
@@ -356,17 +384,17 @@ export function BattleHud({
                 Clic : se déplacer, attaquer · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
               </>
             )}
-          </p>
+          </p>}
         </section>
       )}
-      {!briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} onClose={() => useBattleUi.getState().setBriefed()} />}
-      {!selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
+      {briefing && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing turnLimit={battle.turnLimit} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
+      {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (
           <li key={`${i}-${line}`}>{line}</li>
         ))}
       </ol>
-      {battle.status !== 'ongoing' && <EndPanel battle={battle} onReplay={onReplay} onLeave={onLeave} />}
+      {battle.status !== 'ongoing' && <EndPanel battle={battle} content={end(battle)} />}
     </div>
   );
 }
