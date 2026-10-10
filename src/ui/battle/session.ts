@@ -7,6 +7,8 @@ import { playTurn } from '../../core/ai/planner.ts';
 import type { AiRequest, AiResponse } from '../workers/ai.worker.ts';
 import { heroSpawnCells } from '../../core/battle/heroes.ts';
 import { drawConditions, lightsOf, type BattleConditions } from '../../core/battle/conditions.ts';
+import { shapeScenario } from '../../core/campaign/scenario.ts';
+import type { BattleEffects } from '../../core/campaign/types.ts';
 import { createBattleContext, deckAt, type BattleContext } from '../../core/battle/context.ts';
 import { createBattle } from '../../core/battle/create.ts';
 import { moatsOf } from '../../core/battle/moat.ts';
@@ -24,6 +26,12 @@ import { DEFAULT_RULES } from '../../data/index.ts';
 
 /** The side the player commands; the AI plays the other. */
 export const PLAYER_FACTION: Faction = 'attacker';
+
+/** A campaign battle's shape: the castle's and the stratagem's effects, the heroes who rest. */
+export interface BattleShape {
+  readonly effects: readonly BattleEffects[];
+  readonly absentHeroes?: readonly string[];
+}
 
 export type SessionListener = (events: readonly GameEvent[], state: BattleState) => void;
 
@@ -71,11 +79,13 @@ export class BattleSession {
   private readonly log: Command[] = [];
   private readonly listeners = new Set<SessionListener>();
 
-  constructor(layout: WorldLayout, seed: Seed, conditions: Partial<BattleConditions> = {}) {
+  constructor(layout: WorldLayout, seed: Seed, conditions: Partial<BattleConditions> = {}, shape?: BattleShape) {
     this.ctx = createBattleContext(layout.terrain, DEFAULT_RULES, layout.deck, planStructures(layout, DEFAULT_RULES.structures), moatsOf(layout), lightsOf(layout));
     this.seed = seed;
     // The battle's weather and start hour, drawn from the seed unless the caller fixes them.
-    this.scenario = { ...scenarioFrom(this.ctx, layout), ...drawConditions(DEFAULT_RULES, seed), ...conditions };
+    const scenario = { ...scenarioFrom(this.ctx, layout), ...drawConditions(DEFAULT_RULES, seed), ...conditions };
+    // A campaign battle: its castle's and stratagem's effects (the URL's conditions still win, for captures).
+    this.scenario = shape ? { ...shapeScenario(this.ctx, scenario, shape.effects, shape.absentHeroes), ...conditions } : scenario;
     this.current = createBattle(this.ctx, seed, this.scenario);
   }
 

@@ -1,0 +1,270 @@
+{
+  "$comment": "J6 (ADR-036) : la campagne du Val d'Orle. Une bataille d'essai, toujours la même, puis cinq châteaux faciles ; à chaque château, un conseil de guerre où chaque héros propose un stratagème. Les effets façonnent le scénario (src/core/campaign/scenario.ts) : garnison réduite (cut), renforts (reinforce), ouvrages entamés (structures), douve déjà comblée (fillMoat), heure, météo, délai (turnLimit, turnDelta) et moral de départ (morale, en points ajoutés). Graines choisies et validées par scripts/campaign-scout.ts.",
+  "realm": "Val d’Orle",
+  "prologue": "L’hiver dernier, le vieux comte Raoul est mort sans fils. Son cousin Thibaut de Morneval, que tout le Val appelle déjà le Félon, a fait fermer les portes de cinq châteaux et s’est proclamé seigneur du Val d’Orle. La comtesse Isabeau, nièce du défunt, vous confie son ost : trois compagnons, quelques engins, et le printemps pour reprendre ce qui lui revient.",
+  "epilogue": "Les cinq châteaux sont tombés. Isabeau entre à Haute-Garde au son des cloches, et le Val d’Orle a de nouveau une comtesse. Aude compte ses flèches, Bertrand répare ses engins, Guillaume dort enfin.",
+  "banners": { "swiftShare": 0.67, "maxLosses": 3 },
+  "tutorial": {
+    "id": "fortin",
+    "name": "Le Fortin du Gué",
+    "epithet": "la bataille d’essai",
+    "lord": "Mauclerc, chef de brigands",
+    "lordLine": "Venez donc ! On a de la soupe et des carreaux pour tout le monde.",
+    "intro": "Une bande de brigands s’est retranchée dans le vieux fortin qui garde le gué. Guillaume y voit une leçon toute trouvée : avant de marcher sur le Félon, chacun doit savoir tenir son rang, viser juste et faire tomber une muraille.",
+    "victory": "Les brigands se sont égaillés dans les bois. Guillaume hoche la tête : « Vous apprenez vite. Le Val d’Orle vous attend. »",
+    "defeat": "Les brigands tiennent encore le gué. Guillaume ramasse son épée : « On recommence. Personne n’a jamais pris un château du premier coup. »",
+    "seed": "orle-essai",
+    "castleIndex": 1,
+    "vignette": "fort",
+    "map": { "x": 0.13, "y": 0.74 },
+    "difficulty": 1,
+    "battle": {
+      "weather": "clear",
+      "startHour": 10,
+      "turnLimit": 30,
+      "cut": [
+        { "group": "outpost", "typeKey": "sallyKnight", "count": 1 },
+        { "group": "outpost", "typeKey": "crossbowman", "count": 1 },
+        { "group": "wall", "typeKey": "crossbowman", "count": 1 },
+        { "group": "wall", "typeKey": "wallGuard", "count": 1 }
+      ]
+    }
+  },
+  "levels": [
+    {
+      "id": "roche-grise",
+      "name": "Roche-Grise",
+      "epithet": "la sentinelle du nord",
+      "lord": "Sire Aymon le Prudent",
+      "lordLine": "Je tiens pour Thibaut… tant que Thibaut me paie.",
+      "intro": "Perchée sur un éperon de granit, Roche-Grise garde la route du nord. Sa garnison est maigre, son seigneur plus attaché à sa bourse qu’à son suzerain. Une première victoire à portée de main, si l’on ne traîne pas.",
+      "victory": "Sire Aymon a rendu son épée avant la nuit, en jurant qu’il n’avait jamais vraiment aimé Thibaut. La route du nord est ouverte.",
+      "defeat": "Roche-Grise tient bon. Sire Aymon double la solde de ses hommes : la prochaine fois, ils se battront pour de bon.",
+      "seed": "orle-roche",
+      "castleIndex": 1,
+      "vignette": "keep",
+      "map": { "x": 0.3, "y": 0.57 },
+      "difficulty": 1,
+      "battle": {
+        "weather": "clear",
+        "startHour": 9,
+        "cut": [
+          { "group": "outpost", "typeKey": "sallyKnight", "count": 1 },
+          { "group": "outpost", "typeKey": "crossbowman", "count": 1 },
+          { "group": "wall", "typeKey": "wallGuard", "count": 1 }
+        ]
+      },
+      "stratagems": [
+        {
+          "id": "lettres",
+          "hero": "heroArcher",
+          "name": "Lettres au bout des flèches",
+          "pitch": "Laissez-moi écrire à ses hommes. Une flèche, un parchemin : « Rendez-vous et rentrez chez vous, la solde en poche. » On verra combien restent sur les murs.",
+          "effects": { "cut": [{ "group": "courtyard", "typeKey": "militia", "count": 1 }, { "group": "outpost", "typeKey": "militia", "count": 1 }], "morale": { "defender": -10 } }
+        },
+        {
+          "id": "fascines",
+          "hero": "heroEngineer",
+          "name": "Les fascines de la nuit",
+          "pitch": "Vingt bûcherons et une nuit sans lune. Au matin, la douve aura son chemin de fagots au pied de la courtine : la tour n’aura plus qu’à rouler. Comptez un tour de perdu, pas plus.",
+          "effects": { "fillMoat": 1, "turnDelta": -1 }
+        },
+        {
+          "id": "aube",
+          "hero": "heroKnight",
+          "name": "L’aube et les bannières",
+          "pitch": "On attaque à l’aube, bannières hautes, en chantant. Rien ne glace une garnison comme une armée qui chante.",
+          "effects": { "startHour": 6, "morale": { "attacker": 15, "defender": -5 } }
+        }
+      ]
+    },
+    {
+      "id": "moulins",
+      "name": "Moulins-sur-Orle",
+      "epithet": "le château des meuniers",
+      "lord": "Dame Ermessinde",
+      "lordLine": "Le comte Thibaut m’a confié ces murs. Je les lui rendrai entiers.",
+      "intro": "Entre deux moulins, au bord de l’Orle, ce château prélève un sac sur dix de toute la farine du Val. Les meuniers grondent, la dame n’en a cure. Ses arbalétriers, eux, ont l’œil.",
+      "victory": "Les meuniers ont sonné les cloches et rouvert les vannes. On mangera du pain blanc ce soir, et Dame Ermessinde part pour le couvent.",
+      "defeat": "La dame fait relever la herse en riant. Les meuniers baissent la tête : le péage continue.",
+      "seed": "orle-moulins",
+      "castleIndex": 1,
+      "vignette": "mill",
+      "map": { "x": 0.46, "y": 0.75 },
+      "difficulty": 2,
+      "battle": {
+        "weather": "clear",
+        "startHour": 14,
+        "cut": [
+          { "group": "outpost", "typeKey": "sallyKnight", "count": 1 },
+          { "group": "wall", "typeKey": "wallGuard", "count": 1 }
+        ]
+      },
+      "stratagems": [
+        {
+          "id": "poterne",
+          "hero": "heroArcher",
+          "name": "La poterne du meunier",
+          "pitch": "Gautier le meunier connaît la poterne sous la porte. Pour une bourse, il sciera les chaînes de la herse et entaillera les gonds. Je lui ai promis de ne pas le faire attendre.",
+          "effects": { "structures": [{ "kind": "portcullis", "broken": true }, { "kind": "gate", "hpFraction": 0.5 }] }
+        },
+        {
+          "id": "catapulte",
+          "hero": "heroEngineer",
+          "name": "La catapulte du moulin",
+          "pitch": "Le moulin d’aval a de belles poutres et une roue qui ne sert plus à rien. Deux tours de travail, et je vous en fais une seconde catapulte. Elle grincera, mais elle tirera.",
+          "effects": { "reinforce": [{ "typeKey": "catapult", "count": 1 }], "turnDelta": -2 }
+        },
+        {
+          "id": "meuniers",
+          "hero": "heroKnight",
+          "name": "Les fils des meuniers",
+          "pitch": "Les garçons du moulin veulent en découdre. Donnez-leur des boucliers, je leur apprendrai à les tenir.",
+          "effects": { "reinforce": [{ "typeKey": "soldier", "count": 2 }], "morale": { "attacker": 5 } }
+        }
+      ]
+    },
+    {
+      "id": "brumefond",
+      "name": "Brumefond",
+      "epithet": "le château des brumes",
+      "lord": "Messire Foulques, dit le Loup",
+      "lordLine": "Dans ma brume, c’est moi qui vois.",
+      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans un brouillard qui ne se lève qu’à midi. On n’y voit pas à trente pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
+      "victory": "La brume s’est levée sur la bannière de la comtesse. Foulques s’est enfui par les marais, ses bottes à la main.",
+      "defeat": "Le brouillard a avalé vos hommes un à un. Du haut de sa muraille, Foulques hurle comme le loup qu’il prétend être.",
+      "seed": "orle-brume",
+      "castleIndex": 2,
+      "vignette": "marsh",
+      "map": { "x": 0.57, "y": 0.45 },
+      "difficulty": 3,
+      "battle": {
+        "weather": "fog",
+        "startHour": 7,
+        "cut": [{ "group": "outpost", "typeKey": "sallyKnight", "count": 1 }]
+      },
+      "stratagems": [
+        {
+          "id": "sentinelles",
+          "hero": "heroArcher",
+          "name": "Les sentinelles muettes",
+          "pitch": "Dans la brume, une flèche ne fait pas de bruit. Mes archers passeront par les roseaux et feront taire les guetteurs avant que la garnison ne s’éveille.",
+          "effects": { "cut": [{ "group": "wall", "typeKey": "crossbowman", "count": 2 }] }
+        },
+        {
+          "id": "vent",
+          "hero": "heroEngineer",
+          "name": "Attendre le vent",
+          "pitch": "Je ne vise pas ce que je ne vois pas. Le vent tournera vers midi : attendons-le, et mes engins feront le reste. Le délai, lui, ne nous attendra pas.",
+          "effects": { "weather": "clear", "startHour": 12, "turnDelta": -3 }
+        },
+        {
+          "id": "lances",
+          "hero": "heroKnight",
+          "name": "Les lances du marais",
+          "pitch": "Les seigneurs du marais haïssent Foulques. Deux d’entre eux m’ont promis leurs lances, pourvu qu’ils frappent les premiers.",
+          "effects": { "reinforce": [{ "typeKey": "cavalry", "count": 2 }] }
+        }
+      ]
+    },
+    {
+      "id": "pierre-ardente",
+      "name": "Pierre-Ardente",
+      "epithet": "le château aux hourds",
+      "lord": "Hugues le Roux",
+      "lordLine": "Qu’ils viennent. Mes hourds ont soif.",
+      "intro": "Haute muraille, hourds de chêne sur les tours, et un capitaine qui a juré de ne jamais se rendre. Le soir tombe quand l’ost arrive en vue ; bientôt, seules les torches des remparts éclaireront le combat.",
+      "victory": "Pierre-Ardente a mérité son nom : ses hourds fument encore. Hugues le Roux a tenu parole. Il ne s’est pas rendu : il a été pris.",
+      "defeat": "Les torches de Pierre-Ardente brûlent toute la nuit. Hugues fait sonner les trompes : il a tenu.",
+      "seed": "orle-ardente",
+      "castleIndex": 2,
+      "vignette": "hoardings",
+      "map": { "x": 0.73, "y": 0.66 },
+      "difficulty": 4,
+      "battle": {
+        "weather": "clear",
+        "startHour": 18,
+        "cut": [{ "group": "outpost", "typeKey": "militia", "count": 1 }]
+      },
+      "stratagems": [
+        {
+          "id": "flambeaux",
+          "hero": "heroArcher",
+          "name": "Les flambeaux de minuit",
+          "pitch": "À minuit, la moitié de la garnison dort et l’autre bâille. Hors de la lumière des torches, leurs carreaux ne porteront pas loin, et nos flèches enflammées n’en brilleront que mieux.",
+          "effects": { "startHour": 22, "morale": { "defender": -15 } }
+        },
+        {
+          "id": "mine",
+          "hero": "heroEngineer",
+          "name": "La mine sous la courtine",
+          "pitch": "Mes sapeurs creusent sous la courtine depuis trois nuits. Elle ne tient plus que par habitude. Encore deux tours de patience, et une seule pierre suffira.",
+          "effects": { "structures": [{ "kind": "wall", "hpFraction": 0.3 }], "turnDelta": -2 }
+        },
+        {
+          "id": "defi",
+          "hero": "heroKnight",
+          "name": "Le défi",
+          "pitch": "Je défierai Hugues devant ses murs. S’il refuse, ses hommes sauront que leur capitaine a peur. S’il accepte, ils le sauront aussi, un peu après.",
+          "effects": { "morale": { "defender": -20, "attacker": 10 } }
+        }
+      ]
+    },
+    {
+      "id": "haute-garde",
+      "name": "Haute-Garde",
+      "epithet": "le nid du Félon",
+      "lord": "Thibaut de Morneval, dit le Félon",
+      "lordLine": "Le Val d’Orle est à moi. Venez donc me le reprendre.",
+      "intro": "La plus grande forteresse du Val se dresse sur sa butte de calcaire. Thibaut s’y est enfermé avec ses meilleurs hommes et le trésor du vieux comte. Tout finit ici : prenez Haute-Garde, et le Val d’Orle est libre.",
+      "victory": "La bannière d’Isabeau flotte sur le donjon de Haute-Garde. On a trouvé Thibaut le Félon dans la cave, assis sur le trésor qu’il n’a pas eu le temps d’emporter.",
+      "defeat": "Haute-Garde tient. Thibaut fait festoyer ses hommes sur les remparts ; on entend leurs chants jusqu’au camp.",
+      "seed": "orle-haute",
+      "castleIndex": 3,
+      "vignette": "citadel",
+      "map": { "x": 0.85, "y": 0.27 },
+      "difficulty": 5,
+      "battle": { "weather": "clear", "startHour": 15, "turnLimit": 26 },
+      "stratagems": [
+        {
+          "id": "guetteur",
+          "hero": "heroArcher",
+          "name": "Le guetteur de la porte",
+          "pitch": "Un guetteur de la tour de porte me doit la vie : une vieille histoire de pari et de pomme sur la tête. À notre signal, il coupera la corde du treuil.",
+          "effects": { "structures": [{ "kind": "drawbridge", "broken": true }] }
+        },
+        {
+          "id": "deux-tours",
+          "hero": "heroEngineer",
+          "name": "Deux tours valent mieux qu’une",
+          "pitch": "J’ai dessiné une seconde tour de siège, et les fascines de la première sont prêtes. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
+          "effects": { "reinforce": [{ "typeKey": "siegeTower", "count": 1 }], "fillMoat": 1, "turnDelta": -3 }
+        },
+        {
+          "id": "comtesse",
+          "hero": "heroKnight",
+          "name": "La comtesse en personne",
+          "pitch": "La comtesse veut voir tomber Haute-Garde de ses yeux. Sa garde vient avec elle, et nos hommes se battront comme des lions sous son regard.",
+          "effects": { "reinforce": [{ "typeKey": "knight", "count": 2 }], "morale": { "attacker": 15 } }
+        }
+      ]
+    }
+  ],
+  "heroLines": {
+    "heroArcher": {
+      "victory": ["J’en ai compté quarante-trois. Qui dit mieux ?", "Belle prise. On aurait pu viser plus vite, mais belle prise.", "Je garde la bannière ; vous, gardez les prisonniers."],
+      "defeat": ["On reviendra. Et cette fois, c’est moi qui compterai les leurs.", "Mes flèches ne manquaient pas. Le temps, si."],
+      "resting": "Aude se remet de ses blessures. Elle jure qu’elle tirerait mieux couchée que la moitié de vos archers debout."
+    },
+    "heroEngineer": {
+      "victory": ["Les murs tombent quand on leur parle correctement.", "Hm. Les calculs étaient justes.", "Qu’on ramasse mes engins. Délicatement."],
+      "defeat": ["Le bois était vert. Je l’avais dit.", "Une autre fois. Avec plus de cordes."],
+      "resting": "Bertrand, la jambe bandée, dessine des engins sur la toile de sa tente. Il ne marchera pas cette fois."
+    },
+    "heroKnight": {
+      "victory": ["Bien. Suivant.", "Trente ans de sièges, et ça me fait toujours le même effet.", "Les hommes ont bien tenu. Dites-le-leur."],
+      "defeat": ["On se relève. On recommence.", "Un siège perdu n’est qu’un siège pas encore gagné."],
+      "resting": "Guillaume grogne qu’une égratignure ne l’a jamais arrêté. Le chirurgien l’a attaché à son lit."
+    }
+  }
+}

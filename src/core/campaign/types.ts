@@ -1,0 +1,113 @@
+/**
+ * The campaign (J6): a tutorial battle and five castles of the Val d'Orle, each taken in a battle
+ * shaped by the castle (its garrison, the hour, the weather) and by the stratagem the player picks
+ * at the council of war, one per hero. Every effect is written into the battle's Scenario, so a
+ * campaign battle replays like any other (seed + scenario + commands).
+ */
+import type { Weather } from '../battle/conditions.ts';
+import type { StructureKind } from '../battle/structures.ts';
+import type { Faction } from '../rules/types.ts';
+import type { GarrisonGroup } from '../worldgen/garrison.ts';
+
+/** Defenders left out of the battle (deserters, men elsewhere): `count` of a group and/or a type. */
+export interface GarrisonCut {
+  readonly group?: GarrisonGroup;
+  readonly typeKey?: string;
+  readonly count: number;
+}
+
+/** Attackers joining the army, behind it (engines behind the siege park). */
+export interface Reinforcement {
+  readonly typeKey: string;
+  readonly count: number;
+}
+
+/** The castle's structure of this kind nearest the army, damaged or down at the start. */
+export interface StructureEffect {
+  readonly kind: StructureKind;
+  /** Remaining HP over maximum, in (0, 1]. */
+  readonly hpFraction?: number;
+  readonly broken?: boolean;
+}
+
+/** What shapes a battle: the castle's own conditions, then a stratagem's changes. */
+export interface BattleEffects {
+  /** Fixed weather and start hour (later effects win). */
+  readonly weather?: Weather;
+  readonly startHour?: number;
+  /** Rounds the garrison must hold (the rules' limit when absent). */
+  readonly turnLimit?: number;
+  /** Rounds won or lost (the time a stratagem takes, added up). */
+  readonly turnDelta?: number;
+  /** Added to a side's starting morale. */
+  readonly morale?: Readonly<Partial<Record<Faction, number>>>;
+  readonly cut?: readonly GarrisonCut[];
+  readonly reinforce?: readonly Reinforcement[];
+  readonly structures?: readonly StructureEffect[];
+  /** Moat slots already crossed by fascines, in front of the walls nearest the siege towers. */
+  readonly fillMoat?: number;
+}
+
+/** A hero's plan at the council of war. */
+export interface Stratagem {
+  readonly id: string;
+  /** The hero who proposes it (a key of the rules' heroes). */
+  readonly hero: string;
+  readonly name: string;
+  /** The hero's words. */
+  readonly pitch: string;
+  readonly effects: BattleEffects;
+}
+
+/** Castle drawings of the campaign map. */
+export const VIGNETTES = ['fort', 'keep', 'mill', 'marsh', 'hoardings', 'citadel'] as const;
+export type Vignette = (typeof VIGNETTES)[number];
+
+export type CastleIndex = 1 | 2 | 3 | 4;
+
+/** A battle of the campaign: the castle, its story, its map and its conditions. */
+export interface CampaignBattle {
+  readonly id: string;
+  readonly name: string;
+  /** "la sentinelle des collines". */
+  readonly epithet: string;
+  readonly lord: string;
+  /** The lord's words, on the castle's letter. */
+  readonly lordLine: string;
+  readonly intro: string;
+  /** The chronicle's page, won or lost. */
+  readonly victory: string;
+  readonly defeat: string;
+  readonly seed: string;
+  readonly castleIndex: CastleIndex;
+  readonly vignette: Vignette;
+  /** Place on the campaign map (0–1 across, 0–1 down). */
+  readonly map: { readonly x: number; readonly y: number };
+  /** 1–5 shields. */
+  readonly difficulty: number;
+  readonly battle: BattleEffects;
+}
+
+export interface CampaignLevel extends CampaignBattle {
+  /** Three, one per hero. */
+  readonly stratagems: readonly Stratagem[];
+}
+
+/** A hero's words after a campaign battle. */
+export interface HeroCampaignLines {
+  readonly victory: readonly string[];
+  readonly defeat: readonly string[];
+  /** While the hero rests (they miss the battle after a grave wound). */
+  readonly resting: string;
+}
+
+export interface CampaignData {
+  readonly realm: string;
+  readonly prologue: string;
+  readonly epilogue: string;
+  readonly tutorial: CampaignBattle;
+  readonly levels: readonly CampaignLevel[];
+  /** The three banners of a victory: taken, swiftly (within this share of the turn limit), with few losses. */
+  readonly banners: { readonly swiftShare: number; readonly maxLosses: number };
+  readonly heroLines: Readonly<Record<string, HeroCampaignLines>>;
+}
