@@ -184,7 +184,11 @@
       "battle": {
         "weather": "clear",
         "startHour": 18,
-        "cut": [{ "group": "outpost", "typeKey": "militia", "count": 1 }]
+        "turnLimit": 26,
+        "cut": [
+          { "group": "outpost", "typeKey": "militia", "count": 1 },
+          { "group": "tower", "typeKey": "towerArcher", "count": 1 }
+        ]
       },
       "stratagems": [
         {
