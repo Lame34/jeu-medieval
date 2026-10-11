@@ -1,0 +1,34 @@
+# Checks on every push to main and every pull request: the same gates as on the development machine
+# (types, lint, the core's tests, the production build) and the shipped dependencies' audit. The
+# end-to-end tests need a real GPU (hardware WebGL2) and run on the development machine only.
+name: Vérifications
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Audit des dépendances livrées
+        run: npm audit --omit=dev --audit-level=high
