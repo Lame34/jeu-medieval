@@ -14,10 +14,11 @@ import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
 import { actionPoints, END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
+import { E2E } from '../test-flags.ts';
 import './battle-hud.css';
 
 /** Test runs (?e2e) start without the opening briefing (it would cover their captures). */
-const NO_BRIEFING = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('e2e');
+const NO_BRIEFING = E2E;
 const pct = (p: number) => `${Math.round(p * 100)} %`;
 const COVER_LABEL = { none: 'aucun', light: 'léger', partial: 'partiel', heavy: 'lourd' } as const;
 const STANDING_LABEL = { steady: 'Ferme', shaken: 'Ébranlée', fleeing: 'En fuite' } as const;

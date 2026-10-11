@@ -152,9 +152,12 @@ export default function OptionsScreen() {
             <button type="button" className="option__plain" onClick={s.restoreDefaults}>
               Rétablir les options par défaut
             </button>
-            <button type="button" className="option__plain" onClick={() => navigate(ROUTES.lookdev)}>
-              Atelier du peintre (réglage de la lumière)
-            </button>
+            {/* The light-tuning workshop is a development tool: not in the players' menu. */}
+            {import.meta.env.DEV && (
+              <button type="button" className="option__plain" onClick={() => navigate(ROUTES.lookdev)}>
+                Atelier du peintre (réglage de la lumière)
+              </button>
+            )}
           </div>
         </div>
       </section>

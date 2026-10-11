@@ -46,6 +46,7 @@ import { audio, type SoundId } from '../../audio/engine.ts';
 import { ANIMATION_SPEEDS, useSettings } from '../../state/settings.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
 import type { UnitHandle } from '../units/Units.tsx';
+import { E2E } from '../../ui/test-flags.ts';
 
 /** Walking and running speeds (m/s); paths longer than RUN_FROM_M are run. */
 const WALK_SPEED = 2.2;
@@ -87,7 +88,7 @@ const OUT_OF_VIEW_SPEED = 12;
  * view still play at once): what happened to the archer on the left is seen, not only read.
  * Test runs (?e2e) keep the camera where the test put it.
  */
-const FOLLOW_ENEMY_BLOWS = typeof window === 'undefined' || !new URLSearchParams(window.location.search).has('e2e');
+const FOLLOW_ENEMY_BLOWS = !E2E;
 /** Well in the picture: inside this share of the screen's half-width and half-height. */
 const WELL_IN_VIEW_NDC = 0.75;
 /** Pointer travel (px) above which a press is a drag, not a click. */
@@ -918,7 +919,7 @@ export function BattleDirector({
 
   // --- Test hook (?e2e): drive and observe the battle from Playwright ----------------------
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has('e2e')) return undefined;
+    if (!E2E) return undefined;
     const toScreen = (x: number, y: number, z: number) => {
       const v = new Vector3(x, y, z).project(camera);
       const r = gl.domElement.getBoundingClientRect();
