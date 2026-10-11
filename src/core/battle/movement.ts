@@ -53,7 +53,7 @@ export function occupancy(ctx: BattleContext, state: BattleState): Map<number, U
 }
 
 /** Enemies block movement; allies can be walked through but not stopped on. */
-function enemyBlocker(occupied: Map<number, UnitState>, mover: UnitState): BlockedPredicate {
+export function enemyBlocker(occupied: Map<number, UnitState>, mover: UnitState): BlockedPredicate {
   return (index) => {
     const other = occupied.get(index);
     return other !== undefined && other.faction !== mover.faction;

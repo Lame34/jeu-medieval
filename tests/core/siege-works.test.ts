@@ -28,6 +28,7 @@ import {
   type Vec2,
 } from '@core/index.ts';
 import { FILL_BELOW_SILL_M, fillCells, fillSiteAt, fillSiteId, fillSurfaceM, moatsOf, type MoatInfo } from '@core/battle/moat.ts';
+import { planFill, planUndermine } from '@core/battle/reach.ts';
 import { previewFill, previewUndermine, resolveWork, workState } from '@core/battle/siege-works.ts';
 import { navSignature, syncNav, type StructureDef } from '@core/battle/structures.ts';
 import { cellCenterHeight } from '@core/terrain-data/terrain-data.ts';
@@ -238,6 +239,17 @@ describe('fillMoat and undermine: rejections', () => {
   it('outOfRange: a sapper far from the slot or from the wall foot', () => {
     expect(reject(ctx, withUnit(state, SAPPER, { position: at(2, ROW) }), fill())).toBe('outOfRange');
     expect(reject(ctx, withUnit(state, SAPPER_WALL, { position: at(14, 5) }), mine())).toBe('outOfRange');
+  });
+
+  it('a sapper out of reach walks first, then works, when the turn allows both', () => {
+    const away = withUnit(state, SAPPER, { position: at(5, ROW) });
+    const toFill = planFill(ctx, away, SAPPER, DITCH_POINT);
+    expect(toFill?.move).not.toBeNull();
+    expect(run(ctx, away, { type: 'move', unitId: SAPPER, to: toFill!.move!.destination }, fill()).rejections).toEqual([null, null]);
+    const walling = withUnit(state, SAPPER_WALL, { position: at(16, 5) });
+    const toMine = planUndermine(ctx, walling, SAPPER_WALL, IDS.wallA);
+    expect(toMine?.move).not.toBeNull();
+    expect(run(ctx, walling, { type: 'move', unitId: SAPPER_WALL, to: toMine!.move!.destination }, mine()).rejections).toEqual([null, null]);
   });
 
   it('noActionLeft and insufficientAp', () => {
