@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import { QUALITY_PRESET_IDS, type QualityPresetId } from '../render/quality/presets.ts';
+import { readStored, writeStored } from './storage.ts';
 
 /** How fast the battle's animations play: ×1, ×2, or at once (brief §10). */
 export const ANIMATION_SPEEDS = { normal: 1, fast: 2, instant: 30 } as const;
@@ -68,17 +69,13 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 const unit = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback);
 const flag = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean' ? v : fallback);
 
-/** Saved options, each checked (an old or hand-edited save keeps what is valid). */
+const asRecord = (v: unknown): Readonly<Record<string, unknown>> => (typeof v === 'object' && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+/** Saved options, each checked (an old, damaged or hand-edited save keeps what is valid). */
 function load(): SavedSettings {
-  let raw: Record<string, unknown> = {};
-  try {
-    const text = window.localStorage.getItem(STORAGE_KEY);
-    if (text) raw = JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
+  const raw = asRecord(readStored(STORAGE_KEY));
   const d = DEFAULT_SETTINGS;
-  const v = (raw['volumes'] ?? {}) as Record<string, unknown>;
+  const v = asRecord(raw['volumes']);
   return {
     quality: oneOf(raw['quality'], QUALITY_PRESET_IDS, d.quality),
     muted: flag(raw['muted'], d.muted),
@@ -94,13 +91,9 @@ function load(): SavedSettings {
 
 const SAVED_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof SavedSettings)[];
 
+/** Writes the options (refused by the browser: they hold for this session). */
 function save(s: SavedSettings): void {
-  const out = Object.fromEntries(SAVED_KEYS.map((k) => [k, s[k]]));
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
-  } catch {
-    // Not saved: the options hold for this session.
-  }
+  writeStored(STORAGE_KEY, JSON.stringify(Object.fromEntries(SAVED_KEYS.map((k) => [k, s[k]]))));
 }
 
 export const useSettings = create<SettingsState>((set) => ({

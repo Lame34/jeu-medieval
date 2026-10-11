@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import type { CampaignBattle, CampaignLevel } from '../../core/campaign/types.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
+import { isSaveOf, loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { bannerTotal, isUnlocked, useCampaign, type CastleRecord } from '../../state/campaign.ts';
 import { CampaignMap, type MapNode } from '../campaign/CampaignMap.tsx';
 import { HeroEmblem } from '../campaign/HeroEmblem.tsx';
@@ -110,6 +111,9 @@ function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignB
   const record = lesson ? undefined : conquered[battle.id];
   const unlocked = lesson || isUnlocked(CAMPAIGN, conquered, index);
   const previous = index > 0 ? CAMPAIGN.levels[index - 1] : undefined;
+  // This castle's battle left unfinished, if it was.
+  const [save] = useState(loadBattleSave);
+  const saved = isSaveOf(save, battle.id, lesson) ? save : null;
   return (
     <>
       <h2 className="letter__title">{battle.name}</h2>
@@ -129,6 +133,11 @@ function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignB
         </>
       )}
       <div className="letter__actions">
+        {saved && (
+          <button type="button" className="letter__go" onClick={() => navigate(ROUTES.battle, resumeParams(saved))}>
+            Reprendre la bataille, au tour {saved.turn}
+          </button>
+        )}
         {lesson ? (
           <button type="button" className="letter__go" onClick={() => navigate(ROUTES.battle, { tutorial: '' })}>
             {tutorialDone ? 'Refaire la leçon' : 'Commencer la leçon'}

@@ -1,4 +1,6 @@
 import { CAMPAIGN } from '../../data/index.ts';
+import { useState } from 'react';
+import { loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { useCampaign } from '../../state/campaign.ts';
 import { IronFrame } from '../components/IronFrame.tsx';
 import { navigate, ROUTES } from '../router.ts';
@@ -22,7 +24,10 @@ function skirmishSeed(): string {
 export function TitleScreen() {
   const tutorialDone = useCampaign((s) => s.tutorialDone);
   const taken = useCampaign((s) => CAMPAIGN.levels.filter((l) => s.conquered[l.id]).length);
+  // A battle left unfinished comes first: one click takes it up where it was.
+  const [saved] = useState(loadBattleSave);
   const menu: readonly MenuEntry[] = [
+    ...(saved ? [{ label: 'Reprendre la bataille', hint: `${saved.title}, au tour ${saved.turn}`, action: () => navigate(ROUTES.battle, resumeParams(saved)) }] : []),
     { label: 'Bataille d’essai', hint: 'Guillaume vous apprend le siège, pas à pas', action: () => navigate(ROUTES.battle, { tutorial: '' }), ...(tutorialDone ? {} : { mark: 'Commencez ici' }) },
     { label: 'Campagne', hint: taken > 0 ? `${taken} château${taken > 1 ? 'x' : ''} sur ${CAMPAIGN.levels.length} repris au Félon` : `Cinq châteaux à reprendre au ${CAMPAIGN.realm}`, action: () => navigate(ROUTES.campaign) },
     { label: 'Escarmouche', hint: 'Un château au hasard, sans histoire', action: () => navigate(ROUTES.battle, { seed: skirmishSeed() }) },

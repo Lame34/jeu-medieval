@@ -32,10 +32,14 @@ import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
 import { CAMPAIGN } from '../../data/index.ts';
 import { useCampaign } from '../../state/campaign.ts';
 import { requestBattleMap } from '../campaign/battle-map.ts';
-import { battleSetupFrom, shapeOf, type BattleSetup } from '../campaign/battle-setup.ts';
+import { battleKey, battleQuery, battleSetupFrom, battleTitle, shapeOf, type BattleSetup } from '../campaign/battle-setup.ts';
+import { hashBattleState } from '../../core/battle/replay.ts';
+import type { BattleSave } from '../../core/save/battle-save.ts';
+import { clearBattleSave, loadBattleSave, savedAtLabel, storeBattleSave } from '../../state/battle-save.ts';
 import { briefingFor, endFor } from '../campaign/battle-story.tsx';
 import { Tutorial } from '../tutorial/Tutorial.tsx';
 import { LoadingScreen } from './LoadingScreen.tsx';
+import { E2E } from '../test-flags.ts';
 import './screens.css';
 
 const OPENING_VIEW = 1;
@@ -55,7 +59,7 @@ function conditionsParams(): Partial<BattleConditions> {
 function testTurnLimit(): number | null {
   const query = new URLSearchParams(window.location.search);
   const n = Number(query.get('turns'));
-  return query.has('e2e') && Number.isInteger(n) && n > 0 ? n : null;
+  return E2E && Number.isInteger(n) && n > 0 ? n : null;
 }
 
 /** The battle's shape, with a test's deadline last (it wins over the castle's). */
@@ -73,9 +77,45 @@ function battleShape(setup: BattleSetup, resting: readonly string[]): BattleShap
 function wantsIntro(): boolean {
   if (typeof window === 'undefined') return false;
   const params = new URLSearchParams(window.location.search);
-  if (params.has('e2e') || params.has('fast')) return false;
+  if (E2E || params.has('fast')) return false;
   if (useSettings.getState().animation === 'instant') return false;
   return !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** Driven test runs and benches (?e2e, ?bench) neither save their battle nor take one up. */
+function isTestRun(): boolean {
+  return E2E || isBenchMode();
+}
+
+/** Take up the saved battle (`resume`), start afresh, or ask first. */
+type ResumeChoice = 'ask' | 'resume' | 'fresh';
+
+/** The question when this battle was left unfinished: take it up, or start it again. */
+function ResumeDialog({ save, onChoose }: { readonly save: BattleSave; readonly onChoose: (choice: 'resume' | 'fresh') => void }) {
+  return (
+    <div className="resume-screen">
+      <section className="resume-dialog parchment-sheet" role="dialog" aria-modal="true" aria-labelledby="resume-title">
+        <h2 id="resume-title">Une bataille était en cours</h2>
+        <p>
+          {save.title} : vous l’aviez laissée au <strong>tour {save.turn}</strong>, {savedAtLabel(save.savedAt)}.
+        </p>
+        <div className="resume-dialog__actions">
+          <button type="button" data-primary onClick={() => onChoose('resume')}>
+            Reprendre la bataille
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              clearBattleSave();
+              onChoose('fresh');
+            }}
+          >
+            Recommencer depuis le début
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 /** ?nosound: no soundscape (benches comparing with and without audio). */
@@ -126,7 +166,16 @@ function useBattleMap(setup: BattleSetup): { layout: WorldLayout | null; error: 
 export default function BattleScreen() {
   // The battle the URL asks for (tutorial, campaign castle, skirmish), and the heroes resting.
   const setup = useMemo(() => battleSetupFrom(window.location.search), []);
-  const resting = useMemo(() => (setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []), [setup]);
+  // A battle left unfinished is taken up: at once from the menus (?resume), after a question here.
+  const testRun = isTestRun();
+  const [saved] = useState(() => {
+    const save = testRun ? null : loadBattleSave();
+    return save && save.key === battleKey(setup) ? save : null;
+  });
+  const [choice, setChoice] = useState<ResumeChoice>(() => (!saved ? 'fresh' : new URLSearchParams(window.location.search).has('resume') ? 'resume' : 'ask'));
+  const resuming = choice === 'resume' && saved !== null;
+  // The heroes resting when the battle began (the saved ones when it is taken up).
+  const resting = useMemo(() => (resuming ? saved.absentHeroes : setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []), [setup, resuming, saved]);
   const { layout, error } = useBattleMap(setup);
   const views = useMemo(() => (layout ? battleViews(layout) : []), [layout]);
   const camera = useRef<CameraHandle | null>(null);
@@ -135,7 +184,17 @@ export default function BattleScreen() {
   // The battle itself (not in bench mode: measurements keep the map's fixed markers), unless
   // the bench asks for a live one (?bench&live: units, torches, weather, sound; no input).
   const live = !bench || new URLSearchParams(window.location.search).has('live');
-  const session = useMemo(() => (layout && live ? new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, resting)) : null), [layout, live, setup, resting]);
+  const started = useMemo(() => {
+    if (!layout || !live || choice === 'ask') return null;
+    const fresh = () => new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []));
+    if (!resuming) return { session: fresh(), lost: false };
+    const session = new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, resting));
+    if (session.restore(saved)) return { session, lost: false };
+    // Saved by another version of the game: it starts again, and the save is set aside.
+    clearBattleSave();
+    return { session: fresh(), lost: true };
+  }, [layout, live, setup, resting, choice, resuming, saved]);
+  const session = started?.session ?? null;
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
@@ -165,6 +224,29 @@ export default function BattleScreen() {
   );
   const sceneReady = useSceneStatus((s) => s.ready);
   useEffect(() => () => useBattleUi.getState().reset(), []);
+
+  // After every order, the battle is saved; once it is over, the save goes.
+  useEffect(() => {
+    if (!session || testRun) return undefined;
+    const key = battleKey(setup);
+    const url = `${ROUTES.battle}?${new URLSearchParams(battleQuery(setup)).toString()}`;
+    const title = battleTitle(setup);
+    return session.subscribe((_, state) => {
+      if (state.status !== 'ongoing') {
+        clearBattleSave();
+        return;
+      }
+      storeBattleSave({ key, url, title, turn: state.turn, savedAt: Date.now(), absentHeroes: [...resting], commands: session.commands, hash: hashBattleState(state) });
+    });
+  }, [session, setup, testRun, resting]);
+
+  // A battle taken up skips its opening briefing; left during the garrison's turn, the garrison plays on.
+  useEffect(() => {
+    if (!session || session.commands.length === 0) return;
+    const ui = useBattleUi.getState();
+    ui.setBriefed();
+    if (session.state.status === 'ongoing' && session.state.activeFaction !== PLAYER_FACTION) ui.setBusy(true);
+  }, [session]);
 
   // The campaign keeps the outcome: the castle taken and its banners, the heroes wounded (they rest
   // through the next battle); the tutorial won is done.
@@ -228,7 +310,7 @@ export default function BattleScreen() {
 
   // Test hook (?e2e): frame the camera from Playwright (captures of the siege, J4).
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has('e2e') || views.length === 0) return undefined;
+    if (!E2E || views.length === 0) return undefined;
     window.__battleCamera = {
       viewIds: () => views.map((v) => v.id),
       setView: (id) => {
@@ -245,7 +327,7 @@ export default function BattleScreen() {
   const playerUnits = session ? session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position) : [];
   const initial = session && layout ? openingView(layout, playerUnits) : (views[OPENING_VIEW] ?? views[0]);
   // Chosen once per battle: the shot plays when the scene shows, and the briefing waits for it.
-  const [withIntro] = useState(() => !bench && wantsIntro());
+  const [withIntro] = useState(() => !bench && !resuming && wantsIntro());
   const intro: CameraIntro | undefined = useMemo(
     () => (session && layout && withIntro ? { from: introView(layout, session.state.units.filter((u) => u.faction === PLAYER_FACTION).map((u) => u.position)), play: false, onDone: () => useBattleUi.getState().setIntroDone() } : undefined),
     [session, layout, withIntro],
@@ -258,6 +340,7 @@ export default function BattleScreen() {
     const view = camera.current?.getView();
     if (view) camera.current?.setView({ ...view, focus: { x: p.x, z: p.z } });
   };
+  if (choice === 'ask' && saved) return <ResumeDialog save={saved} onChoose={setChoice} />;
   if (error) return <LoadingScreen label={`Échec de la génération : ${error}`} />;
   if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" tips />;
   return (
@@ -285,6 +368,7 @@ export default function BattleScreen() {
           onAction={(id) => triggerAction(session, id)}
         />
       )}
+      {started?.lost && sceneReady && <p className="hud-card hud-notice">La bataille sauvegardée vient d’une autre version du jeu : elle reprend depuis le début.</p>}
       {session && sceneReady && setup.mode.kind === 'tutorial' && <Tutorial session={session} layout={layout} getView={getView} focusOn={focusOn} onDone={finishTutorial} />}
       {!bench && (
         <button type="button" className="scene-back" onClick={setup.mode.kind === 'skirmish' ? () => navigate(ROUTES.title) : toMap}>

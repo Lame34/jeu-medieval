@@ -40,6 +40,30 @@ export function battleSetupFrom(search: string): BattleSetup {
   return { mode: { kind: 'skirmish' }, seed: query.get('seed') ?? DEFAULT_SEED, castleIndex: castleIndexOf(query.get('castle')) };
 }
 
+/** The battle's identity in a save: its kind, castle or map, plan (one save takes up only its own battle). */
+export function battleKey(setup: BattleSetup): string {
+  const { mode } = setup;
+  if (mode.kind === 'tutorial') return 'tutorial';
+  if (mode.kind === 'campaign') return `campaign:${mode.level.id}:${mode.stratagem?.id ?? ''}`;
+  return `skirmish:${setup.seed}:${setup.castleIndex}`;
+}
+
+/** The query that opens this battle again (the save's address). */
+export function battleQuery(setup: BattleSetup): Record<string, string> {
+  const { mode } = setup;
+  if (mode.kind === 'tutorial') return { tutorial: '' };
+  if (mode.kind === 'campaign') return { level: mode.level.id, ...(mode.stratagem ? { plan: mode.stratagem.id } : {}) };
+  return { seed: setup.seed, castle: String(setup.castleIndex) };
+}
+
+/** The battle's name for the player: the castle's, the trial's, or a skirmish. */
+export function battleTitle(setup: BattleSetup): string {
+  const { mode } = setup;
+  if (mode.kind === 'tutorial') return mode.battle.name;
+  if (mode.kind === 'campaign') return mode.level.name;
+  return 'Escarmouche';
+}
+
 /** The battle's shape: none for a skirmish; the castle's (and the plan's) effects otherwise. */
 export function shapeOf(mode: BattleMode, resting: readonly string[]): BattleShape | undefined {
   if (mode.kind === 'tutorial') return { effects: battleEffects(mode.battle, null) };

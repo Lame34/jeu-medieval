@@ -603,3 +603,14 @@ kbd {
 .hud-briefing-lead {
   font-style: italic;
 }
+
+/* A word to the player at the top of the field (a save that could not be taken up). */
+.hud-notice {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100vw - 32px));
+  margin: 0;
+  text-align: center;
+}

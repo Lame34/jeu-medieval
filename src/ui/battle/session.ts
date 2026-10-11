@@ -21,6 +21,7 @@ import { isPassable } from '../../core/nav-grid/nav-grid.ts';
 import type { Seed } from '../../core/rng.ts';
 import { sampleHeight } from '../../core/terrain-data/terrain-data.ts';
 import type { Faction } from '../../core/rules/types.ts';
+import { replaySave, type BattleSave } from '../../core/save/battle-save.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 
@@ -101,6 +102,19 @@ export class BattleSession {
   /** Every command issued so far, rejected ones included (they replay as rejections). */
   get commands(): readonly Command[] {
     return this.log;
+  }
+
+  /**
+   * Takes up a saved battle before any order is given: its orders are replayed silently. False,
+   * and the battle left as it was, when they no longer lead where they led (another version).
+   */
+  restore(save: Pick<BattleSave, 'commands' | 'hash'>): boolean {
+    if (this.log.length > 0) return false;
+    const state = replaySave(this.ctx, this.current, save);
+    if (!state) return false;
+    this.log.push(...save.commands);
+    this.current = state;
+    return true;
   }
 
   subscribe(listener: SessionListener): () => void {
