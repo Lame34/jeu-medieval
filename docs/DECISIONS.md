@@ -396,6 +396,39 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Performance (A/B sur secteur contre le commit d'avant la passe) : 103,2 contre 99,6 i/s en moyenne, 114 contre 110 appels, chargement de 4,3 contre 5,0 s. Le 1 % bas est faible ce jour-là sur les deux versions (environ 24 i/s) : c'est l'état de la machine, pas le code.
 - Restent : des cartes qui se ressemblent (butte au nord, rivière au sud) ; pas de cheval pour la cavalerie (elle a un corps de chevalier) ; l'arbalétrier porte l'arc du ranger.
 
+## ADR-038 — Un jeu pour un connaisseur, des sauvegardes sûres, un site public protégé
+**Contexte** : le jeu est en ligne, et son dépôt GitHub est public. L'utilisateur précise le joueur visé : un homme d'une soixantaine d'années, passionné et connaisseur du Moyen Âge. Il demande des textes et une logique fidèles à l'histoire, une attention à la sécurité, une progression bien enregistrée, et des bonnes pratiques partout. Constats de départ :
+- les textes mêlaient jargon de jeu vidéo (PV, PA, critique, recharge) et anachronismes (tour de siège, catapulte, sapeur, officier, infanterie, amarrer) ;
+- une bataille en cours se perdait à la fermeture de la page ;
+- la progression était relue sans contrôle des fiches de château, et deux onglets pouvaient s'effacer l'un l'autre ;
+- le site n'envoyait aucun en-tête de sécurité ;
+- les points d'accès de test (`?e2e`) existaient aussi en production.
+**Décision** :
+- **Vocabulaire du XIIIᵉ siècle**, avec un glossaire dans `CLAUDE.md`. Mangonneau, beffroi (que l'on « accole »), mineur (« miner »), sergent, sergent du rempart, capitaine, cavalier, l'homme du treuil.
+  - Les points de vie et d'action sont écrits en toutes lettres (`actionPoints()`) ; « coup terrible » remplace « critique ».
+  - Qualité graphique : Légère, Moyenne, Haute.
+  - Les identifiants internes ne changent pas : les sauvegardes et les adresses en dépendent.
+- **Sauvegardes** (`src/core/save/`, `src/state/storage.ts`, `src/state/battle-save.ts`) :
+  - la progression a un format versionné, est relue champ par champ (une fiche abîmée est écartée), et fusionne avec celle d'un autre onglet ;
+  - la bataille en cours est enregistrée après chaque ordre : ses ordres, ses héros absents, l'empreinte de son état. Une bataille, c'est une graine, un scénario et des ordres : on la rejoue à l'identique ;
+  - si l'empreinte ne correspond plus (autre version des règles ou des cartes), la sauvegarde est écartée et le joueur prévenu ;
+  - la reprise se propose depuis le menu (« Reprendre la bataille »), la lettre du château et la bataille elle-même ;
+  - le navigateur est prié une fois de conserver les données (`navigator.storage.persist`) ;
+  - mesures : l'empreinte coûte 0,3 ms, et une bataille de 9 tours pèse 11 Ko d'ordres.
+- **Sécurité** :
+  - `vercel.json` envoie une CSP stricte : tout depuis le site, seul `'wasm-unsafe-eval'` pour le décodeur meshopt, `frame-ancestors 'none'` ;
+  - avec elle : `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP ;
+  - `vite preview` sert les mêmes en-têtes : le build se vérifie localement sous la même politique, et aucune violation n'a été relevée (conseil de guerre, son, leçons, bataille) ;
+  - `?e2e` n'existe qu'en développement (`ui/test-flags.ts`) ; l'atelier du peintre quitte le menu de production ;
+  - le jeu livré n'a aucune vulnérabilité connue (`npm audit --omit=dev`). Côté développement, sharp et source-map-js sont corrigés ; `braces` (via `@gltf-transform/cli`, sans correctif) est un risque accepté, limité à nos propres commandes d'assets.
+- **Bonnes pratiques** :
+  - GitHub Actions vérifie chaque envoi : typage, lint, tests du core, build, audit ;
+  - un README en français sert la page publique ;
+  - de nouveaux tests : 12 unitaires (sauvegardes) et 3 de bout en bout (reprise, recommencer, sauvegarde abîmée).
+**Conséquences** :
+- Changer le format d'une sauvegarde exige un nouveau numéro de version et une migration. Changer les règles rend les batailles en cours non reprenables (le joueur en est prévenu) ; la progression de campagne, elle, reste.
+- Les tests de bout en bout restent hors CI, faute de carte graphique ; ils se lancent sur la machine de développement avant chaque déploiement.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

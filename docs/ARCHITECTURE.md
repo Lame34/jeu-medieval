@@ -59,6 +59,9 @@
 | Écus des soldats et des gardes de rempart | `render/units/shield.ts`, `render/units/Units.tsx` |
 | Écran-titre rendu par le jeu | `scripts/capture-title.ts` → `public/assets/ui/title.webp`, `ui/screens/TitleScreen.tsx` |
 | Conseils des héros au chargement, touches nommées selon le clavier | `ui/screens/loading-tips.ts`, `state/keyboard.ts` |
+| Sauvegardes : progression versionnée et relue strictement, fusion entre onglets ; bataille en cours (ordres + empreinte) reprise à l'identique (ADR-038) | `core/save/{progress,battle-save}.ts`, `state/{storage,campaign,battle-save}.ts`, `BattleSession.restore`, `ui/screens/BattleScreen.tsx` (`ResumeDialog`) |
+| Sécurité du site : en-têtes et CSP, servis aussi par `vite preview` ; points d'accès de test réservés au développement | `vercel.json`, `vite.config.ts`, `ui/test-flags.ts` |
+| Vérification automatique de chaque envoi (typage, lint, tests, build, audit) ; contrôle du site en ligne | `.github/workflows/ci.yml`, `scripts/check-live.ts` |
 
 ## Siège (J4, ADR-024 à ADR-028)
 Le château se casse, se comble, s'escalade et brûle sans quitter le cadre du core : l'état de bataille ne porte que des faits sérialisables (PV et chute des ouvrages, chantiers, amarrages, foyers, vent), et la grille de navigation est une fonction pure de la carte et de ces faits. `syncNav` la reconstruit une fois par combinaison, puis la garde en cache ; elle est appelée autour de chaque commande et à l'entrée de chaque aperçu.
