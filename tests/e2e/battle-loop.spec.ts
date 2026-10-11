@@ -44,7 +44,7 @@ const SEED = 'e2e-battle-loop';
 /** The label BattleHud's journal prints for a rejected order (src/ui/battle/describe.ts
  * `REJECTION_LABEL`). Duplicated here rather than imported, like the rest of this file's
  * knowledge of the app: tests/e2e's tsconfig doesn't include src (see globals.d.ts). */
-const OUT_OF_BOUNDS_LABEL = 'Hors de la carte.';
+const OUT_OF_BOUNDS_LABEL = 'C’est hors du champ de bataille.';
 
 async function waitForBattleReady(page: Page): Promise<void> {
   await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true' && typeof window.__battle !== 'undefined', undefined, {

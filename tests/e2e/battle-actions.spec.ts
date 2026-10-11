@@ -38,7 +38,7 @@ const HERO_LOG = 'Aude : Volée !';
 /** The journal keeps this many lines (src/state/battle-ui.ts LOG_LINES). */
 const LOG_LINES = 5;
 const FAR_OUTSIDE_MAP_M = 100_000;
-const OUT_OF_BOUNDS_LABEL = 'Hors de la carte.';
+const OUT_OF_BOUNDS_LABEL = 'C’est hors du champ de bataille.';
 /** Number of distinct rejections pushed to overflow the journal. */
 const OVERFLOW_PUSHES = 8;
 
