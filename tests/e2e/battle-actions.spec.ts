@@ -190,14 +190,14 @@ test('siege specialists: the sapper fills or undermines, the tower is disabled f
   await open(page, 'e2e&fast');
 
   const sapper = await firstOfType(page, 'sapper');
-  await selectByClick(page, sapper, 'Sapeur');
-  await expect(button(page, 'Combler ou saper')).toBeVisible();
-  await expect(button(page, 'Combler ou saper')).toBeEnabled();
+  await selectByClick(page, sapper, 'Mineur');
+  await expect(button(page, 'Combler ou miner')).toBeVisible();
+  await expect(button(page, 'Combler ou miner')).toBeEnabled();
 
   const tower = await firstOfType(page, 'siegeTower');
-  await selectByClick(page, tower, 'Tour de siège');
-  await expect(button(page, 'Amarrer')).toBeVisible();
-  await expect(button(page, 'Amarrer')).toBeDisabled();
+  await selectByClick(page, tower, 'Beffroi');
+  await expect(button(page, 'Accoler')).toBeVisible();
+  await expect(button(page, 'Accoler')).toBeDisabled();
   expect(errors).toEqual([]);
 });
 
@@ -216,7 +216,7 @@ test('hero: keys 1 and 2 name the abilities; 1 casts the volley at once and show
   await idle(page);
   await expect(page.locator('.hud-log')).toContainText(HERO_LOG);
   await expect(button(page, 'Volée')).toBeDisabled();
-  await expect(button(page, 'Volée')).toContainText('recharge');
+  await expect(button(page, 'Volée')).toContainText('prête dans');
   expect(errors).toEqual([]);
 });
 

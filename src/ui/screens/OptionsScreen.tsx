@@ -13,7 +13,7 @@ import { navigate, ROUTES } from '../router.ts';
 import './options.css';
 
 const QUALITY_HINT = {
-  portable: 'Pour un portable : 60 images par seconde visées, ombres et herbe mesurées.',
+  portable: 'Pour un ordinateur portable : une image fluide, des ombres et une herbe plus discrètes.',
   medium: 'Plus d’herbe, des ombres plus loin, un léger halo de lumière.',
   high: 'Pour une carte graphique dédiée : tout au plus loin.',
 } as const;
@@ -28,7 +28,7 @@ const controls = (keys: ReturnType<typeof cameraKeys>): readonly (readonly [stri
   [`${keys.move.join(' ')} ou flèches`, 'Déplacer la caméra (bords de l’écran aussi)'],
   [`${keys.turn.join(' / ')}, clic molette`, 'Pivoter la caméra'],
   ['Molette', 'Zoomer'],
-  ['Tab', 'Unité suivante'],
+  ['Tab', 'Homme suivant'],
   ['Clic sur la mini-carte', 'Y porter la caméra'],
   ['G · B · X · F', 'Garde · flèche enflammée · éteindre · travaux de siège'],
   ['1 · 2', 'Capacités du héros'],
@@ -131,7 +131,7 @@ export default function OptionsScreen() {
             ))}
             <h2>Partie</h2>
             <Choice label="Animations" value={s.animation} options={(Object.keys(ANIMATION_SPEEDS) as (keyof typeof ANIMATION_SPEEDS)[]).map((k) => [k, ANIMATION_LABEL[k]] as const)} onChange={set('animation')} hint="La vitesse des déplacements, des tirs et du tour adverse." />
-            <Toggle label="Confirmer la fin du tour" value={s.confirmEndTurn} onChange={set('confirmEndTurn')} hint="Si des unités peuvent encore agir." />
+            <Toggle label="Confirmer la fin du tour" value={s.confirmEndTurn} onChange={set('confirmEndTurn')} hint="Si des troupes peuvent encore agir." />
             <Toggle label="Conseils en bataille" value={s.hints} onChange={set('hints')} hint="Le briefing du premier tour et les rappels de commandes." />
           </div>
           <div>

@@ -13,10 +13,11 @@ export interface EffectLine {
   readonly text: string;
 }
 
-/** Names whose plural is not the first word plus "s", by unit type: [one, several]. */
-const NOUNS: Readonly<Record<string, readonly [string, string]>> = {
-  cavalry: ['cavalier', 'cavaliers'],
-};
+/** French plural of a noun: as is after s, x or z; with an x after -au and -eu (mangonneaux); with an s otherwise. */
+function plural(word: string): string {
+  if (/[sxz]$/.test(word)) return word;
+  return /(au|eu)$/.test(word) ? `${word}x` : `${word}s`;
+}
 
 /** An assault before this hour is at dawn; from this one, at dusk (the night falls during the battle). */
 const DAWN_UNTIL = 8;
@@ -29,16 +30,14 @@ const GROUP_LABEL: Readonly<Record<GarrisonGroup, string>> = { outpost: 'du vill
 const STRUCTURE_DOWN = { drawbridge: 'Pont-levis abaissé dès le départ', portcullis: 'Herse hors d’usage', gate: 'Porte enfoncée', wall: 'Une courtine effondrée' } as const;
 const STRUCTURE_HURT = { drawbridge: 'Pont-levis', portcullis: 'Herse entamée', gate: 'Porte entamée', wall: 'Une courtine minée' } as const;
 
-/** "2 arbalétriers", "1 soldat de rempart". */
+/** "2 arbalétriers", "1 sergent du rempart". */
 export function unitCount(typeKey: string, n: number): string {
   const name = (DEFAULT_RULES.units[typeKey]?.name ?? typeKey).toLowerCase();
-  const special = NOUNS[typeKey];
-  if (special) return `${n} ${n > 1 ? special[1] : special[0]}`;
   if (n <= 1) return `${n} ${name}`;
+  // A compound name takes the plural on its first word: « 2 sergents du rempart ».
   const space = name.indexOf(' ');
   const first = space < 0 ? name : name.slice(0, space);
-  const plural = /[sx]$/.test(first) ? first : `${first}s`;
-  return `${n} ${plural}${space < 0 ? '' : name.slice(space)}`;
+  return `${n} ${plural(first)}${space < 0 ? '' : name.slice(space)}`;
 }
 
 /** "6 h", "22 h 30". */

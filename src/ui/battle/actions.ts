@@ -20,6 +20,7 @@ import type { Command } from '../../core/commands/types.ts';
 import { distance, type Vec2 } from '../../core/math/vec2.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
+import { actionPoints } from './describe.ts';
 import type { BattleSession } from './session.ts';
 
 export type ActionId = 'guard' | 'fireArrow' | 'extinguish' | 'works' | `ability:${string}`;
@@ -111,24 +112,24 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   }
   if (hasTag(unit, FIRE_ARROWS_TAG)) {
     const cost = d.attackApCost + ctx.rules.fire.arrowExtraAp;
-    out.push({ id: 'fireArrow', label: 'Flèche enflammée', key: 'B', description: 'Met le feu au point visé : champ, haie, bois. Le feu se propage avec le vent.', note: `${cost} PA`, disabled: !canAct || unit.ap < cost });
+    out.push({ id: 'fireArrow', label: 'Flèche enflammée', key: 'B', description: 'Met le feu au point visé : champ, haie, bois. Le feu se propage avec le vent.', note: actionPoints(cost), disabled: !canAct || unit.ap < cost });
   }
   if (fireNear(ctx, state, unit)) {
     out.push({ id: 'extinguish', label: 'Éteindre', key: 'X', description: 'Étouffe le foyer visé et ses voisins.', note: null, disabled: !canAct });
   }
   if (hasTag(unit, TOWER_TAG) && !dockOf(state, unit.id)) {
     const wall = wallToDock(ctx, state, unit);
-    out.push({ id: 'works', label: 'Amarrer', key: 'F', description: 'Abaisse la passerelle sur la courtine voisine : l’infanterie pourra monter.', note: wall ? null : 'collez la tour à une courtine', disabled: !wall || !canAct });
+    out.push({ id: 'works', label: 'Accoler', key: 'F', description: 'Abaisse le pont du beffroi sur la courtine voisine : vos gens de pied pourront monter.', note: wall ? null : 'poussez le beffroi contre une courtine', disabled: !wall || !canAct });
   } else if (towerToClimb(state, unit)) {
     // Beside a docked tower, F climbs it (as actionCommand decides), sappers included.
-    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par la tour de siège sur le chemin de ronde.', note: `${ctx.rules.structures.towerClimbAp} PA`, disabled: unit.ap < ctx.rules.structures.towerClimbAp });
+    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par le beffroi jusqu’au chemin de ronde.', note: actionPoints(ctx.rules.structures.towerClimbAp), disabled: unit.ap < ctx.rules.structures.towerClimbAp });
   } else if (hasTag(unit, FILL_MOAT_TAG) || hasTag(unit, UNDERMINE_TAG)) {
-    out.push({ id: 'works', label: 'Combler ou saper', key: 'F', description: 'Visez la douve pour y jeter des fascines (une chaussée), ou le pied d’une courtine pour la saper.', note: 'tout le tour', disabled: !canAct || unit.ap < d.attackApCost });
+    out.push({ id: 'works', label: 'Combler ou miner', key: 'F', description: 'Visez la douve pour y jeter des fascines (une chaussée), ou le pied d’une courtine pour la miner.', note: 'tout le tour', disabled: !canAct || unit.ap < d.attackApCost });
   }
   const hero = ctx.rules.heroes[unit.typeKey];
   hero?.abilities.forEach((a, i) => {
     const wait = cooldownOf(unit, a.id);
-    out.push({ id: `ability:${a.id}`, label: a.name, key: String(i + 1), description: a.description, note: wait > 0 ? `recharge ${wait}` : a.apCost > 0 ? `${a.apCost} PA` : null, disabled: wait > 0 || unit.ap < a.apCost });
+    out.push({ id: `ability:${a.id}`, label: a.name, key: String(i + 1), description: a.description, note: wait > 0 ? `prête dans ${wait} tour${wait > 1 ? 's' : ''}` : a.apCost > 0 ? actionPoints(a.apCost) : null, disabled: wait > 0 || unit.ap < a.apCost });
   });
   return out;
 }
@@ -227,7 +228,7 @@ export function actionPreview(session: BattleSession, unit: UnitState, id: Actio
     case 'fireArrow': {
       const r = previewFireArrow(ctx, state, unit.id, command.at);
       if (!r.ok) return { kind: 'blocked', reason: r.reason };
-      return { kind: 'order', title: 'Flèche enflammée', lines: [`${pct(r.preview.chance)} que ça prenne · ${r.preview.apCost} PA`], conditions: r.preview.conditions };
+      return { kind: 'order', title: 'Flèche enflammée', lines: [`${pct(r.preview.chance)} que ça prenne · ${actionPoints(r.preview.apCost)}`], conditions: r.preview.conditions };
     }
     case 'extinguish': {
       const r = previewExtinguish(ctx, state, unit.id, command.at);
@@ -251,9 +252,9 @@ export function actionPreview(session: BattleSession, unit: UnitState, id: Actio
           const progressed = result.events.find((e) => e.type === 'siegeWorkProgressed');
           const done = progressed?.type === 'siegeWorkProgressed' ? progressed : null;
           const before = done ? done.progress - 1 : 0;
-          const what = command.type === 'fillMoat' ? 'Combler la douve' : `Saper ${structureDef(ctx, command.structureId)?.kind === 'wall' ? 'la courtine' : ''}`;
+          const what = command.type === 'fillMoat' ? 'Combler la douve' : `Miner ${structureDef(ctx, command.structureId)?.kind === 'wall' ? 'la courtine' : ''}`;
           const left = done ? done.required - done.progress : 0;
-          return { kind: 'order', title: what, lines: [done ? `${before}/${done.required} → ${done.progress}/${done.required}${left > 0 ? ` · encore ${left} tour${left > 1 ? 's' : ''}` : ' · terminé !'}` : '', 'Prend tout le tour du sapeur.'] };
+          return { kind: 'order', title: what, lines: [done ? `${before}/${done.required} → ${done.progress}/${done.required}${left > 0 ? ` · encore ${left} tour${left > 1 ? 's' : ''}` : ' · terminé !'}` : '', 'Prend tout le tour du mineur.'] };
         }
         default:
           return { kind: 'order', title: 'Ordre', lines: [] };

@@ -17,51 +17,56 @@ export const END_LABEL = {
 export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   battleOver: 'La bataille est terminée.',
   unknownUnit: 'Unité inconnue.',
-  unitDead: 'Cette unité est tombée.',
+  unitDead: 'Il est déjà tombé.',
   notYourTurn: "Ce n'est pas votre tour.",
   outOfBounds: 'Hors de la carte.',
-  sameCell: "L'unité y est déjà.",
+  sameCell: 'Il y est déjà.',
   destinationOccupied: 'Place déjà occupée.',
   noPath: 'Aucun chemin praticable.',
-  insufficientAp: 'Pas assez de PA.',
+  insufficientAp: 'Pas assez de points d’action.',
   unknownTarget: 'Cible inconnue.',
   targetDead: 'La cible est déjà tombée.',
   targetFriendly: 'Cible alliée.',
-  noAttack: "Cette unité n'attaque pas.",
+  noAttack: 'Il ne peut pas frapper.',
   noActionLeft: 'Action déjà utilisée ce tour.',
   outOfRange: 'Hors de portée.',
   noLineOfSight: 'Pas de ligne de vue.',
-  unitFleeing: "L'unité fuit et n'obéit plus.",
+  unitFleeing: 'Il fuit et n’obéit plus.',
   cannotOverwatch: 'Seuls les tireurs peuvent monter la garde.',
   invalidDirection: 'Direction de garde invalide.',
   unknownStructure: 'Ouvrage inconnu.',
   structureDown: 'Cet ouvrage est déjà tombé.',
-  structureInvulnerable: 'On ne peut pas abattre cet ouvrage : il faut tuer son treuilliste.',
+  structureInvulnerable: 'On ne peut pas abattre cet ouvrage : il faut d’abord abattre l’homme du treuil.',
   noSiegeWeapon: 'Seuls les engins de siège entament les murailles.',
   gatesOnly: "Le bélier n'enfonce que les portes.",
   structureShielded: "Un autre ouvrage le protège : d'abord le pont-levis, puis la porte.",
-  noSiegeSkill: 'Seuls les sapeurs comblent la douve et sapent les murs.',
+  noSiegeSkill: 'Seuls les mineurs comblent la douve et minent les murs.',
   notAMoat: "Ce n'est pas la douve.",
   workDone: 'Ce tronçon de douve est déjà comblé.',
-  notAWall: 'On ne sape que les courtines.',
-  notATower: "Seule une tour de siège s'amarre aux murs.",
-  alreadyDocked: 'La tour est déjà amarrée.',
-  notDocked: "Cette tour n'est pas amarrée à un mur.",
+  notAWall: 'On ne mine que les courtines.',
+  notATower: 'Seul un beffroi s’accole aux murs.',
+  alreadyDocked: 'Le beffroi est déjà accolé au mur.',
+  notDocked: 'Ce beffroi n’est accolé à aucun mur.',
   towerFull: 'La tour a déjà porté tous les hommes de ce tour.',
   cannotClimb: 'Ni les engins ni les cavaliers ne montent dans la tour.',
   noRoomOnWall: 'Plus de place sur ce chemin de ronde.',
-  towerDocked: 'Amarrée au mur, la tour ne bouge plus.',
+  towerDocked: 'Accolé au mur, le beffroi ne bouge plus.',
   noFireArrows: 'Seuls les archers tirent des flèches enflammées.',
   alreadyBurning: 'Cela brûle déjà.',
   notFlammable: 'Rien ne brûle là.',
   notBurning: 'Pas de feu à éteindre ici.',
   notAHero: 'Seul un héros a cette capacité.',
   unknownAbility: 'Capacité inconnue.',
-  abilityCooling: 'Capacité en recharge.',
+  abilityCooling: 'Pas encore prête : il faut attendre quelques tours.',
   invalidAbilityTarget: 'Cible invalide pour cette capacité.',
 };
 
 /** What a structure is called in the journal and the HUD. */
+/** "1 point d’action", "2 points d’action" (a fraction in French decimals, singular under two). */
+export function actionPoints(n: number): string {
+  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} point${n >= 2 ? 's' : ''} d’action`;
+}
+
 export const STRUCTURE_LABEL = { wall: 'Courtine', gate: 'Porte', portcullis: 'Herse', drawbridge: 'Pont-levis' } as const;
 
 export const STRUCTURE_OBJECT = { wall: 'la courtine', gate: 'la porte', portcullis: 'la herse', drawbridge: 'le pont-levis' } as const;
@@ -111,29 +116,29 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       const who = unitLabel(state, event.attackerId);
       const whom = unitLabel(state, event.targetId);
       const how = event.reaction ? 'tire en garde sur' : event.riposte ? 'riposte contre' : 'attaque';
-      const outcome = event.hit ? `${event.crit ? 'critique, ' : ''}${event.damage} dégâts` : 'raté';
+      const outcome = event.hit ? `${event.crit ? 'coup terrible, ' : ''}${event.damage} dégâts` : 'raté';
       return `${who} ${how} ${whom} (${Math.round(event.hitChance * 100)} %) : ${outcome}.`;
     }
     case 'structureDamaged': {
-      const outcome = event.hit ? `${event.crit ? 'critique, ' : ''}${event.damage} dégâts` : 'raté';
+      const outcome = event.hit ? `${event.crit ? 'coup terrible, ' : ''}${event.damage} dégâts` : 'raté';
       return `${unitLabel(state, event.attackerId)} frappe ${structureObject(event.structureId)} (${Math.round(event.hitChance * 100)} %) : ${outcome}.`;
     }
     case 'structureBroken':
       return event.kind === 'wall'
-        ? `La courtine s'effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} unité(s) précipitée(s).` : ''}`
+        ? `La courtine s'effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} homme${event.fallen.length > 1 ? 's' : ''} précipité${event.fallen.length > 1 ? 's' : ''} dans la chute.` : ''}`
         : event.kind === 'drawbridge'
-          ? 'Le treuilliste est tombé : le pont-levis s’abat sur la douve !'
+          ? 'L’homme du treuil est tombé : le pont-levis s’abat sur la douve !'
           : `${STRUCTURE_LABEL[event.kind]} cède !`;
     case 'siegeWorkProgressed':
       return event.kind === 'fill'
         ? `${unitLabel(state, event.unitId)} jette des fascines dans la douve (${event.progress}/${event.required}).`
-        : `${unitLabel(state, event.unitId)} sape la courtine (${event.progress}/${event.required}).`;
+        : `${unitLabel(state, event.unitId)} mine la courtine (${event.progress}/${event.required}).`;
     case 'moatFilled':
       return 'La douve est comblée : une chaussée de fascines la traverse.';
     case 'towerDocked':
-      return 'La tour de siège abaisse sa passerelle sur le chemin de ronde !';
+      return 'Le beffroi abaisse son pont sur le chemin de ronde !';
     case 'towerUndocked':
-      return 'La tour de siège a perdu son mur.';
+      return 'Le beffroi n’a plus de mur où s’accoler.';
     case 'unitClimbed':
       return `${unitLabel(state, event.unitId)} monte à l'assaut par la tour.`;
     case 'fireArrowShot':
@@ -145,7 +150,7 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     case 'unitBurned':
       return `${unitLabel(state, event.unitId)} brûle : ${event.damage} dégâts.`;
     case 'structureBurned':
-      return `Le feu ronge ${structureObject(event.structureId)} (${event.hpAfter} PV).`;
+      return `Le feu ronge ${structureObject(event.structureId)} (solidité ${event.hpAfter}).`;
     case 'unitDied': {
       const hero = heroRule(state, event.unitId);
       if (hero) return `${hero.name} est gravement ${hero.feminine ? 'blessée' : 'blessé'} et quitte le champ de bataille. « ${heroLine(state, hero.lines.wounded, 0)} »`;
@@ -161,7 +166,7 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       if (before === after) return null;
       const who = unitLabel(state, event.unitId);
       if (after === 'fleeing') return `${who} perd pied !`;
-      if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ébranlé.` : `${who} est ébranlé (−1 PA).`;
+      if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ébranlé.` : `${who} est ébranlé (−1 point d’action).`;
       return `${who} se ressaisit.`;
     }
     case 'turnStarted':

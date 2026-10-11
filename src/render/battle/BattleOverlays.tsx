@@ -200,7 +200,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
         parts.destRing.visible = true;
         label.current.at.set(d.x, session.standHeight(d.x, d.z) + LABEL_HEIGHT_M, d.z);
         label.current.on = true;
-        if (label.current.el) label.current.el.textContent = `${hover.plan.apSpent} PA`;
+        if (label.current.el) label.current.el.textContent = `${hover.plan.apSpent} point${hover.plan.apSpent > 1 ? 's' : ''}`;
       } else {
         parts.path.visible = false;
         parts.destRing.visible = false;

@@ -26,7 +26,7 @@ export interface QualityPreset {
 export const QUALITY_PRESETS: Readonly<Record<QualityPresetId, QualityPreset>> = {
   portable: {
     id: 'portable',
-    label: 'Portable',
+    label: 'Légère',
     maxDpr: 1,
     minRenderScale: 0.67,
     maxRenderScale: 1,
@@ -41,7 +41,7 @@ export const QUALITY_PRESETS: Readonly<Record<QualityPresetId, QualityPreset>> =
   },
   medium: {
     id: 'medium',
-    label: 'Moyen',
+    label: 'Moyenne',
     maxDpr: 1.25,
     minRenderScale: 0.75,
     maxRenderScale: 1,
@@ -56,7 +56,7 @@ export const QUALITY_PRESETS: Readonly<Record<QualityPresetId, QualityPreset>> =
   },
   high: {
     id: 'high',
-    label: 'Haut',
+    label: 'Haute',
     maxDpr: 1.5,
     minRenderScale: 0.85,
     maxRenderScale: 1,

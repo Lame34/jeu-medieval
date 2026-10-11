@@ -74,9 +74,9 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     },
     {
       id: 'select',
-      title: 'Choisir une unité',
-      text: <>Les hommes en bleu sont les tiens. Clique sur l’un d’eux : sa carte s’ouvre en bas, avec ses PV (points de vie), ses PA (points d’action, pour marcher et agir) et son moral.</>,
-      goal: { label: 'Sélectionnez une unité bleue', flag: 'selected' },
+      title: 'Choisir un homme',
+      text: <>Les hommes en bleu sont les tiens. Clique sur l’un d’eux : sa carte s’ouvre en bas, avec sa vie, ses points d’action (pour marcher et frapper) et son moral.</>,
+      goal: { label: 'Choisissez un homme en bleu', flag: 'selected' },
       focus: 'army',
     },
     {
@@ -84,16 +84,16 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Se déplacer',
       text: (
         <>
-          Survole le sol : le contour clair montre où aller en gardant de quoi frapper, le contour sombre jusqu’où l’unité peut marcher. Chaque PA porte à {meters('Road')} m sur la route, {meters('Plain')} en plaine, {meters('Field')} dans un champ, {meters('Forest')} en forêt, et une montée coûte plus. Clique pour avancer.
+          Survole le sol : le contour clair montre où aller en gardant de quoi frapper, le contour sombre jusqu’où il peut marcher. Chaque point d’action porte à {meters('Road')} m sur la route, {meters('Plain')} en plaine, {meters('Field')} dans un champ, {meters('Forest')} en forêt, et une montée coûte plus. Clique pour avancer.
         </>
       ),
-      goal: { label: 'Déplacez une unité', flag: 'moved' },
+      goal: { label: 'Déplacez un homme', flag: 'moved' },
       highlight: 'unitCard',
     },
     {
       id: 'attack',
       title: 'Frapper',
-      text: <>Des brigands gardent le village, en rouge. Survole-en un, unité sélectionnée : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Approche-toi et clique sur l’ennemi.</>,
+      text: <>Des brigands gardent le village, en rouge. Survole-en un avec ton homme choisi : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Approche-toi et clique sur l’ennemi.</>,
       goal: { label: 'Attaquez un brigand', flag: 'attacked' },
       focus: 'outpost',
     },
@@ -102,7 +102,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Monter la garde',
       text: (
         <>
-          Un tireur qui garde ses PA peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
+          Un tireur à qui il reste des points d’action peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
         </>
       ),
       goal: { label: 'Mettez un archer en garde', flag: 'guarded' },
@@ -124,7 +124,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Le moral',
       text: (
         <>
-          Les pertes, les blessures, le feu et les murs qui tombent font baisser le moral. Sous {shakenBelow}, une unité est ébranlée et perd 1 PA ; sous {fleeBelow}, elle fuit et n’obéit plus. Une garnison en fuite, c’est une victoire, et un héros peut rallier nos hommes.
+          Les pertes, les blessures, le feu et les murs qui tombent font baisser le moral. Sous {shakenBelow}, un homme est ébranlé et perd un point d’action ; sous {fleeBelow}, il fuit et n’obéit plus. Une garnison en fuite, c’est une victoire, et un héros peut rallier nos hommes.
         </>
       ),
       highlight: 'log',
@@ -134,7 +134,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Les héros',
       text: (
         <>
-          Aude, Bertrand et moi avons chacun deux capacités sur notre carte (<kbd>1</kbd> et <kbd>2</kbd>), qui se rechargent en quelques tours, et un talent toujours actif. Aude fait pleuvoir les flèches, Bertrand règle les engins et presse les travaux, je rallie et je charge. Sélectionne un héros et essaie une capacité.
+          Aude, Bertrand et moi avons chacun deux capacités sur notre carte (<kbd>1</kbd> et <kbd>2</kbd>), qui reviennent après quelques tours, et un talent toujours actif. Aude fait pleuvoir les flèches, Bertrand règle les engins et presse les travaux, je rallie et je charge. Sélectionne un héros et essaie une capacité.
         </>
       ),
       goal: { label: 'Utilisez une capacité de héros', flag: 'ability' },
@@ -144,7 +144,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'castle',
       title: 'Le château',
-      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au bélier, ouvrir une brèche à la catapulte, saper un mur, ou monter sur le rempart par la tour de siège. Elles se combinent.</>,
+      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au bélier, ouvrir une brèche au mangonneau, miner un mur, ou monter sur le rempart par le beffroi. Elles se combinent.</>,
       focus: 'castle',
     },
     {
@@ -152,7 +152,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Le pont-levis',
       text: (
         <>
-          L’archer de la tour de porte tient le treuil : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, +1 PA). Tant que le pont est levé, la porte est hors d’atteinte.
+          L’archer de la tour de porte tient le treuil : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, un point d’action de plus). Tant que le pont est levé, la porte est hors d’atteinte.
         </>
       ),
       goal: { label: 'Abattez le pont-levis', flag: 'bridgeDown' },
@@ -167,20 +167,20 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     },
     {
       id: 'catapult',
-      title: 'La catapulte',
-      text: <>Elle tire en cloche jusqu’à {catapultRange} m, par-dessus les murs. Une courtine se fissure, puis s’effondre en gravats qu’on peut franchir. Le vent dévie ses pierres ; Bertrand, à côté d’elle, règle son tir.</>,
-      goal: { label: 'Frappez une courtine à la catapulte', flag: 'wallHit' },
+      title: 'Le mangonneau',
+      text: <>Il tire en cloche jusqu’à {catapultRange} m, par-dessus les murs. Une courtine se fissure, puis s’effondre en gravats qu’on peut franchir. Le vent dévie ses pierres ; Bertrand, à côté de lui, règle son tir.</>,
+      goal: { label: 'Frappez une courtine au mangonneau', flag: 'wallHit' },
       focus: 'park',
     },
     {
       id: 'works',
-      title: 'Sapeurs et tour de siège',
+      title: 'Mineurs et beffroi',
       text: (
         <>
-          Le sapeur comble la douve (<kbd>F</kbd>) en {s.fillTurns} tours, ou sape le pied d’un mur en {s.mineTurns}. Sur la douve comblée, pousse la tour de siège contre la courtine et amarre-la (<kbd>F</kbd>) : tes hommes y montent (<kbd>F</kbd>, à côté de la tour) et prennent pied sur le rempart.
+          Le mineur comble la douve (<kbd>F</kbd>) en {s.fillTurns} tours, ou mine le pied d’un mur en {s.mineTurns}. Sur la douve comblée, pousse le beffroi contre la courtine et accole-le (<kbd>F</kbd>) : tes hommes y montent (<kbd>F</kbd>, à côté du beffroi) et prennent pied sur le rempart.
         </>
       ),
-      goal: { label: 'Lancez un travail de sape', flag: 'works' },
+      goal: { label: 'Mettez un mineur à l’ouvrage', flag: 'works' },
       focus: 'park',
     },
     {

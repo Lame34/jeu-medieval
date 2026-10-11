@@ -111,8 +111,8 @@
         {
           "id": "catapulte",
           "hero": "heroEngineer",
-          "name": "La catapulte du moulin",
-          "pitch": "Le moulin d’aval a de belles poutres et une roue qui ne sert plus à rien. Deux tours de travail, et je vous en fais une seconde catapulte. Elle grincera, mais elle tirera.",
+          "name": "Le mangonneau du moulin",
+          "pitch": "Le moulin d’aval a de belles poutres et une roue qui ne sert plus à rien. Deux tours de travail, et je vous en fais un second mangonneau. Elle grincera, mais elle tirera.",
           "effects": { "reinforce": [{ "typeKey": "catapult", "count": 1 }], "turnDelta": -2 }
         },
         {
@@ -202,7 +202,7 @@
           "id": "mine",
           "hero": "heroEngineer",
           "name": "La mine sous la courtine",
-          "pitch": "Mes sapeurs creusent sous la courtine depuis trois nuits. Elle ne tient plus que par habitude. Encore deux tours de patience, et une seule pierre suffira.",
+          "pitch": "Mes mineurs creusent sous la courtine depuis trois nuits. Elle ne tient plus que par habitude. Encore deux tours de patience, et une seule pierre suffira.",
           "effects": { "structures": [{ "kind": "wall", "hpFraction": 0.3 }], "turnDelta": -2 }
         },
         {
@@ -241,7 +241,7 @@
           "id": "deux-tours",
           "hero": "heroEngineer",
           "name": "Deux tours valent mieux qu’une",
-          "pitch": "J’ai dessiné une seconde tour de siège, et les fascines de la première sont prêtes. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
+          "pitch": "J’ai dessiné un second beffroi, et les fascines du premier sont prêtes. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
           "effects": { "reinforce": [{ "typeKey": "siegeTower", "count": 1 }], "fillMoat": 1, "turnDelta": -3 }
         },
         {

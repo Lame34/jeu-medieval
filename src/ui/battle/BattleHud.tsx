@@ -11,7 +11,7 @@ import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
-import { END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
+import { actionPoints, END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
 import './battle-hud.css';
@@ -104,14 +104,14 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
       <div className="hud-bar" role="meter" aria-valuemin={0} aria-valuemax={type.hp} aria-valuenow={unit.hp} aria-label="Points de vie">
         <span style={{ width: `${(100 * unit.hp) / type.hp}%` }} />
         <em>
-          {unit.hp} / {type.hp} PV
+          Vie {unit.hp} / {type.hp}
         </em>
       </div>
       <p>
-        PA <Pips value={unit.ap} max={type.ap} />
+        Points d’action <Pips value={unit.ap} max={type.ap} />
       </p>
       <p>
-        Action <Pips value={unit.actions} max={DEFAULT_RULES.damage.actionsPerTurn} />
+        Attaque <Pips value={unit.actions} max={DEFAULT_RULES.damage.actionsPerTurn} />
         {unit.overwatch && <span className="hud-tag">en garde</span>}
       </p>
       <p>
@@ -133,7 +133,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
       return (
         <>
           <p>
-            <strong>Déplacement</strong> : {hover.plan.apSpent} PA, il en restera {hover.apLeft}.
+            <strong>Déplacement</strong> : {actionPoints(hover.plan.apSpent)}, il en restera {hover.apLeft}.
           </p>
           <p className={hover.threats.length > 0 ? 'hud-warn' : ''}>
             {hover.threats.length === 0 ? 'Hors de portée des tireurs ennemis.' : `Exposé à ${hover.threats.length} tireur${hover.threats.length > 1 ? 's' : ''} (jusqu'à ${pct(worst)}).`}
@@ -150,10 +150,10 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
             <strong>{p.melee ? 'Coup de bélier' : 'Tir de siège'}</strong> sur {STRUCTURE_OBJECT[hover.structure]} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
           </p>
           <p>
-            Dégâts {p.blow.damage.min}–{p.blow.damage.max} (critique {pct(p.blow.critChance)}) · {p.apCost} PA
+            Dégâts {p.blow.damage.min}–{p.blow.damage.max} (coup terrible {pct(p.blow.critChance)}) · {actionPoints(p.apCost)}
           </p>
           <p className="hud-detail">
-            {hover.hp} / {hover.maxHp} PV · encore {blows} coup{blows > 1 ? 's' : ''} au moins · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
+            solidité {hover.hp} / {hover.maxHp} · encore {blows} coup{blows > 1 ? 's' : ''} au moins · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
           </p>
           <ConditionsLine modifiers={p.conditions} />
         </>
@@ -184,7 +184,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
               <strong>{p.ability.name}</strong> sur {target ? (DEFAULT_RULES.units[target.typeKey]?.name ?? target.typeKey) : a.targetId} : <strong>{pct(a.blow.hitChance)}</strong> de toucher
             </p>
             <p>
-              Dégâts {a.blow.damage.min}–{a.blow.damage.max} · {a.apCost} PA{a.riposte ? '' : ' · sans riposte'}
+              Dégâts {a.blow.damage.min}–{a.blow.damage.max} · {actionPoints(a.apCost)}{a.riposte ? '' : ' · sans riposte'}
             </p>
             <ConditionsLine modifiers={a.conditions} />
           </>
@@ -194,7 +194,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
         const after = Math.min(p.work.required, p.work.progress + p.ability.workFactor);
         return (
           <p>
-            <strong>{p.ability.name}</strong> : {p.work.kind === 'fill' ? 'fascines' : 'sape'} {p.work.progress}/{p.work.required} → {after}/{p.work.required}
+            <strong>{p.ability.name}</strong> : {p.work.kind === 'fill' ? 'fascines' : 'mine'} {p.work.progress}/{p.work.required} → {after}/{p.work.required}
           </p>
         );
       }
@@ -214,7 +214,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
             <strong>{p.melee ? 'Attaque au contact' : 'Tir'}</strong> sur {target ? (DEFAULT_RULES.units[target.typeKey]?.name ?? target.typeKey) : p.targetId} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
           </p>
           <p>
-            Dégâts {p.blow.damage.min}–{p.blow.damage.max} (critique {pct(p.blow.critChance)}) · {p.apCost} PA
+            Dégâts {p.blow.damage.min}–{p.blow.damage.max} (coup terrible {pct(p.blow.critChance)}) · {actionPoints(p.apCost)}
           </p>
           {!p.melee && (
             <p className="hud-detail">
@@ -271,10 +271,10 @@ function Briefing({ battle, content, onClose }: { readonly battle: BattleState; 
         . Passé ce délai, les renforts lèvent le siège.
       </p>
       <p>
-        Ouvrez-vous un chemin : la <strong>catapulte</strong> fait brèche dans la courtine, le <strong>bélier</strong> enfonce la porte une fois le pont-levis abattu, le <strong>sapeur</strong> comble la douve ou sape un mur, la <strong>tour de siège</strong> porte vos hommes sur le rempart.
+        Ouvrez-vous un chemin : le <strong>mangonneau</strong> fait brèche dans la courtine, le <strong>bélier</strong> enfonce la porte une fois le pont-levis abattu, le <strong>mineur</strong> comble la douve ou mine un mur, le <strong>beffroi</strong> porte vos hommes sur le rempart.
       </p>
       <p className="hud-detail">
-        Sélectionnez une unité, cliquez pour la déplacer ou attaquer ; ses actions sont sur sa carte. <kbd>Entrée</kbd> : fin du tour.
+        Choisissez un homme, puis cliquez pour le déplacer ou frapper ; ses ordres sont sur sa carte. <kbd>Entrée</kbd> : fin du tour.
       </p>
       <button type="button" onClick={onClose}>
         Compris
@@ -391,7 +391,7 @@ export function BattleHud({
         {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
       </header>
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
-        {armed ? `${stillActing()} unité${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : confirmer ?` : 'Fin du tour'} <kbd>Entrée</kbd>
+        {armed ? `${stillActing()} troupe${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : finir quand même ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
       {selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />}
       {selected && playerTurn && !busy && (
@@ -404,14 +404,14 @@ export function BattleHud({
               </>
             ) : (
               <>
-                Clic : se déplacer, attaquer · <kbd>Tab</kbd> unité suivante · <kbd>Échap</kbd> désélectionner
+                Clic : se déplacer, attaquer · <kbd>Tab</kbd> homme suivant · <kbd>Échap</kbd> désélectionner
               </>
             )}
           </p>}
         </section>
       )}
       {briefing && introDone && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing battle={battle} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
-      {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur une unité bleue pour lui donner un ordre.</p>}
+      {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur l’un de vos hommes, en bleu, pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (
           <li key={`${i}-${line}`}>{line}</li>

@@ -133,11 +133,11 @@ test('castles taken are sealed, the next one opens, a wounded hero rests', async
 test('the options are kept across a reload, and the campaign can be wiped', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/options');
-  await page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Haut' }).click();
+  await page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Haute' }).click();
   await page.getByRole('radiogroup', { name: 'Animations' }).getByRole('radio', { name: '×2' }).click();
   await page.getByRole('radiogroup', { name: 'Confirmer la fin du tour' }).getByRole('radio', { name: 'Non' }).click();
   await page.reload();
-  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Haut' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Haute' })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByRole('radiogroup', { name: 'Animations' }).getByRole('radio', { name: '×2' })).toHaveAttribute('aria-checked', 'true');
   const saved = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}') as Record<string, unknown>, SETTINGS_KEY);
   expect(saved).toMatchObject({ quality: 'high', animation: 'fast', confirmEndTurn: false });
@@ -152,7 +152,7 @@ test('the options are kept across a reload, and the campaign can be wiped', asyn
   const progress = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}') as { conquered?: object }, CAMPAIGN_KEY);
   expect(progress.conquered).toEqual({});
   await page.getByRole('button', { name: /Rétablir les options/ }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Portable' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Légère' })).toHaveAttribute('aria-checked', 'true');
   expect(errors).toEqual([]);
 });
 
@@ -170,7 +170,7 @@ test('the trial battle: Guillaume’s lessons tick off as the player acts', asyn
   await expect(lesson.locator('h2')).toHaveText('Regarder le terrain');
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-highlight', 'minimap');
   await lesson.getByRole('button', { name: /Passer/ }).click();
-  await expect(lesson.locator('h2')).toHaveText('Choisir une unité');
+  await expect(lesson.locator('h2')).toHaveText('Choisir un homme');
   // Selecting one of ours ticks the lesson off, and the next follows: one in the middle of the
   // view (clear of the minimap, the lesson and the banner).
   const viewport = page.viewportSize()!;

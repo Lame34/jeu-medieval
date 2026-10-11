@@ -449,7 +449,7 @@ export function BattleDirector({
               if (event.hit && event.hpAfter === 0) audio.play('hurt', { at: p });
               if (event.hit) {
                 if (event.hpAfter > 0) target.play('hit', true);
-                showFloat(`${event.crit ? 'Critique ! ' : ''}−${event.damage}`, event.crit ? 'crit' : 'hit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+                showFloat(`${event.crit ? 'Coup terrible ! ' : ''}−${event.damage}`, event.crit ? 'crit' : 'hit', p.x, p.y + FLOAT_HEIGHT_M, p.z);
               } else showFloat('Raté', 'miss', p.x, p.y + FLOAT_HEIGHT_M, p.z);
             }
           },
@@ -497,7 +497,7 @@ export function BattleDirector({
               if (event.hit) castle?.hit(event.structureId, def.maxHp > 0 ? event.hpAfter / def.maxHp : 1);
               audio.play(lob ? (event.hit ? 'stone_hit_wall' : 'rubble') : 'ram_hit', { at: def.center, volume: event.hit ? 1 : SOFT });
               const p = scratch.current.p;
-              if (castle?.anchorOf(event.structureId, p)) showFloat(event.hit ? `${event.crit ? 'Critique ! ' : ''}−${event.damage}` : 'Raté', event.hit ? (event.crit ? 'crit' : 'hit') : 'miss', p.x, p.y, p.z);
+              if (castle?.anchorOf(event.structureId, p)) showFloat(event.hit ? `${event.crit ? 'Coup terrible ! ' : ''}−${event.damage}` : 'Raté', event.hit ? (event.crit ? 'crit' : 'hit') : 'miss', p.x, p.y, p.z);
             }
           },
           finish() {
@@ -553,7 +553,7 @@ export function BattleDirector({
             const work = castleWork(session, event.workId, event.kind, event.progress / event.required, unit.position);
             if (work) castle?.setWork(work);
             const p = h?.root.position;
-            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Sape'} ${event.progress}/${event.required}`, 'work', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Mine'} ${event.progress}/${event.required}`, 'work', p.x, p.y + FLOAT_HEIGHT_M, p.z);
           },
           finish() {
             h?.play('idle');

@@ -156,7 +156,7 @@ async function findMoveTarget(page: Page, unit: TestUnitState): Promise<{ world:
     const blocked = await page.locator('.hud-preview .hud-blocked').count();
     if (blocked > 0) continue;
     const previewText = await page.locator('.hud-preview').innerText();
-    if (/\bPA\b/.test(previewText)) return { world, screen, previewText };
+    if (/points? d’action/.test(previewText)) return { world, screen, previewText };
   }
   throw new Error(`no reachable, on-screen move target found within ${HOVER_OFFSET_M} m of unit "${unit.id}"`);
 }
@@ -173,8 +173,8 @@ test('Tab selects a unit, hovering ~10 m previews the AP cost, and clicking spen
   await waitForCameraSettled(page, before.id);
 
   const target = await findMoveTarget(page, before);
-  const spentMatch = /(\d+)\s*PA/.exec(target.previewText);
-  expect(spentMatch, `no "N PA" cost in the preview: ${JSON.stringify(target.previewText)}`).not.toBeNull();
+  const spentMatch = /(\d+)\s*points? d’action/.exec(target.previewText);
+  expect(spentMatch, `no "N points d’action" cost in the preview: ${JSON.stringify(target.previewText)}`).not.toBeNull();
   const apSpent = Number((spentMatch as RegExpExecArray)[1]);
 
   await page.mouse.click(target.screen.x, target.screen.y);
