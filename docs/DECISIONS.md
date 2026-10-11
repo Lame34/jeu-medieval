@@ -429,6 +429,25 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Changer le format d'une sauvegarde exige un nouveau numéro de version et une migration. Changer les règles rend les batailles en cours non reprenables (le joueur en est prévenu) ; la progression de campagne, elle, reste.
 - Les tests de bout en bout restent hors CI, faute de carte graphique ; ils se lancent sur la machine de développement avant chaque déploiement.
 
+## ADR-039 — Un clic fait la chose évidente : s'approcher d'abord, puis agir
+**Contexte** : l'utilisateur ne parvenait pas à attaquer. Un clic sur un ennemi lançait l'attaque telle quelle. Hors de portée (un sergent ou un chevalier doit être au contact, à 1,6 m ; un archer porte à 35 m), l'ordre était refusé avec un seul « Hors de portée. », et rien n'expliquait qu'il fallait d'abord avancer l'homme, puis cliquer de nouveau sur l'ennemi. Il a demandé de revérifier toutes les logiques de ce genre. Le même piège se retrouvait partout :
+- un déplacement trop long pour le tour était refusé ;
+- le bélier devait être collé à la porte, le mineur au bord de la douve ou au pied de la courtine ;
+- la flèche enflammée, l'eau sur un foyer et les gestes des héros exigeaient d'être déjà à portée ;
+- « Accoler » et « Monter » n'apparaissaient que contre le mur ou le beffroi ;
+- rien ne disait, avant d'avoir choisi un homme, qui était qui.
+**Décision** :
+- `core/battle/reach.ts` (`planApproach`) cherche, parmi les cases atteignables ce tour, la plus proche (en points d'action) d'où l'acte devient possible. La case doit être libre et à portée ; l'acte doit y être accepté par les règles, points d'action compris. Seuls l'éloignement et l'absence de vue se corrigent en marchant : un tour déjà joué, un pont-levis levé ou une douve non comblée restent des refus.
+- Chaque acte a son planificateur : `planStrike`, `planStructureStrike` (bélier, mangonneau), `planFill`, `planUndermine`, `planDock`, `planClimb`. La portée d'une arme est nommée une fois (`weaponReach`).
+- `planAdvance` coupe un déplacement trop long là où les points d'action s'épuisent, sur le chemin du point demandé : l'homme avance d'autant et finira au tour suivant. Un lieu qu'aucun chemin ne rejoint reste refusé.
+- `ui/battle/intent.ts` dit, en un seul endroit, ce qu'un clic ferait là où est le pointeur : l'aperçu du survol et le clic ne peuvent pas diverger. Le jeu reçoit des commandes ordinaires (`move`, puis l'acte), donc le rejeu reste exact. Si un tireur en garde abat ou met en fuite l'homme en chemin, l'acte n'est pas donné.
+- Au survol, l'aperçu l'annonce : « S'approcher : 2 points d'action, puis tirer », avec l'exposition aux tireurs ennemis ; le chemin est tracé au sol. « Accoler » et « Monter » s'offrent dès que le mur ou le beffroi est à une marche de ce tour, avec la note « s'approche d'abord ».
+- Sans homme choisi, le survol d'un homme montre une fiche : son nom, son camp, sa vie, son moral, sa portée. C'est un ajout d'interface, signalé à l'utilisateur.
+- Les refus disent quoi faire, en clair (`REJECTION_LABEL`) : « Trop loin pour l'atteindre ce tour : avancez d'abord. » Rien ne bouge, et aucun ordre refusé n'encombre le journal des commandes.
+- Les leçons de la bataille d'essai l'expliquent : « Frapper », « Le bélier », « Mineurs et beffroi ».
+- Les fiches d'aperçu, en lecture seule, laissent passer le pointeur. Avant, une fiche apparue sous le pointeur le captait, puis disparaissait aussitôt : l'homme placé dessous ne pouvait être ni désigné ni choisi.
+**Conséquences** : les recherches au survol sont bornées (400 cases au plus, de la plus proche à la plus lointaine) et ne se refont que si la cible change (`intentKey`). L'IA n'est pas concernée : elle cherchait déjà ses positions.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
