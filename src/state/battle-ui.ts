@@ -14,14 +14,26 @@ import type { StructureKind } from '../core/battle/structures.ts';
 import type { AbilityPreview } from '../core/battle/heroes.ts';
 import type { ShotModifier } from '../core/battle/conditions.ts';
 
+/** The walk before a deed out of reach: its path, the enemy guards it passes, what follows it. */
+export interface WalkFirst {
+  readonly plan: MovePlan;
+  readonly threats: readonly Threat[];
+  /** What he does once there (« frapper », « tirer », « combler la douve »…). */
+  readonly then: string;
+}
+
 export type HoverPreview =
   | { readonly kind: 'none' }
-  | { readonly kind: 'move'; readonly plan: MovePlan; readonly apLeft: number; readonly threats: readonly Threat[] }
-  | { readonly kind: 'attack'; readonly preview: AttackPreview }
-  | { readonly kind: 'structure'; readonly preview: StructureAttackPreview; readonly structure: StructureKind; readonly hp: number; readonly maxHp: number }
-  | { readonly kind: 'ability'; readonly preview: AbilityPreview }
+  /** A move; `partial` when the point asked is beyond this turn's walk (he stops on the way). */
+  | { readonly kind: 'move'; readonly plan: MovePlan; readonly apLeft: number; readonly threats: readonly Threat[]; readonly partial?: boolean }
+  /** An attack, with the walk to the spot it is struck from when the enemy is out of reach. */
+  | { readonly kind: 'attack'; readonly preview: AttackPreview; readonly approach?: WalkFirst }
+  | { readonly kind: 'structure'; readonly preview: StructureAttackPreview; readonly structure: StructureKind; readonly hp: number; readonly maxHp: number; readonly approach?: WalkFirst }
+  | { readonly kind: 'ability'; readonly preview: AbilityPreview; readonly approach?: WalkFirst }
   /** An armed action's order: what it does here (and the shot's conditions, for a fire arrow). */
-  | { readonly kind: 'order'; readonly title: string; readonly lines: readonly string[]; readonly conditions?: readonly ShotModifier[] }
+  | { readonly kind: 'order'; readonly title: string; readonly lines: readonly string[]; readonly conditions?: readonly ShotModifier[]; readonly approach?: WalkFirst }
+  /** A man looked at before any is chosen: who he is, how he fares. */
+  | { readonly kind: 'inspect'; readonly unitId: string }
   | { readonly kind: 'blocked'; readonly reason: CommandRejection };
 
 export interface BattleUiState {

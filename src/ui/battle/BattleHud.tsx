@@ -9,7 +9,7 @@ import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
-import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
+import { useBattleUi, type HoverPreview, type WalkFirst } from '../../state/battle-ui.ts';
 import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
 import { actionPoints, END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
@@ -123,8 +123,53 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
   );
 }
 
+/** The walk before a deed out of reach: its cost, what follows, the guards it passes. */
+function WalkLine({ walk }: { readonly walk: WalkFirst }) {
+  const n = walk.threats.length;
+  return (
+    <p className={n > 0 ? 'hud-warn' : ''}>
+      <strong>S’approcher</strong> : {actionPoints(walk.plan.apSpent)}, puis {walk.then}
+      {n > 0 ? ` (exposé à ${n} tireur${n > 1 ? 's' : ''} en chemin)` : ''}.
+    </p>
+  );
+}
+
+/** A man looked at before any is chosen: who he is, which side, how he fares, how he fights. */
+function InspectCard({ unit }: { readonly unit: UnitState }) {
+  const type = DEFAULT_RULES.units[unit.typeKey];
+  if (!type) return null;
+  const hero = DEFAULT_RULES.heroes[unit.typeKey];
+  const range = type.attack?.rangeM ?? 0;
+  return (
+    <>
+      <p>
+        <strong>{type.name}</strong>
+        {hero ? `, ${hero.title}` : ''} · {unit.faction === PLAYER_FACTION ? 'des vôtres' : 'de la garnison'}
+      </p>
+      <p>
+        Vie {unit.hp} / {type.hp} · moral {STANDING_LABEL[moraleStanding(DEFAULT_RULES.morale, unit.morale)].toLowerCase()}
+      </p>
+      <p className="hud-detail">{!type.attack ? 'Ne combat pas.' : range > 0 ? `Tire jusqu’à ${range} m.` : 'Frappe au contact.'}</p>
+    </>
+  );
+}
+
 function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonly battleUnits: readonly UnitState[] }): ReactNode {
+  const walk = 'approach' in hover ? hover.approach : undefined;
+  return (
+    <>
+      {walk && <WalkLine walk={walk} />}
+      <PreviewBody hover={hover} battleUnits={battleUnits} />
+    </>
+  );
+}
+
+function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; readonly battleUnits: readonly UnitState[] }): ReactNode {
   switch (hover.kind) {
+    case 'inspect': {
+      const unit = battleUnits.find((u) => u.id === hover.unitId);
+      return unit ? <InspectCard unit={unit} /> : null;
+    }
     case 'none':
       return null;
     case 'blocked':
@@ -133,9 +178,15 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
       const worst = hover.threats.reduce((m, t) => Math.max(m, t.hitChance), 0);
       return (
         <>
-          <p>
-            <strong>Déplacement</strong> : {actionPoints(hover.plan.apSpent)}, il en restera {hover.apLeft}.
-          </p>
+          {hover.partial ? (
+            <p>
+              <strong>Trop loin pour ce tour</strong> : il avance aussi loin qu’il le peut ({actionPoints(hover.plan.apSpent)}) ; il faudra finir la route au tour suivant.
+            </p>
+          ) : (
+            <p>
+              <strong>Déplacement</strong> : {actionPoints(hover.plan.apSpent)}, il en restera {hover.apLeft}.
+            </p>
+          )}
           <p className={hover.threats.length > 0 ? 'hud-warn' : ''}>
             {hover.threats.length === 0 ? 'Hors de portée des tireurs ennemis.' : `Exposé à ${hover.threats.length} tireur${hover.threats.length > 1 ? 's' : ''} (jusqu'à ${pct(worst)}).`}
           </p>
@@ -395,11 +446,13 @@ export function BattleHud({
         {armed ? `${stillActing()} troupe${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : finir quand même ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
       {selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />}
-      {selected && playerTurn && !busy && (
+      {((selected && playerTurn && !busy) || hover.kind === 'inspect') && (
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           {hints && <p className="hud-hint">
-            {armedAction ? (
+            {!selected ? (
+              <>Cliquez sur l’un de vos hommes, en bleu, pour lui donner un ordre.</>
+            ) : armedAction ? (
               <>
                 Visez puis cliquez · <kbd>Échap</kbd> annuler
               </>
@@ -412,7 +465,7 @@ export function BattleHud({
         </section>
       )}
       {briefing && introDone && !briefed && !NO_BRIEFING && playerTurn && battle.turn === 1 && <Briefing battle={battle} content={briefing} onClose={() => useBattleUi.getState().setBriefed()} />}
-      {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && <p className="hud-card hud-hint-only">Cliquez sur l’un de vos hommes, en bleu, pour lui donner un ordre.</p>}
+      {hints && briefing && !selected && !hasSelected && briefed && playerTurn && !busy && hover.kind !== 'inspect' && <p className="hud-card hud-hint-only">Cliquez sur l’un de vos hommes, en bleu, pour lui donner un ordre.</p>}
       <ol key={log.length > 0 ? log[log.length - 1] : ''} className="hud-card hud-log" aria-label="Journal">
         {log.map((line, i) => (
           <li key={`${i}-${line}`}>{line}</li>

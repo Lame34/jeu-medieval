@@ -5,7 +5,8 @@ import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
 import { Rain } from '../../render/vfx/Rain.tsx';
 import { MiniMap } from '../battle/MiniMap.tsx';
-import { actionsFor, triggerAction } from '../battle/actions.ts';
+import { actionsFor } from '../battle/actions.ts';
+import { triggerAction } from '../battle/intent.ts';
 import { Torches } from '../../render/vfx/Torches.tsx';
 import { BattleSoundscape } from '../../render/battle/BattleSoundscape.tsx';
 import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';

@@ -171,6 +171,13 @@ kbd {
   font-weight: 700;
 }
 
+/* Read-only cards over the field: a man standing under one stays within reach of the pointer
+   (a card shown under it would otherwise take the pointer from the field, and hide again). */
+.hud-preview,
+.hud-hint-only {
+  pointer-events: none;
+}
+
 .hud-preview {
   position: absolute;
   left: 50%;

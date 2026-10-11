@@ -93,7 +93,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'attack',
       title: 'Frapper',
-      text: <>Des brigands gardent le village, en rouge. Survole-en un avec ton homme choisi : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Approche-toi et clique sur l’ennemi.</>,
+      text: <>Des brigands gardent le village, en rouge. Survole-en un avec ton homme choisi : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Clique sur l’ennemi : s’il est à sa portée ce tour, ton homme s’approche de lui-même, puis frappe ; le chemin s’affiche avant. Trop loin, avance d’abord.</>,
       goal: { label: 'Attaquez un brigand', flag: 'attacked' },
       focus: 'outpost',
     },
@@ -161,7 +161,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'ram',
       title: 'Le bélier',
-      text: <>Le bélier n’enfonce que les portes : la porte d’abord, puis la herse derrière elle. Son toit le protège des flèches, pas des chevaliers qui sortent. Escorte-le.</>,
+      text: <>Le bélier n’enfonce que les portes : la porte d’abord, puis la herse derrière elle. Clique sur la porte : s’il peut l’atteindre ce tour, il y roule de lui-même, puis frappe. Son toit le protège des flèches, pas des chevaliers qui sortent. Escorte-le.</>,
       goal: { label: 'Frappez la porte au bélier', flag: 'gateHit' },
       focus: 'park',
     },
@@ -177,7 +177,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Mineurs et beffroi',
       text: (
         <>
-          Le mineur comble la douve (<kbd>F</kbd>) en {s.fillTurns} tours, ou mine le pied d’un mur en {s.mineTurns}. Sur la douve comblée, pousse le beffroi contre la courtine et accole-le (<kbd>F</kbd>) : tes hommes y montent (<kbd>F</kbd>, à côté du beffroi) et prennent pied sur le rempart.
+          Le mineur comble la douve en {s.fillTurns} tours, ou mine le pied d’un mur en {s.mineTurns} : <kbd>F</kbd>, puis clique sur l’endroit, et il s’y rend de lui-même. Sur la douve comblée, accole le beffroi à la courtine (<kbd>F</kbd>) : il s’y pousse s’il le peut ce tour. Tes hommes y montent (<kbd>F</kbd>) et prennent pied sur le rempart.
         </>
       ),
       goal: { label: 'Mettez un mineur à l’ouvrage', flag: 'works' },

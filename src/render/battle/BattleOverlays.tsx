@@ -191,16 +191,18 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       for (const h of silhouetted.current) if (!lit.includes(h)) h.setSilhouette(false);
       for (const h of lit) h.setSilhouette(true);
       silhouetted.current = lit;
-      if (hover.kind === 'move' && active) {
+      // A move, or the walk before a deed out of reach (a blow, works, a shot): its path, its end, its cost.
+      const walk = hover.kind === 'move' ? hover.plan : 'approach' in hover ? hover.approach?.plan : undefined;
+      if (walk && active) {
         parts.path.geometry.dispose();
-        parts.path.geometry = dashGeometry(hover.plan.path, (x, z) => session.standHeight(x, z));
+        parts.path.geometry = dashGeometry(walk.path, (x, z) => session.standHeight(x, z));
         parts.path.visible = true;
-        const d = hover.plan.destination;
+        const d = walk.destination;
         parts.destRing.position.set(d.x, session.standHeight(d.x, d.z) + LIFT_M, d.z);
         parts.destRing.visible = true;
         label.current.at.set(d.x, session.standHeight(d.x, d.z) + LABEL_HEIGHT_M, d.z);
         label.current.on = true;
-        if (label.current.el) label.current.el.textContent = `${hover.plan.apSpent} point${hover.plan.apSpent > 1 ? 's' : ''}`;
+        if (label.current.el) label.current.el.textContent = `${walk.apSpent} point${walk.apSpent > 1 ? 's' : ''}`;
       } else {
         parts.path.visible = false;
         parts.destRing.visible = false;

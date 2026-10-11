@@ -78,3 +78,24 @@ interface TestBattleApi {
 interface Window {
   __battle?: TestBattleApi;
 }
+
+/**
+ * `window.__battleCamera` as seen from Playwright tests (installed under `?e2e`; see
+ * `BattleCameraHook` in src/ui/screens/BattleScreen.tsx).
+ */
+interface TestCameraView {
+  readonly focus: { readonly x: number; readonly z: number };
+  readonly distance: number;
+  readonly yawTurns: number;
+  readonly pitchDeg: number;
+}
+
+interface TestBattleCameraApi {
+  viewIds(): string[];
+  setView(id: string): void;
+  look(view: TestCameraView): void;
+}
+
+interface Window {
+  __battleCamera?: TestBattleCameraApi;
+}

@@ -17,9 +17,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { Frustum, Matrix4, Raycaster, Vector2, Vector3, type Camera } from 'three';
-import { previewAttack } from '../../core/battle/combat.ts';
-import { distanceToCells, previewStructureAttack, SIEGE_ENGINE_TAG } from '../../core/battle/siege.ts';
-import { structureDef, type StructureDef } from '../../core/battle/structures.ts';
+import { distanceToCells } from '../../core/battle/siege.ts';
+import { structureDef } from '../../core/battle/structures.ts';
 import { fillCells, fillSurfaceM } from '../../core/battle/moat.ts';
 import { MINE_SITE_PREFIX } from '../../core/battle/siege-works.ts';
 import { projectOnPolyline } from '../../core/worldgen/geometry.ts';
@@ -29,19 +28,19 @@ import type { CastleHandle, CastleWork } from '../castle/Castle.tsx';
 import type { FireHandle } from '../vfx/Fire.tsx';
 import type { ProjectileHandle } from '../vfx/Projectiles.tsx';
 import { INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
-import { findUnit, planMove } from '../../core/battle/movement.ts';
+import { findUnit } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
-import { threatsAt } from '../../core/battle/overwatch.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { TerrainLayer } from '../../core/rules/types.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
-import { describeEvent } from '../../ui/battle/describe.ts';
+import { describeEvent, REJECTION_LABEL } from '../../ui/battle/describe.ts';
+import { intentAt, intentKey, issueOrders, triggerAction } from '../../ui/battle/intent.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
-import { actionCommand, actionPreview, aimsAtAllies, structureAt, triggerAction, type ActionId } from '../../ui/battle/actions.ts';
+import { aimsAtAllies, type ActionId } from '../../ui/battle/actions.ts';
 import { audio, type SoundId } from '../../audio/engine.ts';
 import { ANIMATION_SPEEDS, useSettings } from '../../state/settings.ts';
 import { ENGINE_SPEED_MS, engineKindOf } from '../units/engines.ts';
@@ -184,11 +183,6 @@ function blowSound(ranged: boolean, lob: boolean, attackType: string, targetType
   const armor = DEFAULT_RULES.units[targetType]?.armor ?? 'light';
   if (ranged) return !hit ? 'arrow_hit_wood' : armor === 'heavy' || armor === 'medium' ? 'hit_metal' : 'arrow_hit_flesh';
   return attackType === 'blunt' ? 'blunt_hit' : 'sword_clash';
-}
-
-function isSiegeEngine(typeKey: string): boolean {
-  const type = DEFAULT_RULES.units[typeKey];
-  return Boolean(type?.attack && type.tags.includes(SIEGE_ENGINE_TAG));
 }
 
 function yawOf(dx: number, dz: number): number {
@@ -725,19 +719,6 @@ export function BattleDirector({
   // --- Pointer: hover preview and clicks --------------------------------------------------
   useEffect(() => {
     const el = gl.domElement;
-    /** The structure an engine aims at under the pointer, with its preview. */
-    const structureHover = (selectedId: string, typeKey: string, ground: Vec2 | null): { key: string; hover: HoverPreview } | null => {
-      if (!ground || !isSiegeEngine(typeKey)) return null;
-      const state = session.state;
-      const def = structureAt(session.ctx, state, ground);
-      if (!def) return null;
-      const st = state.structures.find((s) => s.id === def.id);
-      const result = previewStructureAttack(session.ctx, state, selectedId, def.id);
-      return {
-        key: `structure:${def.id}`,
-        hover: result.ok ? { kind: 'structure', preview: result.preview, structure: def.kind, hp: st?.hp ?? 0, maxHp: def.maxHp } : { kind: 'blocked', reason: result.reason },
-      };
-    };
     const aim = (): { ground: Vec2 | null; unitId: string | null } => {
       const s = scratch.current;
       const r = el.getBoundingClientRect();
@@ -761,53 +742,30 @@ export function BattleDirector({
       const ground = groundHit(s.ray.ray, terrain, (x, z) => session.standHeight(x, z), s.ground) ? { x: s.ground.x, z: s.ground.z } : null;
       return { ground, unitId };
     };
+    const setHover = (key: string, hover: () => HoverPreview) => {
+      if (key === hoverKey.current) return;
+      hoverKey.current = key;
+      useBattleUi.getState().setHover(hover());
+    };
     const refreshHover = () => {
       const ui = useBattleUi.getState();
       const state = session.state;
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
-      if (!pointer.current.inside || ui.busy || state.activeFaction !== PLAYER_FACTION || !selected?.alive) {
-        if (hoverKey.current !== '') {
-          hoverKey.current = '';
-          ui.setHover({ kind: 'none' });
-        }
+      if (!pointer.current.inside || ui.busy || state.activeFaction !== PLAYER_FACTION) {
+        setHover('', () => ({ kind: 'none' }));
         return;
       }
       const { ground, unitId } = aim();
       const target = unitId ? findUnit(state, unitId) : undefined;
-      let key: string;
-      let hover: HoverPreview;
-      const armedId = ui.armedAction as ActionId | null;
-      if (armedId) {
-        // The armed action, aimed here (keyed by its order: one preview per distinct order).
-        const command = actionCommand(session, selected, armedId, target, ground);
-        key = `action:${armedId}:${command ? JSON.stringify(command, (k, v: unknown) => (typeof v === 'number' && k !== 'turn' ? Math.floor(v) : v)) : 'none'}`;
-        if (key === hoverKey.current) return;
-        hover = actionPreview(session, selected, armedId, target, ground);
-      } else if (target && target.faction !== selected.faction) {
-        key = `attack:${target.id}`;
-        if (key === hoverKey.current) return;
-        const result = previewAttack(session.ctx, state, selected.id, target.id);
-        hover = result.ok ? { kind: 'attack', preview: result.preview } : { kind: 'blocked', reason: result.reason };
-      } else if (!target && structureHover(selected.id, selected.typeKey, ground)) {
-        const aimed = structureHover(selected.id, selected.typeKey, ground) as { key: string; hover: HoverPreview };
-        key = aimed.key;
-        if (key === hoverKey.current) return;
-        hover = aimed.hover;
-      } else if (ground && !target) {
-        const cellKey = `move:${Math.floor(ground.x)},${Math.floor(ground.z)}`;
-        key = cellKey;
-        if (key === hoverKey.current) return;
-        const result = planMove(session.ctx, state, selected.id, ground);
-        hover = result.ok
-          ? { kind: 'move', plan: result.plan, apLeft: selected.ap - result.plan.apSpent, threats: threatsAt(session.ctx, state, selected, result.plan.destination) }
-          : { kind: 'blocked', reason: result.reason };
-      } else {
-        key = 'none';
-        if (key === hoverKey.current) return;
-        hover = { kind: 'none' };
+      // No man chosen yet: the one under the pointer is looked at (who he is, how he fares).
+      if (!selected?.alive) {
+        if (target) setHover(`inspect:${target.id}`, () => ({ kind: 'inspect', unitId: target.id }));
+        else setHover('', () => ({ kind: 'none' }));
+        return;
       }
-      hoverKey.current = key;
-      ui.setHover(hover);
+      // What a click would do here, worked out only when what is aimed at changes.
+      const armed = ui.armedAction as ActionId | null;
+      setHover(intentKey(session, selected, target, ground, armed), () => intentAt(session, selected, target, ground, armed).hover);
     };
     const onMove = (e: PointerEvent) => {
       pointer.current.x = e.clientX;
@@ -846,18 +804,15 @@ export function BattleDirector({
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
       if (!selected?.alive) return;
       hoverKey.current = '';
-      if (ui.armedAction) {
-        const command = actionCommand(session, selected, ui.armedAction as ActionId, clicked, ground);
-        if (command) {
-          ui.armAction(null);
-          session.issue(command);
-        }
+      // The click does what its preview said: the walk first when the deed is out of reach.
+      const armed = ui.armedAction as ActionId | null;
+      const intent = intentAt(session, selected, clicked, ground, armed);
+      if (intent.orders.length === 0) {
+        if (intent.hover.kind === 'blocked') ui.pushLog([REJECTION_LABEL[intent.hover.reason]]);
         return;
       }
-      if (clicked) session.issue({ type: 'attack', unitId: selected.id, targetId: clicked.id });
-      else if (ground && isSiegeEngine(selected.typeKey) && structureAt(session.ctx, state, ground)) {
-        session.issue({ type: 'attackStructure', unitId: selected.id, structureId: (structureAt(session.ctx, state, ground) as StructureDef).id });
-      } else if (ground) session.issue({ type: 'move', unitId: selected.id, to: ground });
+      if (armed) ui.armAction(null);
+      issueOrders(session, intent.orders);
     };
     const onKey = (e: KeyboardEvent) => {
       const ui = useBattleUi.getState();
