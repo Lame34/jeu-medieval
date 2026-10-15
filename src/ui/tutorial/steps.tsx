@@ -76,7 +76,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'select',
       title: 'Choisir un homme',
-      text: <>Les hommes en bleu sont les tiens. Clique sur l’un d’eux : sa carte s’ouvre en bas, avec sa vie, ses points d’action (pour marcher et frapper) et son moral.</>,
+      text: <>Les hommes en bleu sont les tiens. Clique sur l’un d’eux : sa carte s’ouvre en bas, avec sa vie, ses points d’action (pour marcher et frapper) et son moral. Tu hésites ? Le bouton <strong>Conseil</strong> de sa carte (<kbd>C</kbd>) te dit ce que je ferais à sa place ; appuie encore, et il le fait.</>,
       goal: { label: 'Choisissez un homme en bleu', flag: 'selected' },
       focus: 'army',
     },
@@ -85,7 +85,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Se déplacer',
       text: (
         <>
-          Survole le sol : le contour clair montre où aller en gardant de quoi frapper, le contour sombre jusqu’où il peut marcher. Chaque point d’action porte à {meters('Road')} m sur la route, {meters('Plain')} en plaine, {meters('Field')} dans un champ, {meters('Forest')} en forêt, et une montée coûte plus. Clique pour avancer.
+          Survole le sol : le contour doré montre où aller en gardant de quoi frapper, le contour pâle jusqu’où il peut marcher. Chaque point d’action porte à {meters('Road')} m sur la route, {meters('Plain')} en plaine, {meters('Field')} dans un champ, {meters('Forest')} en forêt, et une montée coûte plus. Clique pour avancer. Pour mener plusieurs hommes à la fois, trace un cadre autour d’eux en glissant, le bouton enfoncé, ou ajoute-les un à un d’un clic, la touche Maj tenue : ils marchent en rang et frappent ensemble.
         </>
       ),
       goal: { label: 'Déplacez un homme', flag: 'moved' },

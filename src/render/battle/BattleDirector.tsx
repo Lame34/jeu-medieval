@@ -39,7 +39,7 @@ import { TerrainLayer } from '../../core/rules/types.ts';
 import { useBattleUi, type HoverPreview } from '../../state/battle-ui.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
 import { describeEvent, REJECTION_LABEL } from '../../ui/battle/describe.ts';
-import { intentAt, intentKey, issueOrders, triggerAction } from '../../ui/battle/intent.ts';
+import { groupIntentAt, groupIntentKey, intentAt, intentKey, issueGroupOrders, issueOrders, triggerAction } from '../../ui/battle/intent.ts';
 import { requestEndTurn } from '../../ui/battle/end-turn.ts';
 import { aimsAtAllies, type ActionId } from '../../ui/battle/actions.ts';
 import { audio, type SoundId } from '../../audio/engine.ts';
@@ -68,6 +68,7 @@ const ENGINE_ROLL_S = 1.0;
 const SOFT = 0.5;
 /** Shortcut keys of the card's actions (ui/battle/actions.ts shows them on its buttons). */
 const ACTION_KEYS: Readonly<Record<string, string>> = {
+  KeyC: 'advice',
   KeyG: 'guard',
   KeyB: 'fireArrow',
   KeyX: 'extinguish',
@@ -93,6 +94,8 @@ const FOLLOW_ENEMY_BLOWS = !E2E;
 const WELL_IN_VIEW_NDC = 0.75;
 /** Pointer travel (px) above which a press is a drag, not a click. */
 const CLICK_SLOP_PX = 6;
+/** No man chosen by a frame drawn smaller than this (px): a slip of the finger, not a frame. */
+const FRAME_MIN_PX = 12;
 /** Ray march along the view ray over the heightfield (m). */
 const RAY_STEP_M = 1;
 const RAY_MAX_M = 900;
@@ -285,7 +288,7 @@ export function BattleDirector({
   };
   const floats = useRef<FloatText[]>([]);
   const scratch = useRef({ v: new Vector3(), ground: new Vector3(), ndc: new Vector2(), ray: new Raycaster(), p: new Vector3(), aim: new Vector3(), launch: new Vector3(), landing: new Vector3() });
-  const pointer = useRef({ x: 0, y: 0, downX: 0, downY: 0, down: false, inside: false });
+  const pointer = useRef({ x: 0, y: 0, downX: 0, downY: 0, down: false, inside: false, framing: false });
   const hoverKey = useRef('');
   const aiPending = useRef(false);
 
@@ -329,6 +332,8 @@ export function BattleDirector({
       queue.current.push(...events.map((event) => ({ event, enemy })));
       const store = useBattleUi.getState();
       store.setBattle(state);
+      // Guillaume's advice was for the battle as it stood: any order dismisses it.
+      if (store.advice) store.setAdvice(null);
       const lines = events.map((e) => describeEvent(e, state)).filter((l): l is string => l !== null);
       if (lines.length > 0) store.pushLog(lines);
       if (events.some((e) => e.type === 'commandRejected')) audio.play('ui_click');
@@ -766,11 +771,51 @@ export function BattleDirector({
       }
       // What a click would do here, worked out only when what is aimed at changes.
       const armed = ui.armedAction as ActionId | null;
+      if (ui.group.length > 1 && !armed) {
+        setHover(groupIntentKey(session, ui.group, target, ground), () => groupIntentAt(session, ui.group, target, ground).hover);
+        return;
+      }
       setHover(intentKey(session, selected, target, ground, armed), () => intentAt(session, selected, target, ground, armed).hover);
+    };
+    /** Our men standing inside the screen rectangle (px, viewport): the frame drawn by a drag. */
+    const menInFrame = (x0: number, y0: number, x1: number, y1: number): string[] => {
+      const r = el.getBoundingClientRect();
+      const s = scratch.current;
+      const ids: string[] = [];
+      for (const u of session.state.units) {
+        if (!u.alive || u.faction !== PLAYER_FACTION) continue;
+        const h = handles?.get(u.id);
+        if (!h) continue;
+        s.p.copy(h.root.position);
+        s.p.y += UNIT_PICK_HEIGHT_M / 2;
+        s.p.project(camera);
+        const x = r.left + ((s.p.x + 1) / 2) * r.width;
+        const y = r.top + ((1 - s.p.y) / 2) * r.height;
+        if (s.p.z < 1 && x >= Math.min(x0, x1) && x <= Math.max(x0, x1) && y >= Math.min(y0, y1) && y <= Math.max(y0, y1)) ids.push(u.id);
+      }
+      return ids;
+    };
+    const frame = document.createElement('div');
+    frame.className = 'battle-select-frame';
+    frame.hidden = true;
+    el.parentElement?.appendChild(frame);
+    const drawFrame = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      const p = pointer.current;
+      frame.hidden = false;
+      frame.style.left = `${Math.min(p.downX, x) - r.left}px`;
+      frame.style.top = `${Math.min(p.downY, y) - r.top}px`;
+      frame.style.width = `${Math.abs(x - p.downX)}px`;
+      frame.style.height = `${Math.abs(y - p.downY)}px`;
     };
     const onMove = (e: PointerEvent) => {
       pointer.current.x = e.clientX;
       pointer.current.y = e.clientY;
+      // A drag on the field draws a frame: the men inside it are chosen together.
+      if (pointer.current.down && (pointer.current.framing || Math.hypot(e.clientX - pointer.current.downX, e.clientY - pointer.current.downY) > CLICK_SLOP_PX)) {
+        pointer.current.framing = true;
+        drawFrame(e.clientX, e.clientY);
+      }
       pointer.current.inside = true;
       refreshHover();
     };
@@ -781,25 +826,53 @@ export function BattleDirector({
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       pointer.current.down = true;
+      pointer.current.framing = false;
       pointer.current.downX = e.clientX;
       pointer.current.downY = e.clientY;
     };
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0 || !pointer.current.down) return;
       pointer.current.down = false;
-      if (Math.hypot(e.clientX - pointer.current.downX, e.clientY - pointer.current.downY) > CLICK_SLOP_PX) return;
+      const framed = pointer.current.framing;
+      pointer.current.framing = false;
+      frame.hidden = true;
       const ui = useBattleUi.getState();
       const state = session.state;
+      if (framed) {
+        const big = Math.abs(e.clientX - pointer.current.downX) >= FRAME_MIN_PX && Math.abs(e.clientY - pointer.current.downY) >= FRAME_MIN_PX;
+        if (big && state.status === 'ongoing') {
+          const ids = menInFrame(pointer.current.downX, pointer.current.downY, e.clientX, e.clientY);
+          const already = ui.group.length > 1 ? ui.group : ui.selectedId ? [ui.selectedId] : [];
+          if (ids.length > 0) ui.setGroup(e.shiftKey ? [...new Set([...already, ...ids])] : ids);
+          hoverKey.current = '';
+        }
+        return;
+      }
       if (ui.busy || state.activeFaction !== PLAYER_FACTION || state.status !== 'ongoing') return;
       const { ground, unitId } = aim();
       const clicked = unitId ? findUnit(state, unitId) : undefined;
       const armedBy = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
       const aimingAlly = ui.armedAction !== null && armedBy !== undefined && aimsAtAllies(armedBy, ui.armedAction as ActionId);
       if (clicked && clicked.faction === PLAYER_FACTION && !aimingAlly) {
+        // Shift and a click: the man joins the men chosen, or leaves them.
+        if (e.shiftKey && ui.selectedId) {
+          const chosen = ui.group.length > 1 ? ui.group : [ui.selectedId];
+          ui.setGroup(chosen.includes(clicked.id) ? chosen.filter((id) => id !== clicked.id) : [...chosen, clicked.id]);
+          hoverKey.current = '';
+          return;
+        }
         // A second click on the selected unit recentres the camera on it.
         if (ui.selectedId === clicked.id) focusOn?.(clicked.position);
         ui.select(clicked.id);
         hoverKey.current = '';
+        return;
+      }
+      // Several men chosen: they walk in rank, or strike together.
+      if (ui.group.length > 1 && !ui.armedAction) {
+        hoverKey.current = '';
+        const together = groupIntentAt(session, ui.group, clicked, ground);
+        if (together.orders.some((o) => o.length > 0)) issueGroupOrders(session, together.orders);
+        else if (together.hover.kind === 'group') ui.pushLog(['Aucun d’eux ne peut le faire ce tour.']);
         return;
       }
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
@@ -858,7 +931,7 @@ export function BattleDirector({
     window.addEventListener('keydown', onKey);
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
       if (s.selectedId && s.selectedId !== prev.selectedId) audio.play('ui_select');
-      if (s.selectedId !== prev.selectedId || s.busy !== prev.busy || s.armedAction !== prev.armedAction) {
+      if (s.selectedId !== prev.selectedId || s.group !== prev.group || s.busy !== prev.busy || s.armedAction !== prev.armedAction) {
         hoverKey.current = '';
         refreshHover();
       }
@@ -869,6 +942,7 @@ export function BattleDirector({
       el.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
+      frame.remove();
       unsubscribe();
     };
   }, [gl, camera, session, handles, terrain, focusOn]);

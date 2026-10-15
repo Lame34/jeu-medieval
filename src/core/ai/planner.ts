@@ -260,11 +260,11 @@ export class ApproachFields {
 }
 
 /** What a siege unit exists for, and the tag that marks it. */
-type Objective = 'gate' | 'works' | 'dock';
+export type Objective = 'gate' | 'works' | 'dock';
 const OBJECTIVE_TAG: Readonly<Record<Objective, string>> = { gate: GATES_ONLY_TAG, works: FILL_MOAT_TAG, dock: TOWER_TAG };
 
 /** The unit's objective, if it has one: rams, sappers and towers still to dock. */
-function objectiveOf(state: BattleState, unit: UnitState, tags: readonly string[]): Objective | null {
+export function objectiveOf(state: BattleState, unit: UnitState, tags: readonly string[]): Objective | null {
   if (tags.includes(GATES_ONLY_TAG)) return 'gate';
   if (tags.includes(FILL_MOAT_TAG)) return 'works';
   if (tags.includes(TOWER_TAG) && !dockOf(state, unit.id)) return 'dock';

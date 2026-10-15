@@ -187,6 +187,34 @@ kbd {
   min-width: 320px;
 }
 
+/* Guillaume's advice: in the preview's place, with its two answers. */
+.hud-advice {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100% - 600px));
+  min-width: 320px;
+  border-color: var(--gold, #c99a3b);
+}
+
+.hud-advice h2 {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: 16px;
+  letter-spacing: 0.04em;
+}
+
+.hud-advice p {
+  margin: 0 0 10px;
+  font-style: italic;
+}
+
+.hud-advice-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .hud-hint,
 .hud-detail {
   font-size: 14px;
@@ -321,6 +349,15 @@ kbd {
 }
 
 /* Coût en PA au-dessus de la destination prévue. */
+/* The frame a drag draws on the field: the men inside are chosen together. */
+.battle-select-frame {
+  position: absolute;
+  z-index: 3;
+  border: 1px solid var(--gold, #c99a3b);
+  background: rgb(230 195 90 / 12%);
+  pointer-events: none;
+}
+
 .battle-ap-label {
   z-index: 3;
   font-size: 16px;
@@ -513,7 +550,8 @@ kbd {
   line-height: 1.4;
 }
 
-.hud-briefing button {
+.hud-briefing button,
+.hud-advice-actions button {
   font: inherit;
   padding: 5px 16px;
   color: var(--parchment);
@@ -601,7 +639,8 @@ kbd {
   color: #f0b0a0;
 }
 
-.hud-end-actions button[data-primary] {
+.hud-end-actions button[data-primary],
+.hud-advice-actions button[data-primary] {
   border-color: var(--gold);
   background: linear-gradient(180deg, #a3301e, #7a1a10);
   color: #fbe9d6;

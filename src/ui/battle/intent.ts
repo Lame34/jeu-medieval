@@ -11,6 +11,7 @@ import { previewExtinguish, previewFireArrow } from '../../core/battle/fire.ts';
 import { previewAbility } from '../../core/battle/heroes.ts';
 import { findUnit, type MovePlan } from '../../core/battle/movement.ts';
 import { threatsAt } from '../../core/battle/overwatch.ts';
+import { planGroupMove, planGroupStrike, type GroupPlan } from '../../core/battle/group.ts';
 import { planAdvance, planApproach, planFill, planStrike, planStructureStrike, planUndermine, weaponReach } from '../../core/battle/reach.ts';
 import { distanceToStructure, previewStructureAttack } from '../../core/battle/siege.ts';
 import { SIEGE_ENGINE_TAG } from '../../core/battle/tags.ts';
@@ -22,6 +23,7 @@ import { distance, type Vec2 } from '../../core/math/vec2.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type HoverPreview, type WalkFirst } from '../../state/battle-ui.ts';
 import { actionCommand, actionsFor, ordersOf, structureAt, worksAtOnce, type ActionId } from './actions.ts';
+import { adviceFor } from './advice.ts';
 import { actionPoints, STRUCTURE_OBJECT } from './describe.ts';
 import type { BattleSession } from './session.ts';
 
@@ -200,6 +202,7 @@ function abilityIntent(session: BattleSession, unit: UnitState, command: Ability
 /** Does this action need aiming (else it is ordered at once)? */
 function needsAim(session: BattleSession, unit: UnitState, id: ActionId): boolean {
   if (id === 'works') return worksAtOnce(session, unit) === null;
+  if (id === 'advice') return false;
   if (id.startsWith('ability:')) return actionCommand(session, unit, id, undefined, null) === null;
   return true;
 }
@@ -209,6 +212,10 @@ export function triggerAction(session: BattleSession, key: ActionId): void {
   const ui = useBattleUi.getState();
   const unit = ui.selectedId ? session.state.units.find((u) => u.id === ui.selectedId) : undefined;
   if (!unit?.alive || ui.busy) return;
+  if (ui.group.length > 1) {
+    ui.pushLog(['Choisissez un seul homme pour cet ordre.']);
+    return;
+  }
   // The keys 1 and 2 name a hero's abilities by their place.
   const index = /^ability:\d+$/.test(key) ? Number(key.slice('ability:'.length)) : -1;
   const ability = index >= 0 ? session.ctx.rules.heroes[unit.typeKey]?.abilities[index] : undefined;
@@ -220,6 +227,10 @@ export function triggerAction(session: BattleSession, key: ActionId): void {
     ui.pushLog([`${button.label} : ${button.note ?? 'impossible pour l’instant'}.`]);
     return;
   }
+  if (id === 'advice') {
+    toggleAdvice(session, unit);
+    return;
+  }
   if (!needsAim(session, unit, id)) {
     ui.armAction(null);
     // Docking or climbing, after the walk this turn when the wall or the beffroi is not at hand.
@@ -229,6 +240,48 @@ export function triggerAction(session: BattleSession, key: ActionId): void {
     return;
   }
   ui.armAction(ui.armedAction === id ? null : id);
+}
+
+/** What a click by several men (`ids`) on `target` or `ground` would do: walk in rank, or strike together. */
+export function groupIntentKey(session: BattleSession, ids: readonly string[], target: UnitState | undefined, ground: Vec2 | null): string {
+  const enemy = target && target.faction !== session.state.activeFaction;
+  return `group:${ids.join(',')}:${target ? (enemy ? target.id : 'friend') : cellKey(ground)}`;
+}
+
+export function groupIntentAt(session: BattleSession, ids: readonly string[], target: UnitState | undefined, ground: Vec2 | null): { readonly key: string; readonly hover: HoverPreview; readonly orders: readonly (readonly Command[])[] } {
+  const enemy = target && target.faction !== session.state.activeFaction ? target : undefined;
+  const key = groupIntentKey(session, ids, target, ground);
+  if (!enemy && (target || !ground)) return { key, hover: { kind: 'none' }, orders: [] };
+  const plan: GroupPlan = enemy ? planGroupStrike(session.ctx, session.state, ids, enemy.id) : planGroupMove(session.ctx, session.state, ids, ground as Vec2);
+  const { strikes, closeIn, arrive, partial, idle, walks } = plan;
+  return { key, hover: { kind: 'group', verb: enemy ? 'strike' : 'move', men: ids.length, strikes, closeIn, arrive, partial, idle, walks }, orders: plan.orders };
+}
+
+/** Each man's orders in turn; a man whose next order the rules refuse (felled, routed, his enemy down) stops there, the others go on. */
+export function issueGroupOrders(session: BattleSession, orders: readonly (readonly Command[])[]): void {
+  for (const man of orders) {
+    for (const order of man) {
+      if (session.state.status !== 'ongoing') return;
+      const state: BattleState = session.state;
+      const dry = applyCommand(session.ctx, state, order);
+      syncNav(session.ctx, state.structures, state.works);
+      if (dry.rejection) break;
+      session.issue(order);
+    }
+  }
+}
+
+/** The card's button, or C: shows Guillaume's advice for the chosen man, or follows the one on show. */
+export function toggleAdvice(session: BattleSession, unit: UnitState): void {
+  const ui = useBattleUi.getState();
+  const shown = ui.advice?.unitId === unit.id ? ui.advice : null;
+  if (!shown) {
+    ui.armAction(null);
+    ui.setAdvice(adviceFor(session, unit));
+    return;
+  }
+  ui.setAdvice(null);
+  issueOrders(session, shown.orders);
 }
 
 /**

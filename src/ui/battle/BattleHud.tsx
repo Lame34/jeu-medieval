@@ -9,12 +9,13 @@ import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
-import { useBattleUi, type HoverPreview, type WalkFirst } from '../../state/battle-ui.ts';
+import { useBattleUi, type AdviceShown, type HoverPreview, type WalkFirst } from '../../state/battle-ui.ts';
 import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
 import { actionPoints, END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
 import { E2E } from '../test-flags.ts';
+import { unitCount } from '../campaign/effects-text.ts';
 import './battle-hud.css';
 
 /** Test runs (?e2e) start without the opening briefing (it would cover their captures). */
@@ -130,6 +131,22 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
   );
 }
 
+/** « 1 frappe », « 2 frappent ». */
+const agree = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+
+/** Several men chosen together: how many, of which kinds. */
+function GroupCard({ units }: { readonly units: readonly UnitState[] }) {
+  const kinds = new Map<string, number>();
+  for (const u of units) kinds.set(u.typeKey, (kinds.get(u.typeKey) ?? 0) + 1);
+  return (
+    <section className="hud-card hud-unit hud-group" aria-label="Hommes choisis">
+      <h2>{units.length} hommes choisis</h2>
+      <p>{[...kinds].map(([k, n]) => unitCount(k, n)).join(', ')}</p>
+      <p className="hud-detail">Ils marchent en rang, ou frappent ensemble l’ennemi visé. Maj et un clic : en ajouter ou en retirer un ; Échap : les laisser.</p>
+    </section>
+  );
+}
+
 /** The walk before a deed out of reach: its cost, what follows, the guards it passes. */
 function WalkLine({ walk, battleUnits }: { readonly walk: WalkFirst; readonly battleUnits: readonly UnitState[] }) {
   const n = walk.threats.length;
@@ -179,6 +196,24 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
     }
     case 'none':
       return null;
+    case 'group': {
+      const h = hover;
+      if (h.verb === 'strike') {
+        const parts = [agree(h.strikes, 'frappe ce tour', 'frappent ce tour'), ...(h.closeIn > 0 ? [agree(h.closeIn, 's’approche', 's’approchent')] : []), ...(h.idle > 0 ? [agree(h.idle, 'ne peut rien', 'ne peuvent rien')] : [])];
+        return (
+          <p>
+            <strong>Ensemble</strong> : {parts.join(', ')}.
+          </p>
+        );
+      }
+      return (
+        <p>
+          <strong>En rang</strong> : {agree(h.men - h.idle, 'homme marche', 'hommes marchent')} vers ce point
+          {h.partial > 0 ? ` ; ${agree(h.partial, 'n’y sera', 'n’y seront')} qu’au tour suivant` : ''}
+          {h.idle > 0 ? ` ; ${agree(h.idle, 'ne peut plus bouger', 'ne peuvent plus bouger')}` : ''}.
+        </p>
+      );
+    }
     case 'blocked':
       return <p className="hud-blocked">{REJECTION_LABEL[hover.reason]}</p>;
     case 'move': {
@@ -358,6 +393,27 @@ export interface EndContent {
   readonly actions: readonly EndAction[];
 }
 
+/** Guillaume's advice for the chosen man, and the two answers. */
+function AdviceCard({ advice, onFollow, onDismiss }: { readonly advice: AdviceShown; readonly onFollow: () => void; readonly onDismiss: () => void }) {
+  const orders = advice.orders.length > 0;
+  return (
+    <section className="hud-card hud-advice" aria-live="polite" aria-label="Conseil de Guillaume">
+      <h2>Conseil de Guillaume</h2>
+      <p>« {advice.text} »</p>
+      <div className="hud-advice-actions">
+        {orders && (
+          <button type="button" data-primary onClick={onFollow}>
+            Suivre le conseil <kbd>C</kbd>
+          </button>
+        )}
+        <button type="button" onClick={onDismiss}>
+          {orders ? 'Non merci' : 'Compris'} <kbd>Échap</kbd>
+        </button>
+      </div>
+    </section>
+  );
+}
+
 /** Losses and structures down, for the end panel. */
 function EndPanel({ battle, content }: { readonly battle: BattleState; readonly content: EndContent }) {
   const ending = useBattleUi((s) => s.ending);
@@ -430,6 +486,8 @@ export function BattleHud({
   const busy = useBattleUi((s) => s.busy);
   const log = useBattleUi((s) => s.log);
   const armedAction = useBattleUi((s) => s.armedAction);
+  const advice = useBattleUi((s) => s.advice);
+  const group = useBattleUi((s) => s.group);
   const briefed = useBattleUi((s) => s.briefed);
   const introDone = useBattleUi((s) => s.introDone);
   const hasSelected = useBattleUi((s) => s.hasSelected);
@@ -453,13 +511,22 @@ export function BattleHud({
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} troupe${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : finir quand même ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
-      {selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />}
-      {((selected && playerTurn && !busy) || hover.kind === 'inspect') && (
+      {selected && group.length > 1 ? (
+        <GroupCard units={battle.units.filter((u) => u.alive && group.includes(u.id))} />
+      ) : (
+        selected && <UnitCard unit={selected} actions={playerTurn ? actionsFor(selected) : []} onAction={onAction} />
+      )}
+      {selected && playerTurn && !busy && advice?.unitId === selected.id && <AdviceCard advice={advice} onFollow={() => onAction('advice')} onDismiss={() => useBattleUi.getState().setAdvice(null)} />}
+      {((selected && playerTurn && !busy && advice?.unitId !== selected.id) || hover.kind === 'inspect') && (
         <section className="hud-card hud-preview" aria-live="polite">
           <Preview hover={hover} battleUnits={battle.units} />
           {hints && <p className="hud-hint">
             {!selected ? (
               <>Cliquez sur l’un de vos hommes, en bleu, pour lui donner un ordre.</>
+            ) : group.length > 1 ? (
+              <>
+                Clic : marcher ou frapper ensemble · Maj et clic : ajouter, retirer · <kbd>Échap</kbd> les laisser
+              </>
             ) : armedAction ? (
               <>
                 Visez puis cliquez · <kbd>Échap</kbd> annuler

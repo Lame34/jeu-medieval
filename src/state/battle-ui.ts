@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import type { AttackPreview } from '../core/battle/combat.ts';
 import type { MovePlan } from '../core/battle/movement.ts';
 import type { BattleState } from '../core/battle/types.ts';
-import type { CommandRejection } from '../core/commands/types.ts';
+import type { Command, CommandRejection } from '../core/commands/types.ts';
 import type { BattleEndedEvent } from '../core/events/types.ts';
 import type { Threat } from '../core/battle/overwatch.ts';
 import type { StructureAttackPreview } from '../core/battle/siege.ts';
@@ -34,11 +34,25 @@ export type HoverPreview =
   | { readonly kind: 'order'; readonly title: string; readonly lines: readonly string[]; readonly conditions?: readonly ShotModifier[]; readonly approach?: WalkFirst }
   /** A man looked at before any is chosen: who he is, how he fares. */
   | { readonly kind: 'inspect'; readonly unitId: string }
-  | { readonly kind: 'blocked'; readonly reason: CommandRejection };
+  | { readonly kind: 'blocked'; readonly reason: CommandRejection }
+  /** Several men chosen: what they would do together (core/battle/group.ts), and their paths. */
+  | { readonly kind: 'group'; readonly verb: 'move' | 'strike'; readonly men: number; readonly strikes: number; readonly closeIn: number; readonly arrive: number; readonly partial: number; readonly idle: number; readonly walks: readonly MovePlan[] };
+
+/** « Que ferait Guillaume ? » for the chosen man: what he says, the orders to follow, the walk drawn. */
+export interface AdviceShown {
+  readonly unitId: string;
+  readonly text: string;
+  readonly orders: readonly Command[];
+  readonly walk: MovePlan | null;
+  /** The enemy aimed at, ringed on the ground. */
+  readonly targetId: string | null;
+}
 
 export interface BattleUiState {
   readonly battle: BattleState | null;
   readonly selectedId: string | null;
+  /** Several men chosen at once (ADR-044), the first being `selectedId`; empty for one or none. */
+  readonly group: readonly string[];
   readonly hover: HoverPreview;
   /** Animations playing or the AI thinking: no orders. */
   readonly busy: boolean;
@@ -59,10 +73,15 @@ export interface BattleUiState {
   /** An action waiting for its target (ui/battle/actions.ts: the pointer aims it, a click orders it). */
   readonly armedAction: string | null;
   armAction(id: string | null): void;
+  /** Guillaume's advice on show (ui/battle/advice.ts), until it is followed or dismissed. */
+  readonly advice: AdviceShown | null;
+  setAdvice(advice: AdviceShown | null): void;
   setEnding(ending: BattleEndedEvent): void;
   armEndTurn(armed: boolean): void;
   setBattle(battle: BattleState): void;
   select(id: string | null): void;
+  /** Chooses these men together (one: as select; none: nobody). */
+  setGroup(ids: readonly string[]): void;
   setHover(hover: HoverPreview): void;
   setBusy(busy: boolean): void;
   pushLog(lines: readonly string[]): void;
@@ -90,6 +109,7 @@ function appendLog(log: readonly string[], lines: readonly string[]): string[] {
 export const useBattleUi = create<BattleUiState>((set) => ({
   battle: null,
   selectedId: null,
+  group: [],
   hover: { kind: 'none' },
   busy: false,
   log: [],
@@ -101,13 +121,16 @@ export const useBattleUi = create<BattleUiState>((set) => ({
   introDone: false,
   setIntroDone: () => set({ introDone: true }),
   armedAction: null,
-  armAction: (armedAction) => set({ armedAction, hover: { kind: 'none' } }),
+  armAction: (armedAction) => set({ armedAction, hover: { kind: 'none' }, advice: null }),
+  advice: null,
+  setAdvice: (advice) => set({ advice }),
   setEnding: (ending) => set({ ending }),
   armEndTurn: (endTurnArmed) => set({ endTurnArmed }),
   setBattle: (battle) => set({ battle }),
-  select: (selectedId) => set((s) => ({ selectedId, hover: { kind: 'none' }, armedAction: null, hasSelected: s.hasSelected || selectedId !== null })),
+  select: (selectedId) => set((s) => ({ selectedId, group: [], hover: { kind: 'none' }, armedAction: null, advice: null, hasSelected: s.hasSelected || selectedId !== null })),
+  setGroup: (ids) => set((s) => ({ selectedId: ids[0] ?? null, group: ids.length > 1 ? [...ids] : [], hover: { kind: 'none' }, armedAction: null, advice: null, hasSelected: s.hasSelected || ids.length > 0 })),
   setHover: (hover) => set({ hover }),
   setBusy: (busy) => set({ busy }),
   pushLog: (lines) => set((s) => ({ log: appendLog(s.log, lines) })),
-  reset: () => set({ battle: null, selectedId: null, hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null, briefed: false, introDone: false, hasSelected: false }),
+  reset: () => set({ battle: null, selectedId: null, group: [], hover: { kind: 'none' }, busy: false, log: [], ending: null, endTurnArmed: false, armedAction: null, advice: null, briefed: false, introDone: false, hasSelected: false }),
 }));

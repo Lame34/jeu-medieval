@@ -1,12 +1,13 @@
 /**
  * Order feedback on the ground (brief §9.2): the selected unit's two movement contours (terrain
- * shader, see move-field.ts), a gold ring under it, a red ring under the targeted enemy, and the
- * planned path as painted dashes with a destination ring and its AP cost. Rebuilt when the
+ * shader, see move-field.ts), a gold ring under it (under each of several men chosen together:
+ * one instanced draw), a red ring under the targeted enemy, and the planned paths as painted
+ * dashes, a single walk with a destination ring and its AP cost. Rebuilt when the
  * selection, the hover or the battle changes, never per frame; each frame only copies positions.
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, RingGeometry, Vector3, type Camera } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, RingGeometry, Vector3, type Camera } from 'three';
 import { setDrawable } from '../drawable.ts';
 import { findUnit, movementArea } from '../../core/battle/movement.ts';
 import type { BattleState } from '../../core/battle/types.ts';
@@ -24,6 +25,8 @@ const PATH_COLOR = '#f2e6c8';
 const RING_RADII_M: readonly [number, number] = [0.72, 0.92];
 const DEST_RADII_M: readonly [number, number] = [0.35, 0.5];
 const RING_SEGMENTS = 40;
+/** Rings under the men chosen together, at most (an army is smaller). */
+const GROUP_RINGS_MAX = 32;
 /** Dashes: length, gap and width (m), lifted above the ground (m). */
 const DASH_M = 0.55;
 const GAP_M = 0.4;
@@ -48,8 +51,8 @@ function flatRing(radii: readonly [number, number], color: string): Mesh {
   return mesh;
 }
 
-/** Dashes along a polyline, each a quad draped on the terrain. */
-function dashGeometry(path: readonly Vec2[], heightAt: (x: number, z: number) => number): BufferGeometry {
+/** Dashes along polylines, each a quad draped on the terrain. */
+function dashGeometry(paths: readonly (readonly Vec2[])[], heightAt: (x: number, z: number) => number): BufferGeometry {
   const positions: number[] = [];
   const quad = (a: Vec2, b: Vec2) => {
     const dx = b.x - a.x;
@@ -67,20 +70,22 @@ function dashGeometry(path: readonly Vec2[], heightAt: (x: number, z: number) =>
     ] as const;
     for (const k of [0, 1, 2, 0, 2, 3]) positions.push(...(p[k] as readonly number[]));
   };
-  let carry = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    const a = path[i] as Vec2;
-    const b = path[i + 1] as Vec2;
-    const len = Math.hypot(b.x - a.x, b.z - a.z);
-    let s = carry;
-    while (s < len) {
-      const e = Math.min(len, s + DASH_M);
-      const t0 = s / len;
-      const t1 = e / len;
-      quad({ x: a.x + (b.x - a.x) * t0, z: a.z + (b.z - a.z) * t0 }, { x: a.x + (b.x - a.x) * t1, z: a.z + (b.z - a.z) * t1 });
-      s = e + GAP_M;
+  for (const path of paths) {
+    let carry = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i] as Vec2;
+      const b = path[i + 1] as Vec2;
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      let s = carry;
+      while (s < len) {
+        const e = Math.min(len, s + DASH_M);
+        const t0 = s / len;
+        const t1 = e / len;
+        quad({ x: a.x + (b.x - a.x) * t0, z: a.z + (b.z - a.z) * t0 }, { x: a.x + (b.x - a.x) * t1, z: a.z + (b.z - a.z) * t1 });
+        s = e + GAP_M;
+      }
+      carry = s - len;
     }
-    carry = s - len;
   }
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
@@ -137,6 +142,11 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
   const camera = useThree((s) => s.camera) as Camera;
   const parts = useMemo(() => {
     const selectRing = flatRing(RING_RADII_M, SELECT_COLOR);
+    const groupRings = new InstancedMesh(selectRing.geometry, selectRing.material, GROUP_RINGS_MAX);
+    groupRings.count = 0;
+    groupRings.visible = false;
+    groupRings.renderOrder = 2;
+    groupRings.frustumCulled = false;
     const targetRing = flatRing(RING_RADII_M, TARGET_COLOR);
     const destRing = flatRing(DEST_RADII_M, PATH_COLOR);
     const pathMaterial = new MeshBasicMaterial({ color: PATH_COLOR, transparent: true, opacity: 0.9, depthWrite: false, side: DoubleSide, fog: false });
@@ -150,11 +160,12 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
     setDrawable(cones, false);
     cones.renderOrder = 1;
     cones.frustumCulled = false;
-    return { selectRing, targetRing, destRing, path, pathMaterial, cones, coneMaterial };
+    return { selectRing, groupRings, targetRing, destRing, path, pathMaterial, cones, coneMaterial };
   }, []);
   const lastBattle = useRef<BattleState | null>(null);
   const silhouetted = useRef<UnitHandle[]>([]);
-  const follow = useRef<{ select: UnitHandle | null; target: UnitHandle | null }>({ select: null, target: null });
+  const follow = useRef<{ select: UnitHandle | null; group: UnitHandle[]; target: UnitHandle | null }>({ select: null, group: [], target: null });
+  const ringPlace = useRef(new Object3D());
   const label = useRef<{ el: HTMLSpanElement | null; at: Vector3; on: boolean }>({ el: null, at: new Vector3(), on: false });
   const scratch = useRef(new Vector3());
 
@@ -181,10 +192,16 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       const selected = ui.selectedId ? findUnit(state, ui.selectedId) : undefined;
       const active = Boolean(selected?.alive) && state.activeFaction === PLAYER_FACTION && state.status === 'ongoing' && !ui.busy;
       follow.current.select = selected?.alive ? (handles?.get(selected.id) ?? null) : null;
-      parts.selectRing.visible = follow.current.select !== null;
-      showMoveArea(active && selected ? movementArea(session.ctx, state, selected.id) : null, session.ctx.nav.width, session.ctx.nav.cellSize);
+      follow.current.group = ui.group.map((id) => (findUnit(state, id)?.alive ? handles?.get(id) : undefined)).filter((h): h is UnitHandle => h !== undefined).slice(0, GROUP_RINGS_MAX);
+      const together = follow.current.group.length > 1;
+      parts.selectRing.visible = follow.current.select !== null && !together;
+      parts.groupRings.visible = together;
+      if (!together) parts.groupRings.count = 0;
+      showMoveArea(active && selected && !together ? movementArea(session.ctx, state, selected.id) : null, session.ctx.nav.width, session.ctx.nav.cellSize);
       const hover = ui.hover;
-      follow.current.target = hover.kind === 'attack' ? (handles?.get(hover.preview.targetId) ?? null) : null;
+      const advice = ui.advice && ui.advice.unitId === selected?.id ? ui.advice : null;
+      const targetId = advice ? advice.targetId : hover.kind === 'attack' ? hover.preview.targetId : null;
+      follow.current.target = targetId ? (handles?.get(targetId) ?? null) : null;
       parts.targetRing.visible = follow.current.target !== null;
       // Seen through what hides them: the selected unit and the targeted enemy.
       const lit = [follow.current.select, follow.current.target].filter((h): h is UnitHandle => h !== null);
@@ -192,10 +209,18 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
       for (const h of lit) h.setSilhouette(true);
       silhouetted.current = lit;
       // A move, or the walk before a deed out of reach (a blow, works, a shot): its path, its end, its cost.
-      const walk = hover.kind === 'move' ? hover.plan : 'approach' in hover ? hover.approach?.plan : undefined;
-      if (walk && active) {
+      const walk = advice ? (advice.walk ?? undefined) : hover.kind === 'move' ? hover.plan : 'approach' in hover ? hover.approach?.plan : undefined;
+      const walks = hover.kind === 'group' ? hover.walks : [];
+      if (walks.length > 0 && active) {
+        // Several men: their paths, without the single walk's ring and cost.
         parts.path.geometry.dispose();
-        parts.path.geometry = dashGeometry(walk.path, (x, z) => session.standHeight(x, z));
+        parts.path.geometry = dashGeometry(walks.map((w) => w.path), (x, z) => session.standHeight(x, z));
+        parts.path.visible = true;
+        parts.destRing.visible = false;
+        label.current.on = false;
+      } else if (walk && active) {
+        parts.path.geometry.dispose();
+        parts.path.geometry = dashGeometry([walk.path], (x, z) => session.standHeight(x, z));
         parts.path.visible = true;
         const d = walk.destination;
         parts.destRing.position.set(d.x, session.standHeight(d.x, d.z) + LIFT_M, d.z);
@@ -218,7 +243,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
     };
     refresh();
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
-      if (s.selectedId !== prev.selectedId || s.hover !== prev.hover || s.busy !== prev.busy || s.battle !== prev.battle) refresh();
+      if (s.selectedId !== prev.selectedId || s.group !== prev.group || s.hover !== prev.hover || s.busy !== prev.busy || s.battle !== prev.battle || s.advice !== prev.advice) refresh();
     });
     return () => {
       unsubscribe();
@@ -232,6 +257,8 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
         m.geometry.dispose();
         (m.material as MeshBasicMaterial).dispose();
       }
+      // Its geometry and material are the select ring's (disposed above); its instances are its own.
+      parts.groupRings.dispose();
       parts.path.geometry.dispose();
       parts.pathMaterial.dispose();
       parts.cones.geometry.dispose();
@@ -241,8 +268,19 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
   );
 
   useFrame(() => {
-    const { select, target } = follow.current;
+    const { select, group, target } = follow.current;
     if (select) parts.selectRing.position.set(select.root.position.x, select.root.position.y + LIFT_M, select.root.position.z);
+    if (group.length > 1) {
+      const place = ringPlace.current;
+      for (let i = 0; i < group.length; i++) {
+        const p = (group[i] as UnitHandle).root.position;
+        place.position.set(p.x, p.y + LIFT_M, p.z);
+        place.updateMatrix();
+        parts.groupRings.setMatrixAt(i, place.matrix);
+      }
+      parts.groupRings.count = group.length;
+      parts.groupRings.instanceMatrix.needsUpdate = true;
+    }
     if (target) parts.targetRing.position.set(target.root.position.x, target.root.position.y + LIFT_M, target.root.position.z);
     const l = label.current;
     if (l.on && l.el) {
@@ -255,6 +293,7 @@ export function BattleOverlays({ session, handles, terrain }: { readonly session
   return (
     <>
       <primitive object={parts.selectRing} />
+      <primitive object={parts.groupRings} />
       <primitive object={parts.targetRing} />
       <primitive object={parts.destRing} />
       <primitive object={parts.path} />

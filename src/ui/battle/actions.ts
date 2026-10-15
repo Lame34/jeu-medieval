@@ -24,7 +24,7 @@ import { DEFAULT_RULES } from '../../data/index.ts';
 import { actionPoints } from './describe.ts';
 import type { BattleSession } from './session.ts';
 
-export type ActionId = 'guard' | 'fireArrow' | 'extinguish' | 'works' | `ability:${string}`;
+export type ActionId = 'advice' | 'guard' | 'fireArrow' | 'extinguish' | 'works' | `ability:${string}`;
 
 export interface ActionButton {
   readonly id: ActionId;
@@ -135,6 +135,8 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   const d = ctx.rules.damage;
   const out: ActionButton[] = [];
   const canAct = unit.actions > 0;
+  // Guillaume's advice, for every man (ui/battle/advice.ts): what he would do in his place.
+  out.push({ id: 'advice', label: 'Conseil', key: 'C', description: 'Que ferait Guillaume à sa place ? Il propose un ordre et dit pourquoi ; appuyez encore pour le suivre.', note: null, disabled: false });
   if (canOverwatch(ctx, unit)) {
     out.push({ id: 'guard', label: 'Garde', key: 'G', description: 'Surveille un cône vers le point visé et tire sur le premier ennemi qui y entre. Prend le reste du tour.', note: null, disabled: !canAct || unit.ap < d.attackApCost });
   }
@@ -176,6 +178,8 @@ export function actionCommand(session: BattleSession, unit: UnitState, id: Actio
   const ctx = session.ctx;
   const state = session.state;
   switch (id) {
+    case 'advice':
+      return null;
     case 'guard':
       return ground ? { type: 'overwatch', unitId: unit.id, direction: { x: ground.x - unit.position.x, z: ground.z - unit.position.z } } : null;
     case 'fireArrow':

@@ -29,6 +29,7 @@ const controls = (keys: ReturnType<typeof cameraKeys>): readonly (readonly [stri
   [`${keys.turn.join(' / ')}, clic molette`, 'Pivoter la caméra'],
   ['Molette', 'Zoomer'],
   ['Tab', 'Homme suivant'],
+  ['C', 'Conseil de Guillaume ; encore une fois : le suivre'],
   ['Clic sur la mini-carte', 'Y porter la caméra'],
   ['G · B · X · F', 'Garde · flèche enflammée · éteindre · travaux de siège'],
   ['1 · 2', 'Capacités du héros'],
