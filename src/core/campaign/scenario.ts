@@ -15,7 +15,10 @@ import { distance, type Vec2 } from '../math/vec2.ts';
 import { isPassable } from '../nav-grid/nav-grid.ts';
 import type { Faction } from '../rules/types.ts';
 import { garrisonGroupOf } from '../worldgen/garrison.ts';
-import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, RankRule, Stratagem } from './types.ts';
+import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, Feat, RankRule, Stratagem } from './types.ts';
+import type { GameRules } from '../rules/types.ts';
+import { MINE_SITE_PREFIX } from '../battle/siege-works.ts';
+import { COMMAND_TAG } from '../battle/tags.ts';
 
 /** Reinforcements gather this far behind the army (or the siege park), away from the castle (m). */
 const REINFORCE_REAR_M = 10;
@@ -177,29 +180,51 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
   };
 }
 
-/** The three banners of a campaign battle. */
+/** The four banners of a campaign battle. */
 export interface Banners {
   /** The castle is taken. */
   readonly taken: boolean;
-  /** Taken within the campaign's share of the turn limit. */
+  /** Within the swift share of the deadline. */
   readonly swift: boolean;
-  /** Taken with few losses (heroes count). */
+  /** With few losses. */
   readonly spared: boolean;
+  /** Its feat of arms done (ADR-048). */
+  readonly feat: boolean;
 }
 
-export function bannersOf(campaign: CampaignData, state: BattleState): Banners {
+/** Is `feat` done in the battle that ended as `state`? */
+export function featDone(rules: Pick<GameRules, 'units'>, feat: Feat, state: BattleState): boolean {
+  switch (feat.kind) {
+    case 'summons':
+      return state.summons?.accepted === true;
+    case 'mine':
+      return state.works.some((w) => w.done && w.id.startsWith(MINE_SITE_PREFIX));
+    case 'tower':
+      return (state.climbed ?? 0) > 0;
+    case 'fire':
+      return (state.burned ?? []).length > 0;
+    case 'captive':
+      return state.units.some((u) => u.alive && u.faction === 'defender' && rules.units[u.typeKey]?.tags.includes(COMMAND_TAG));
+  }
+}
+
+export function bannersOf(campaign: CampaignData, rules: Pick<GameRules, 'units'>, state: BattleState, feat?: Feat): Banners {
   const taken = state.status === 'attackerWon';
   const losses = state.units.filter((u) => u.faction === 'attacker' && !u.alive).length;
   return {
     taken,
     swift: taken && state.turn <= Math.ceil(state.turnLimit * campaign.banners.swiftShare),
     spared: taken && losses <= campaign.banners.maxLosses,
+    feat: taken && feat !== undefined && featDone(rules, feat, state),
   };
 }
 
 export function bannerCount(b: Banners): number {
-  return (b.taken ? 1 : 0) + (b.swift ? 1 : 0) + (b.spared ? 1 : 0);
+  return (b.taken ? 1 : 0) + (b.swift ? 1 : 0) + (b.spared ? 1 : 0) + (b.feat ? 1 : 0);
 }
+
+/** Banners a castle can give. */
+export const BANNERS_PER_CASTLE = 4;
 
 /** Heroes gravely wounded in the battle (they miss the next one). */
 export function woundedHeroes(ctx: Pick<BattleContext, 'rules'>, state: BattleState): string[] {

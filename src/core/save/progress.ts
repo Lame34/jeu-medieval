@@ -3,11 +3,16 @@
  * and their best banners, the heroes resting from a grave wound, the trial battle done. What is
  * read back is checked field by field: a damaged or tampered record is dropped, never trusted,
  * so a bad save can cost a castle's banners but never break the game.
+ *
+ * Format 2 (ADR-048) adds each castle's fourth banner, its feat of arms. A format-1 save reads with
+ * that banner not yet won: no castle, no banner of a player is lost.
  */
 import type { Banners } from '../campaign/scenario.ts';
 
-/** Version of the saved progress; a later format reads this one and upgrades it. */
-export const PROGRESS_VERSION = 1;
+/** Version of the saved progress; a later format reads the earlier ones and upgrades them. */
+export const PROGRESS_VERSION = 2;
+/** The format before the feats of arms. */
+const PROGRESS_V1 = 1;
 
 export interface CastleRecord {
   /** Best banners over the castle's victories. */
@@ -36,15 +41,18 @@ const MAX_TURNS = 999;
 const isRecord = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isId = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= MAX_ID_LENGTH && /^[\w-]+$/.test(v);
 
-function castleRecord(raw: unknown): CastleRecord | null {
+function castleRecord(raw: unknown, version: number): CastleRecord | null {
   if (!isRecord(raw) || !isRecord(raw['banners'])) return null;
   const b = raw['banners'];
   if (typeof b['taken'] !== 'boolean' || typeof b['swift'] !== 'boolean' || typeof b['spared'] !== 'boolean') return null;
+  // Format 1 had no feat of arms: not yet won. From format 2 on, it must be there.
+  const feat = version <= PROGRESS_V1 ? false : b['feat'];
+  if (typeof feat !== 'boolean') return null;
   const stratagem = raw['stratagem'];
   if (stratagem !== null && !isId(stratagem)) return null;
   const turns = raw['turns'];
   if (typeof turns !== 'number' || !Number.isInteger(turns) || turns < 1 || turns > MAX_TURNS) return null;
-  return { banners: { taken: b['taken'], swift: b['swift'], spared: b['spared'] }, stratagem, turns };
+  return { banners: { taken: b['taken'], swift: b['swift'], spared: b['spared'], feat }, stratagem, turns };
 }
 
 /**
@@ -54,11 +62,13 @@ function castleRecord(raw: unknown): CastleRecord | null {
  */
 export function parseProgress(raw: unknown, knownCastles?: ReadonlySet<string>): SavedProgress {
   if (!isRecord(raw)) return EMPTY_PROGRESS;
+  // A save without a version is of the first format.
+  const version = typeof raw['version'] === 'number' && Number.isInteger(raw['version']) ? raw['version'] : PROGRESS_V1;
   const conquered: Record<string, CastleRecord> = {};
   if (isRecord(raw['conquered'])) {
     for (const [id, value] of Object.entries(raw['conquered'])) {
       if (!isId(id) || (knownCastles && !knownCastles.has(id))) continue;
-      const record = castleRecord(value);
+      const record = castleRecord(value, version);
       if (record) conquered[id] = record;
     }
   }
@@ -73,7 +83,7 @@ export function serializeProgress(p: SavedProgress): string {
 
 /** Best of two banner sets (a castle's best over its victories). */
 export function bestBanners(a: Banners, b: Banners): Banners {
-  return { taken: a.taken || b.taken, swift: a.swift || b.swift, spared: a.spared || b.spared };
+  return { taken: a.taken || b.taken, swift: a.swift || b.swift, spared: a.spared || b.spared, feat: a.feat || b.feat };
 }
 
 /**

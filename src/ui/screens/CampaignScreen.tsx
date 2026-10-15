@@ -5,7 +5,8 @@
  */
 import { useEffect, useState } from 'react';
 import { Glossed } from '../components/Glossed.tsx';
-import { DEFAULT_RANK, type CampaignBattle, type CampaignLevel } from '../../core/campaign/types.ts';
+import { DEFAULT_RANK, type CampaignBattle, type CampaignLevel, type Feat } from '../../core/campaign/types.ts';
+import { BANNERS_PER_CASTLE } from '../../core/campaign/scenario.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { isSaveOf, loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { bannerTotal, isUnlocked, useCampaign, type CastleRecord } from '../../state/campaign.ts';
@@ -33,10 +34,13 @@ function Shields({ n }: { readonly n: number }) {
 
 function BannerRow({ record, level }: { readonly record: CastleRecord; readonly level: CampaignBattle }) {
   const limit = level.battle.turnLimit ?? DEFAULT_RULES.battle.turnLimit;
+  // The trial battle has no feat of arms.
+  const feat = 'feat' in level ? (level as CampaignLevel).feat : undefined;
   const items = [
     { won: record.banners.taken, label: 'Château pris' },
     { won: record.banners.swift, label: `Pris en ${Math.ceil(limit * CAMPAIGN.banners.swiftShare)} tours au plus` },
     { won: record.banners.spared, label: `${CAMPAIGN.banners.maxLosses} pertes au plus` },
+    ...(feat ? [{ won: record.banners.feat, label: feat.name }] : []),
   ];
   return (
     <ul className="letter__banners">
@@ -49,6 +53,21 @@ function BannerRow({ record, level }: { readonly record: CastleRecord; readonly 
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A castle's feat of arms, in its letter: the deed asked, and the siege it comes from. */
+function FeatNote({ feat }: { readonly feat: Feat }) {
+  return (
+    <>
+      <h3 className="letter__heading">Fait d’armes</h3>
+      <p className="letter__feat">
+        <strong>{feat.name}.</strong> <Glossed>{feat.task}</Glossed>
+      </p>
+      <p className="letter__feat-history">
+        <Glossed>{feat.history}</Glossed>
+      </p>
+    </>
   );
 }
 
@@ -131,6 +150,7 @@ function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignB
       </p>
       <h3 className="letter__heading">Ce que savent les coureurs</h3>
       <EffectList lines={castleLines(battle)} />
+      {'feat' in battle && <FeatNote feat={battle.feat} />}
       {record && (
         <>
           <h3 className="letter__heading">Étendards</h3>
@@ -196,7 +216,7 @@ export default function CampaignScreen() {
         </button>
         <h1>Campagne du {CAMPAIGN.realm}</h1>
         <p className="campaign-bar__progress">
-          Châteaux {taken} / {CAMPAIGN.levels.length} · Étendards {bannerTotal(conquered)} / {CAMPAIGN.levels.length * 3}
+          Châteaux {taken} / {CAMPAIGN.levels.length} · Étendards {bannerTotal(conquered)} / {CAMPAIGN.levels.length * BANNERS_PER_CASTLE}
         </p>
       </header>
       <div className="campaign-body">

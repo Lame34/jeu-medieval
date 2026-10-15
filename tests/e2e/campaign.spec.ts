@@ -144,7 +144,7 @@ test('castles taken are sealed, the next one opens, a wounded hero rests', async
   await expect(castle(page, 'roche-grise')).toHaveClass(/map-castle--taken/);
   await expect(castle(page, 'moulins')).toHaveClass(/map-castle--open/);
   await expect(castle(page, 'brumefond')).toHaveClass(/map-castle--locked/);
-  await expect(page.locator('.campaign-bar__progress')).toContainText('Étendards 2 / 15');
+  await expect(page.locator('.campaign-bar__progress')).toContainText('Étendards 2 / 20');
   await expect(page.locator('.letter__resting')).toContainText('Aude se remet de ses blessures');
   await openCastle(page, 'moulins');
   await page.getByRole('button', { name: 'Réunir le conseil de guerre' }).click();

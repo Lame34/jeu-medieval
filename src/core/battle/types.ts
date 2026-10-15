@@ -106,6 +106,10 @@ export interface BattleState {
   readonly sworn?: true;
   /** The herald's last summons: when, and whether the garrison yielded. */
   readonly summons?: { readonly lastTurn: number; readonly accepted: boolean };
+  /** Men who went up a beffroi onto the walls, over the whole battle (feats of arms, ADR-048). */
+  readonly climbed?: number;
+  /** Wooden works brought down by fire (a gate, a drawbridge), sorted. */
+  readonly burned?: readonly string[];
   readonly rng: RngState;
 }
 

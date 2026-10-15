@@ -4,7 +4,7 @@ import type { StructureKind } from '../battle/structures.ts';
 import { integer, num, obj, oneOf, RulesValidationError, str, strings, type Json } from '../rules/json.ts';
 import type { Faction, GameRules } from '../rules/types.ts';
 import { GARRISON_GROUPS, type GarrisonGroup } from '../worldgen/garrison.ts';
-import { RANKS, VIGNETTES, type BattleEffects, type Rank, type RankRule, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
+import { FEAT_KINDS, RANKS, VIGNETTES, type BattleEffects, type Feat, type FeatKind, type Rank, type RankRule, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
 
 const STRUCTURE_KINDS: readonly StructureKind[] = ['wall', 'gate', 'portcullis', 'drawbridge'];
 const FACTION_KEYS: readonly Faction[] = ['attacker', 'defender'];
@@ -128,8 +128,14 @@ function readStratagem(raw: unknown, rules: GameRules, path: string): Stratagem 
   return { id: str(s['id'], `${path}.id`), hero, name: str(s['name'], `${path}.name`), pitch: str(s['pitch'], `${path}.pitch`), effects: readEffects(s['effects'], rules, `${path}.effects`) };
 }
 
+function readFeat(raw: unknown, path: string): Feat {
+  const f = obj(raw, path);
+  return Object.freeze({ kind: oneOf<FeatKind>(f['kind'], FEAT_KINDS, `${path}.kind`), name: str(f['name'], `${path}.name`), task: str(f['task'], `${path}.task`), history: str(f['history'], `${path}.history`) });
+}
+
 function readLevel(raw: unknown, rules: GameRules, path: string): CampaignLevel {
   const battle = readBattle(raw, rules, path);
+  const feat = readFeat(obj(raw, path)['feat'], `${path}.feat`);
   const stratagems = list(obj(raw, path)['stratagems'], `${path}.stratagems`).map((s, i) => readStratagem(s, rules, `${path}.stratagems[${i}]`));
   const heroes = Object.keys(rules.heroes);
   // One plan per hero: the council hears each of them.
@@ -137,7 +143,7 @@ function readLevel(raw: unknown, rules: GameRules, path: string): CampaignLevel 
     throw new RulesValidationError(`${path}.stratagems`, `expected one stratagem per hero (${heroes.join(', ')})`);
   }
   if (new Set(stratagems.map((s) => s.id)).size !== stratagems.length) throw new RulesValidationError(`${path}.stratagems`, 'duplicate stratagem id');
-  return { ...battle, stratagems };
+  return { ...battle, stratagems, feat };
 }
 
 function readHeroLines(raw: unknown, rules: GameRules): Record<string, HeroCampaignLines> {

@@ -202,6 +202,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
     return { ...u, hp: hpAfter, alive: hpAfter > 0, morale: hpAfter > 0 ? morale : u.morale, overwatch: hpAfter > 0 ? u.overwatch : null };
   });
   // Wooden structures: the gate burns away; fire on the drawbridge burns through its chains.
+  const burnedDown: string[] = [];
   let structures = state.structures.map((s) => {
     const dmg = structureDamage.get(s.id);
     if (dmg === undefined || s.broken) return s;
@@ -210,6 +211,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
     if (hp === 0) {
       const def = ctx.structures.find((d) => d.id === s.id);
       if (def) events.push({ type: 'structureBroken', structureId: s.id, kind: def.kind, byId: null, fallen: [] });
+      burnedDown.push(s.id);
     }
     return { ...s, hp, broken: hp === 0 };
   });
@@ -249,11 +251,13 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
     if (wooden?.kind === 'drawbridge') {
       structures = structures.map((st) => (st.id === wooden.id ? { ...st, broken: true } : st));
       events.push({ type: 'structureBroken', structureId: wooden.id, kind: wooden.kind, byId: null, fallen: [] });
+      burnedDown.push(wooden.id);
     }
   }
   for (const n of lit) fires.push({ cell: n, turnsLeft: fuelOf(ctx, state, n) });
   if (lit.length > 0) events.push({ type: 'fireStarted', cells: [...lit].sort((a, b) => a - b) });
   if (out.length > 0) events.push({ type: 'fireOut', cells: out.sort((a, b) => a - b), byId: null });
   const status = statusAfterBlows(ctx.rules, units, events);
-  return { ...state, units, structures, fires: sortFires(fires), burnt: [...burnt].sort((a, b) => a - b), status, rng: rng.getState() };
+  const burned = burnedDown.length > 0 ? { burned: [...new Set([...(state.burned ?? []), ...burnedDown])].sort() } : {};
+  return { ...state, units, structures, fires: sortFires(fires), burnt: [...burnt].sort((a, b) => a - b), ...burned, status, rng: rng.getState() };
 }

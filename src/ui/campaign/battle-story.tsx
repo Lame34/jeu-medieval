@@ -11,7 +11,7 @@ import type { BriefingContent, EndAction, EndContent } from '../battle/BattleHud
 import type { BattleMode } from './battle-setup.ts';
 import { EffectList } from './Council.tsx';
 import { rankLines, stratagemLines } from './effects-text.ts';
-import { DEFAULT_RANK, type Rank } from '../../core/campaign/types.ts';
+import { DEFAULT_RANK, type Feat, type Rank } from '../../core/campaign/types.ts';
 import { HeroEmblem } from './HeroEmblem.tsx';
 
 export interface StoryActions {
@@ -54,6 +54,9 @@ export function briefingFor(mode: BattleMode, resting: readonly string[], rank: 
             <EffectList lines={stratagemLines(stratagem)} />
           </>
         )}
+        <p>
+          <strong>Fait d’armes : {level.feat.name}.</strong> <Glossed>{level.feat.task}</Glossed>
+        </p>
         <RankNote rank={rank} />
         {absent.map((h) => (
           <p key={h} className="hud-detail">
@@ -65,12 +68,13 @@ export function briefingFor(mode: BattleMode, resting: readonly string[], rank: 
   };
 }
 
-function BannersEarned({ battle }: { readonly battle: BattleState }) {
-  const b = bannersOf(CAMPAIGN, battle);
+function BannersEarned({ battle, feat }: { readonly battle: BattleState; readonly feat: Feat }) {
+  const b = bannersOf(CAMPAIGN, DEFAULT_RULES, battle, feat);
   const items = [
     { won: b.taken, label: 'Pris' },
     { won: b.swift, label: `En ${Math.ceil(battle.turnLimit * CAMPAIGN.banners.swiftShare)} tours au plus` },
     { won: b.spared, label: `${CAMPAIGN.banners.maxLosses} pertes au plus` },
+    { won: b.feat, label: feat.name },
   ];
   return (
     <ul className="hud-end-banners" aria-label="Étendards gagnés">
@@ -125,7 +129,7 @@ export function endFor(mode: BattleMode, battle: BattleState, go: StoryActions):
     ),
     extra: (
       <>
-        {won && <BannersEarned battle={battle} />}
+        {won && <BannersEarned battle={battle} feat={level.feat} />}
         {line && (
           <p className="hud-end-hero">
             <HeroEmblem hero={speaker} size={36} /> {DEFAULT_RULES.heroes[speaker]?.name} : « {line} »

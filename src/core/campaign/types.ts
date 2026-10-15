@@ -52,6 +52,21 @@ export interface BattleEffects {
   readonly sworn?: boolean;
 }
 
+/** What a castle's feat of arms asks (ADR-048), each judged on the battle's end. */
+export const FEAT_KINDS = ['summons', 'mine', 'tower', 'fire', 'captive'] as const;
+export type FeatKind = (typeof FEAT_KINDS)[number];
+
+/** A castle's feat of arms: a deed of a real siege, its fourth banner. */
+export interface Feat {
+  readonly kind: FeatKind;
+  /** « Par la sommation ». */
+  readonly name: string;
+  /** What to do, in a sentence. */
+  readonly task: string;
+  /** The siege it comes from, told for a player who knows the period. */
+  readonly history: string;
+}
+
 /** The player's rank in a siege (ADR-045): how hard the castle holds, chosen at the council. */
 export const RANKS = ['squire', 'knight', 'baron'] as const;
 export type Rank = (typeof RANKS)[number];
@@ -112,6 +127,8 @@ export interface CampaignBattle {
 export interface CampaignLevel extends CampaignBattle {
   /** Three, one per hero. */
   readonly stratagems: readonly Stratagem[];
+  /** The feat of arms to try there (the fourth banner). */
+  readonly feat: Feat;
 }
 
 /** A hero's words after a campaign battle. */

@@ -11,7 +11,7 @@ import { DEFAULT_MORALE } from '@core/battle/create.ts';
 import { heroSpawnCells } from '@core/battle/heroes.ts';
 import { fillCells, fillSites, moatsOf } from '@core/battle/moat.ts';
 import { planStructures } from '@core/battle/structures.ts';
-import { bannerCount, bannersOf, battleEffects, campaignBattle, shapeScenario, woundedHeroes } from '@core/campaign/scenario.ts';
+import { bannerCount, bannersOf, battleEffects, campaignBattle, featDone, shapeScenario, woundedHeroes } from '@core/campaign/scenario.ts';
 import { validateCampaign } from '@core/campaign/validate.ts';
 import { RulesValidationError } from '@core/rules/json.ts';
 import { TerrainLayer } from '@core/rules/types.ts';
@@ -287,16 +287,35 @@ describe('banners and wounds', () => {
     return { ...s, units: s.units.map((u) => (dead.includes(u.id) ? { ...u, alive: false, hp: 0 } : u)) };
   };
 
-  it('a swift victory with few losses wins all three', () => {
+  it('a swift victory with few losses wins three; the feat of arms, the fourth', () => {
     const won: BattleState = { ...state, status: 'attackerWon', turn: 10, turnLimit: 24 };
-    expect(bannersOf(CAMPAIGN, won)).toEqual({ taken: true, swift: true, spared: true });
-    expect(bannerCount(bannersOf(CAMPAIGN, won))).toBe(3);
+    expect(bannersOf(CAMPAIGN, DEFAULT_RULES, won)).toEqual({ taken: true, swift: true, spared: true, feat: false });
+    expect(bannerCount(bannersOf(CAMPAIGN, DEFAULT_RULES, won))).toBe(3);
+    const feat = CAMPAIGN.levels[0]!.feat;
+    expect(feat.kind).toBe('summons');
+    expect(bannersOf(CAMPAIGN, DEFAULT_RULES, { ...won, summons: { lastTurn: 9, accepted: true } }, feat).feat).toBe(true);
+    expect(bannerCount(bannersOf(CAMPAIGN, DEFAULT_RULES, { ...won, summons: { lastTurn: 9, accepted: true } }, feat))).toBe(4);
+  });
+
+  it('each kind of feat is judged on the battle’s end, and only for a castle taken', () => {
+    const won: BattleState = { ...state, status: 'attackerWon', turn: 10, turnLimit: 24 };
+    const kind = (k: string) => CAMPAIGN.levels.find((l) => l.feat.kind === k)!.feat;
+    expect(featDone(DEFAULT_RULES, kind('mine'), { ...won, works: [{ id: 'mine:wall:x', progress: 3, done: true }] })).toBe(true);
+    expect(featDone(DEFAULT_RULES, kind('mine'), { ...won, works: [{ id: 'fill:moat:1', progress: 2, done: true }] })).toBe(false);
+    expect(featDone(DEFAULT_RULES, kind('tower'), { ...won, climbed: 1 })).toBe(true);
+    expect(featDone(DEFAULT_RULES, kind('tower'), won)).toBe(false);
+    expect(featDone(DEFAULT_RULES, kind('fire'), { ...won, burned: ['gate:g'] })).toBe(true);
+    const captain = won.units.find((u) => u.typeKey === 'officer');
+    expect(captain).toBeDefined();
+    expect(featDone(DEFAULT_RULES, kind('captive'), won)).toBe(true);
+    expect(featDone(DEFAULT_RULES, kind('captive'), { ...won, units: won.units.map((u) => (u.id === captain!.id ? { ...u, alive: false } : u)) })).toBe(false);
+    expect(bannersOf(CAMPAIGN, DEFAULT_RULES, { ...won, status: 'defenderWon', climbed: 3 }, kind('tower')).feat).toBe(false);
   });
 
   it('a slow, costly victory wins the castle only; a defeat wins nothing', () => {
     const slow: BattleState = kill({ ...state, status: 'attackerWon', turn: 20, turnLimit: 24 }, CAMPAIGN.banners.maxLosses + 1);
-    expect(bannersOf(CAMPAIGN, slow)).toEqual({ taken: true, swift: false, spared: false });
-    expect(bannersOf(CAMPAIGN, { ...state, status: 'defenderWon', turn: 5 })).toEqual({ taken: false, swift: false, spared: false });
+    expect(bannersOf(CAMPAIGN, DEFAULT_RULES, slow)).toEqual({ taken: true, swift: false, spared: false, feat: false });
+    expect(bannersOf(CAMPAIGN, DEFAULT_RULES, { ...state, status: 'defenderWon', turn: 5 })).toEqual({ taken: false, swift: false, spared: false, feat: false });
   });
 
   it('names the heroes who fell (they rest through the next battle)', () => {

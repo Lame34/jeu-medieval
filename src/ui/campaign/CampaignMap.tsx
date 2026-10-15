@@ -171,12 +171,18 @@ function Mountain({ m }: { readonly m: Scenery['mountains'][number] }) {
   );
 }
 
+/** The banners under a castle on the map: their width and spacing (map units). */
+const PENNANT_WIDTH = 8;
+const PENNANT_STEP = 12;
+
 function Pennants({ banners }: { readonly banners: Banners }) {
-  const won = [banners.taken, banners.swift, banners.spared];
+  const won = [banners.taken, banners.swift, banners.spared, banners.feat];
+  // Centred under the castle: each pennant PENNANT_STEP apart.
+  const first = -(won.length * PENNANT_STEP - PENNANT_WIDTH) / 2;
   return (
     <g className="map-pennants">
       {won.map((w, i) => (
-        <path key={i} d={`M${-16 + i * 12},0 h8 v10 l-4,-3 l-4,3z`} fill={w ? '#c9a13b' : 'none'} stroke={w ? '#7a5c14' : 'rgb(58 42 26 / 45%)'} strokeWidth={1} />
+        <path key={i} d={`M${first + i * PENNANT_STEP},0 h${PENNANT_WIDTH} v10 l-4,-3 l-4,3z`} fill={w ? '#c9a13b' : 'none'} stroke={w ? '#7a5c14' : 'rgb(58 42 26 / 45%)'} strokeWidth={1} />
       ))}
     </g>
   );

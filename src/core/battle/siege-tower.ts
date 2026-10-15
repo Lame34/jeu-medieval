@@ -117,6 +117,7 @@ export function resolveClimb(ctx: BattleContext, state: BattleState, preview: Cl
       ...state,
       units: state.units.map((u) => (u.id === unit.id ? climbed : u)),
       docks: state.docks.map((d) => (d.towerId === dock.towerId ? { ...d, climbs: d.climbs + 1 } : d)),
+      climbed: (state.climbed ?? 0) + 1,
     },
     events: [{ type: 'unitClimbed', unitId: unit.id, towerId: preview.towerId, from: unit.position, to: preview.to }],
   };

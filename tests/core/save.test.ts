@@ -10,7 +10,7 @@ import { EMPTY_PROGRESS, mergeProgress, parseProgress, PROGRESS_VERSION, seriali
 import { DEFAULT_RULES } from '@data/index.ts';
 import { centerOf, flatTerrain, rulesWithDamageOverrides } from './helpers.ts';
 
-const BANNERS = { taken: true, swift: false, spared: true };
+const BANNERS = { taken: true, swift: false, spared: true, feat: false };
 const RECORD = { banners: BANNERS, stratagem: 'lettres', turns: 12 };
 
 describe('parseProgress: a strict reading of the saved campaign', () => {
@@ -19,6 +19,19 @@ describe('parseProgress: a strict reading of the saved campaign', () => {
     const text = serializeProgress(progress);
     expect(JSON.parse(text)).toMatchObject({ version: PROGRESS_VERSION });
     expect(parseProgress(JSON.parse(text))).toEqual(progress);
+  });
+
+  it('upgrades a format-1 save: every castle kept, its feat of arms not yet won (ADR-048)', () => {
+    const v1 = { version: 1, conquered: { 'roche-grise': { banners: { taken: true, swift: true, spared: false }, stratagem: 'aube', turns: 14 } }, resting: [], tutorialDone: true, prologueSeen: true };
+    expect(parseProgress(v1).conquered['roche-grise']).toEqual({ banners: { taken: true, swift: true, spared: false, feat: false }, stratagem: 'aube', turns: 14 });
+    // The same without any version: the first format too.
+    const { version: _v, ...unversioned } = v1;
+    expect(parseProgress(unversioned)).toEqual(parseProgress(v1));
+  });
+
+  it('drops a format-2 castle record without its feat banner (damaged)', () => {
+    const v2 = { version: 2, conquered: { 'roche-grise': { banners: { taken: true, swift: true, spared: false }, stratagem: 'aube', turns: 14 } } };
+    expect(parseProgress(v2).conquered).toEqual({});
   });
 
   it('reads anything that is not an object as a new campaign', () => {
@@ -54,10 +67,10 @@ describe('parseProgress: a strict reading of the saved campaign', () => {
 
 describe('mergeProgress: two tabs never undo each other’s castles', () => {
   it('keeps the castles of both, the best banners and the fewest rounds', () => {
-    const ours: SavedProgress = { ...EMPTY_PROGRESS, conquered: { 'roche-grise': { banners: { taken: true, swift: true, spared: false }, stratagem: 'aube', turns: 15 } } };
-    const theirs: SavedProgress = { ...EMPTY_PROGRESS, resting: ['heroKnight'], conquered: { 'roche-grise': { banners: { taken: true, swift: false, spared: true }, stratagem: 'lettres', turns: 11 }, moulins: RECORD } };
+    const ours: SavedProgress = { ...EMPTY_PROGRESS, conquered: { 'roche-grise': { banners: { taken: true, swift: true, spared: false, feat: true }, stratagem: 'aube', turns: 15 } } };
+    const theirs: SavedProgress = { ...EMPTY_PROGRESS, resting: ['heroKnight'], conquered: { 'roche-grise': { banners: { taken: true, swift: false, spared: true, feat: false }, stratagem: 'lettres', turns: 11 }, moulins: RECORD } };
     const merged = mergeProgress(theirs, ours);
-    expect(merged.conquered['roche-grise']).toEqual({ banners: { taken: true, swift: true, spared: true }, stratagem: 'aube', turns: 11 });
+    expect(merged.conquered['roche-grise']).toEqual({ banners: { taken: true, swift: true, spared: true, feat: true }, stratagem: 'aube', turns: 11 });
     expect(merged.conquered['moulins']).toEqual(RECORD);
     expect(merged.resting).toEqual(['heroKnight']);
   });

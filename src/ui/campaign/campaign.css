@@ -457,6 +457,18 @@
   color: var(--parchment);
 }
 
+.letter__feat {
+  margin: 0 0 4px;
+  line-height: 1.45;
+}
+
+.letter__feat-history {
+  margin: 0 0 12px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
 .letter__banners {
   margin: 0;
   padding: 0;

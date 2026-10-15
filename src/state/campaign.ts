@@ -6,7 +6,7 @@
  * lasts the session.
  */
 import { create } from 'zustand';
-import type { Banners } from '../core/campaign/scenario.ts';
+import { bannerCount, type Banners } from '../core/campaign/scenario.ts';
 import type { CampaignData } from '../core/campaign/types.ts';
 import { bestBanners, EMPTY_PROGRESS, mergeProgress, parseProgress, serializeProgress, type SavedProgress } from '../core/save/progress.ts';
 import { CAMPAIGN } from '../data/index.ts';
@@ -82,5 +82,5 @@ export function isUnlocked(campaign: CampaignData, conquered: SavedProgress['con
 
 /** Banners won over the whole campaign. */
 export function bannerTotal(conquered: SavedProgress['conquered']): number {
-  return Object.values(conquered).reduce((n, r) => n + (r.banners.taken ? 1 : 0) + (r.banners.swift ? 1 : 0) + (r.banners.spared ? 1 : 0), 0);
+  return Object.values(conquered).reduce((n, r) => n + bannerCount(r.banners), 0);
 }

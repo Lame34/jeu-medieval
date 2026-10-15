@@ -278,7 +278,7 @@ export default function BattleScreen() {
         if (state.status === 'attackerWon') useCampaign.getState().finishTutorial();
         return;
       }
-      useCampaign.getState().recordBattle(mode.level.id, mode.stratagem?.id ?? null, bannersOf(CAMPAIGN, state), state.turn, woundedHeroes(session.ctx, state));
+      useCampaign.getState().recordBattle(mode.level.id, mode.stratagem?.id ?? null, bannersOf(CAMPAIGN, session.ctx.rules, state, mode.level.feat), state.turn, woundedHeroes(session.ctx, state));
     });
   }, [session, setup]);
   const toMap = useCallback(() => navigate(ROUTES.campaign), []);
