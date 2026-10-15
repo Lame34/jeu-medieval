@@ -48,6 +48,8 @@ export interface BattleEffects {
   readonly fillMoat?: number;
   /** Added to a side's skill at arms: the hit chance of its men's blows and shots (the player's rank). */
   readonly aim?: Readonly<Partial<Record<Faction, number>>>;
+  /** The garrison's captain swore never to yield: no summons moves it while he stands (ADR-047). */
+  readonly sworn?: boolean;
 }
 
 /** The player's rank in a siege (ADR-045): how hard the castle holds, chosen at the council. */

@@ -13,7 +13,13 @@ export type Command =
   | ExtinguishCommand
   | OverwatchCommand
   | AbilityCommand
+  | SummonCommand
   | EndTurnCommand;
+
+/** The herald calls on the garrison to yield (ADR-047): the side to play, no man spent. */
+export interface SummonCommand {
+  readonly type: 'summon';
+}
 
 /** A hero's ability (J5): its target depends on the ability (none, a unit, a work site). */
 export interface AbilityCommand {
@@ -147,6 +153,7 @@ export const COMMAND_REJECTIONS = [
   'unknownAbility',
   'abilityCooling',
   'invalidAbilityTarget',
+  'summonsTooSoon',
 ] as const;
 
 export type CommandRejection = (typeof COMMAND_REJECTIONS)[number];

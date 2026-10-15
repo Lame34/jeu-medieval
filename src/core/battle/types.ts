@@ -102,6 +102,10 @@ export interface BattleState {
   readonly burnt: readonly number[];
   /** A side's skill at arms, from the scenario (absent: none). */
   readonly aim?: Readonly<Partial<Record<Faction, number>>>;
+  /** The garrison's captain swore never to yield (the summons, ADR-047). */
+  readonly sworn?: true;
+  /** The herald's last summons: when, and whether the garrison yielded. */
+  readonly summons?: { readonly lastTurn: number; readonly accepted: boolean };
   readonly rng: RngState;
 }
 
@@ -138,4 +142,6 @@ export interface Scenario {
   readonly startHour?: number;
   /** A side's skill at arms (the player's rank, ADR-045): added to the hit chance of its men's blows and shots. */
   readonly aim?: Readonly<Partial<Record<Faction, number>>>;
+  /** The garrison's captain swore never to yield to a summons. */
+  readonly sworn?: boolean;
 }

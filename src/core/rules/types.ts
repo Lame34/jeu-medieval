@@ -169,6 +169,21 @@ export interface BattleRules {
   readonly turnLimit: number;
   /** The garrison surrenders when fewer than this share of its men still stand (J7). */
   readonly garrisonSurrenderShare: number;
+  readonly summons: SummonsRules;
+}
+
+/** The herald's summons (ADR-047): the chance that the garrison yields. */
+export interface SummonsRules {
+  /** Rounds before the herald may come back. */
+  readonly cooldownRounds: number;
+  /** The chance with nothing lost, and added per share of the garrison down and per breach (up to maxBreaches). */
+  readonly base: number;
+  readonly perLostShare: number;
+  readonly perBreach: number;
+  readonly maxBreaches: number;
+  /** The chance is multiplied by this while the captain stands. */
+  readonly captainFactor: number;
+  readonly max: number;
 }
 
 /** Fire (J4, brief §9.9). */

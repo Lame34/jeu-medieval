@@ -63,7 +63,17 @@
   "battle": {
     "$comment": "J5 : les assaillants gagnent en anéantissant ou en mettant en fuite la garnison ; les défenseurs, en faisant de même, ou en tenant jusqu'à l'arrivée des renforts (limite de tours). J7 : la garnison capitule quand moins de garrisonSurrenderShare de ses hommes tiennent encore debout (ni morts ni en fuite) : plus de chasse au dernier défenseur. ADR-045 : 22 tours et 40 % pour des sièges d'une demi-heure (simulés : l'IA assaillante prend 11 châteaux sur 16).",
     "turnLimit": 22,
-    "garrisonSurrenderShare": 0.4
+    "garrisonSurrenderShare": 0.4,
+    "summons": {
+      "$comment": "ADR-047 : la sommation du héraut. Chance = base + perLostShare × part de la garnison à terre + perBreach × brèches (au plus maxBreaches), × captainFactor tant que le capitaine tient, au plus max ; nulle si un capitaine qui a juré tient.",
+      "cooldownRounds": 3,
+      "base": 0.02,
+      "perLostShare": 0.6,
+      "perBreach": 0.1,
+      "maxBreaches": 2,
+      "captainFactor": 0.5,
+      "max": 0.8
+    }
   },
   "fire": {
     "$comment": "Brief §9.9 : le feu dure plusieurs tours, se propage selon le vent, blesse les unités proches ; on l'éteint ; flèches enflammées +1 PA (§9.4). Valeurs de départ (J7 : équilibrage).",

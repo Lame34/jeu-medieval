@@ -30,7 +30,15 @@ export type GameEvent =
   | TurnEndedEvent
   | TurnStartedEvent
   | CommandRejectedEvent
-  | AbilityUsedEvent;
+  | AbilityUsedEvent
+  | GarrisonSummonedEvent;
+
+/** The herald's summons and the garrison's answer (ADR-047). */
+export interface GarrisonSummonedEvent {
+  readonly type: 'garrisonSummoned';
+  readonly chance: number;
+  readonly accepted: boolean;
+}
 
 export interface UnitMovedEvent {
   readonly type: 'unitMoved';

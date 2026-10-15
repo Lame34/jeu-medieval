@@ -77,6 +77,7 @@ export function effectLines(e: BattleEffects, base = false): EffectLine[] {
   const aim = e.aim ?? {};
   if (aim.defender) out.push({ tone: aim.defender < 0 ? 'boon' : 'cost', text: `La garnison frappe ${aim.defender < 0 ? 'moins' : 'plus'} juste : ${aim.defender > 0 ? '+' : '−'}${pct(Math.abs(aim.defender))} à ses coups` });
   if (aim.attacker) out.push({ tone: aim.attacker > 0 ? 'boon' : 'cost', text: `Vos hommes frappent ${aim.attacker > 0 ? 'plus' : 'moins'} juste : ${aim.attacker > 0 ? '+' : '−'}${pct(Math.abs(aim.attacker))} à leurs coups` });
+  if (e.sworn) out.push({ tone: 'plain', text: 'Son capitaine a juré de ne jamais se rendre : aucune sommation tant qu’il tient' });
   if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillard : on ne voit qu’à ${w.fogSightM} m` });
   if (e.weather === 'rain') out.push({ tone: 'plain', text: `Pluie : −${pct(w.rainAccuracyPenalty)} de précision, le feu prend mal` });
   if (e.weather === 'clear' && !base) out.push({ tone: 'plain', text: 'Ciel dégagé' });

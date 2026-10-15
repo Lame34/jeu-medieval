@@ -10,7 +10,7 @@
 
 .battle-hud > * {
   pointer-events: auto;
-  /* Options: the battle's text size (cards, banner, journal). */
+  /* Options: the battle's text size (cards, banner, journal), set on the battle screen. */
   zoom: var(--ui-scale, 1);
 }
 
@@ -349,6 +349,48 @@ kbd {
 }
 
 /* Coût en PA au-dessus de la destination prévue. */
+/* The herald's summons, under the end of the turn: both orders for the whole army, and the field's
+   middle stays clear. Its place is fixed, for the lessons sit just below it (tutorial.css). */
+:root {
+  --hud-summon-top: 64px;
+  --hud-summon-height: 56px;
+}
+
+.hud-summon {
+  position: absolute;
+  top: var(--hud-summon-top);
+  right: 16px;
+  box-sizing: border-box;
+  height: var(--hud-summon-height);
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  white-space: nowrap;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--parchment);
+  background: var(--wood-mid);
+  border: 1px solid var(--iron-light);
+  border-radius: 3px;
+  box-shadow: var(--shadow-deep);
+  cursor: pointer;
+}
+
+.hud-summon:hover:not(:disabled) {
+  border-color: var(--gold, #c99a3b);
+}
+
+.hud-summon:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.hud-summon small {
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.85;
+}
+
 /* The frame a drag draws on the field: the men inside are chosen together. */
 .battle-select-frame {
   position: absolute;

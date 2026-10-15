@@ -84,6 +84,7 @@ function readEffects(raw: unknown, rules: GameRules, path: string): BattleEffect
     ...(structures ? { structures } : {}),
     ...(e['fillMoat'] !== undefined ? { fillMoat: integer(e['fillMoat'], `${path}.fillMoat`, 1, 4) } : {}),
     ...(aim ? { aim } : {}),
+    ...(e['sworn'] === true ? { sworn: true } : {}),
   };
   return Object.freeze(out);
 }

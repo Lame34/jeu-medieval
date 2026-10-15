@@ -15,6 +15,7 @@ import { previewFill, previewUndermine, resolveWork, type WorkPreviewResult } fr
 import { previewClimb, previewDock, refillDocks, releaseDocks, resolveClimb, resolveDock } from '../battle/siege-tower.ts';
 import { fireRound, previewExtinguish, previewFireArrow, resolveExtinguish, resolveFireArrow } from '../battle/fire.ts';
 import { syncNav } from '../battle/structures.ts';
+import { previewSummons, resolveSummons } from '../battle/summons.ts';
 import type { BattleState, UnitState } from '../battle/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { normalize } from '../math/vec2.ts';
@@ -199,6 +200,12 @@ function dispatch(ctx: BattleContext, state: BattleState, command: Command): Com
       return applyOverwatch(ctx, state, command);
     case 'ability':
       return applyAbility(ctx, state, command);
+    case 'summon': {
+      const result = previewSummons(ctx, state);
+      if (!result.ok) return reject(state, command, result.reason);
+      const { state: next, events } = resolveSummons(state, result.preview);
+      return { state: next, events, rejection: null };
+    }
     case 'endTurn':
       return applyEndTurn(ctx, state, command);
   }

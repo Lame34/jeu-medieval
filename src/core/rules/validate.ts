@@ -13,6 +13,7 @@ import {
   TerrainLayer,
   type ArmorClass,
   type BattleRules,
+  type SummonsRules,
   type CoverLevel,
   type DamageRules,
   type DamageType,
@@ -200,6 +201,21 @@ function readBattle(raw: Readonly<Record<string, unknown>>): BattleRules {
   return Object.freeze({
     turnLimit: num(raw['turnLimit'], 'damage.battle.turnLimit', 1),
     garrisonSurrenderShare: num(raw['garrisonSurrenderShare'], 'damage.battle.garrisonSurrenderShare', 0, 1),
+    summons: readSummons(raw['summons']),
+  });
+}
+
+function readSummons(raw: unknown): SummonsRules {
+  const s = obj(raw, 'damage.battle.summons');
+  const n = (k: string, min?: number, max?: number) => num(s[k], `damage.battle.summons.${k}`, min, max);
+  return Object.freeze({
+    cooldownRounds: n('cooldownRounds', 1),
+    base: n('base', 0, 1),
+    perLostShare: n('perLostShare', 0, 1),
+    perBreach: n('perBreach', 0, 1),
+    maxBreaches: n('maxBreaches', 0),
+    captainFactor: n('captainFactor', 0, 1),
+    max: n('max', 0, 1),
   });
 }
 

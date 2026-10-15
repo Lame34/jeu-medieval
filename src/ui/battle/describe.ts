@@ -59,7 +59,11 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   unknownAbility: 'Capacité inconnue.',
   abilityCooling: 'Pas encore prête : il faut attendre quelques tours.',
   invalidAbilityTarget: 'Ce n’est pas une cible pour cette capacité.',
+  summonsTooSoon: 'Le héraut revient à peine : la garnison ne l’écoutera pas de sitôt.',
 };
+
+/** The garrison's answers to a summons it refuses (one per round, the same on replay). */
+const SUMMONS_REFUSALS = ['Venez donc nous prendre !', 'Nous avons des vivres pour un an.', 'Notre seigneur viendra nous secourir.', 'Nos murs tiennent encore.'] as const;
 
 /** What a structure is called in the journal and the HUD. */
 /** "1 point d’action", "2 points d’action" (a fraction in French decimals, singular under two). */
@@ -170,6 +174,8 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ${shaken}.` : `${who} est ${shaken} (−${actionPoints(DEFAULT_RULES.morale.shakenApPenalty)}).`;
       return `${who} se ressaisit.`;
     }
+    case 'garrisonSummoned':
+      return event.accepted ? 'Votre héraut somme la garnison de rendre la place. Elle accepte : ses hommes sortent vies sauves et vous remettent le château.' : `Votre héraut somme la garnison de rendre la place. Elle refuse : « ${SUMMONS_REFUSALS[state.turn % SUMMONS_REFUSALS.length]} »`;
     case 'turnStarted':
       return `Tour ${event.turn} : ${FACTION_LABEL[event.faction]}.`;
     case 'battleEnded':

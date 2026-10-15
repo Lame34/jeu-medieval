@@ -122,6 +122,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     fires: [],
     burnt: [],
     ...(scenario.aim ? { aim: scenario.aim } : {}),
+    ...(scenario.sworn ? { sworn: true as const } : {}),
     rng: root.fork(BATTLE_RNG_LABEL).getState(),
   };
 }

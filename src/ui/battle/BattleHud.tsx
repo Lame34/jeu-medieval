@@ -3,7 +3,7 @@
  * preview under the pointer (move: AP and exposure; attack: odds, damage, riposte) and the
  * journal. Reads the battle UI store only; orders go through the session.
  */
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Glossed } from '../components/Glossed.tsx';
 import { garrisonStrength, INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
@@ -11,7 +11,7 @@ import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 import { useBattleUi, type AdviceShown, type HoverPreview, type WalkFirst } from '../../state/battle-ui.ts';
-import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
+import { useSettings } from '../../state/settings.ts';
 import { actionPoints, END_LABEL, FACTION_LABEL, heroSkillName, REJECTION_LABEL, STRUCTURE_OBJECT } from './describe.ts';
 import { PLAYER_FACTION } from './session.ts';
 import type { ActionButton, ActionId } from './actions.ts';
@@ -377,7 +377,7 @@ function Briefing({ battle, content, onClose }: { readonly battle: BattleState; 
         </Glossed>
       </p>
       <p className="hud-detail">
-        Choisissez un homme, puis cliquez pour le déplacer ou frapper ; ses ordres sont sur sa carte. <kbd>Entrée</kbd> : fin du tour.
+        Choisissez un homme, puis cliquez pour le déplacer ou frapper ; ses ordres sont sur sa carte. Votre héraut peut sommer la garnison de se rendre : plus elle a perdu, plus elle cède. <kbd>Entrée</kbd> : fin du tour.
       </p>
       <button type="button" onClick={onClose}>
         Compris
@@ -419,6 +419,23 @@ function AdviceCard({ advice, onFollow, onDismiss }: { readonly advice: AdviceSh
         </button>
       </div>
     </section>
+  );
+}
+
+/** The herald's summons as the HUD shows it (ADR-047). */
+export interface SummonsInfo {
+  /** The chance that the garrison yields; null while the herald cannot go. */
+  readonly chance: number | null;
+  /** Why it cannot, or what holds the garrison back. */
+  readonly note: string;
+}
+
+/** Always in its place while the battle goes on (the lessons sit below it); usable on our turn. */
+function SummonButton({ info, ready, onSummon }: { readonly info: SummonsInfo; readonly ready: boolean; readonly onSummon: () => void }) {
+  return (
+    <button type="button" className="hud-summon" onClick={onSummon} disabled={!ready || info.chance === null || info.chance === 0} title="Votre héraut somme la garnison de rendre la place. Plus elle a perdu d’hommes et de murs, plus elle est prête à traiter.">
+      Sommer la garnison <small>{info.note}</small>
+    </button>
   );
 }
 
@@ -475,6 +492,8 @@ export function BattleHud({
   end,
   actionsFor,
   onAction,
+  summons,
+  onSummon,
 }: {
   readonly onEndTurn: () => void;
   /** Units of ours that could still act (the end-of-turn warning). */
@@ -486,6 +505,9 @@ export function BattleHud({
   /** The selected unit's action buttons, and pressing one. */
   readonly actionsFor: (unit: UnitState) => readonly ActionButton[];
   readonly onAction: (id: ActionId) => void;
+  /** The herald's summons, offered on each of our turns. */
+  readonly summons: () => SummonsInfo;
+  readonly onSummon: () => void;
 }) {
   const battle = useBattleUi((s) => s.battle);
   const armed = useBattleUi((s) => s.endTurnArmed);
@@ -500,12 +522,11 @@ export function BattleHud({
   const introDone = useBattleUi((s) => s.introDone);
   const hasSelected = useBattleUi((s) => s.hasSelected);
   const hints = useSettings((s) => s.hints);
-  const textScale = useSettings((s) => TEXT_SCALES[s.textScale]);
   if (!battle) return null;
   const selected = selectedId ? battle.units.find((u) => u.id === selectedId && u.alive) : undefined;
   const playerTurn = battle.activeFaction === PLAYER_FACTION && battle.status === 'ongoing';
   return (
-    <div className="battle-hud" style={{ '--ui-scale': textScale } as CSSProperties}>
+    <div className="battle-hud">
       <header className="hud-banner" data-faction={battle.activeFaction}>
         <span>
           Tour {battle.turn} / {battle.turnLimit} · {FACTION_LABEL[battle.activeFaction]}
@@ -519,6 +540,7 @@ export function BattleHud({
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} troupe${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : finir quand même ?` : 'Fin du tour'} <kbd>Entrée</kbd>
       </button>
+      {battle.status === 'ongoing' && <SummonButton info={summons()} ready={playerTurn && !busy} onSummon={onSummon} />}
       {selected && group.length > 1 ? (
         <GroupCard units={battle.units.filter((u) => u.alive && group.includes(u.id))} />
       ) : (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { structureDef } from '../../core/battle/structures.ts';
 import type { UnitMarker, WorldLayout } from '../../core/worldgen/types.ts';
 import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.tsx';
@@ -25,8 +25,9 @@ import { WorldScene } from '../../render/WorldScene.tsx';
 import type { UnitHandle } from '../../render/units/Units.tsx';
 import { useBattleUi } from '../../state/battle-ui.ts';
 import { useSceneStatus } from '../../state/scene-status.ts';
-import { useSettings } from '../../state/settings.ts';
-import { BattleHud } from '../battle/BattleHud.tsx';
+import { TEXT_SCALES, useSettings } from '../../state/settings.ts';
+import { BattleHud, type SummonsInfo } from '../battle/BattleHud.tsx';
+import { previewSummons, summonsWait } from '../../core/battle/summons.ts';
 import { BattleSession, PLAYER_FACTION, type BattleShape } from '../battle/session.ts';
 import { requestEndTurn, unitsStillActing } from '../battle/end-turn.ts';
 import { navigate, ROUTES } from '../router.ts';
@@ -87,6 +88,16 @@ function wantsIntro(): boolean {
 /** Driven test runs and benches (?e2e, ?bench) neither save their battle nor take one up. */
 function isTestRun(): boolean {
   return E2E || isBenchMode();
+}
+
+/** What the herald's button says: the chance, or why he cannot go now. */
+function summonsInfo(session: BattleSession): SummonsInfo {
+  const wait = summonsWait(session.ctx.rules, session.state);
+  if (wait > 0) return { chance: null, note: `le héraut revient dans ${wait} tour${wait > 1 ? 's' : ''}` };
+  const r = previewSummons(session.ctx, session.state);
+  if (!r.ok) return { chance: null, note: '' };
+  if (r.preview.sworn) return { chance: 0, note: 'le capitaine a juré de ne jamais se rendre' };
+  return { chance: r.preview.chance, note: `chance qu’elle cède : ${Math.round(r.preview.chance * 100)} %${r.preview.captainStands ? ', son capitaine la tient' : ''}` };
 }
 
 /** A step of the camera's buttons: a sixteenth of a turn, and the zoom of a wheel notch and a half. */
@@ -186,6 +197,8 @@ export default function BattleScreen() {
   const views = useMemo(() => (layout ? battleViews(layout) : []), [layout]);
   const camera = useRef<CameraHandle | null>(null);
   const setHour = useSettings((s) => s.setHour);
+  // The battle's text size, for its HUD and its lessons alike.
+  const uiScale = useSettings((s) => TEXT_SCALES[s.textScale]);
   const bench = isBenchMode();
   // The battle itself (not in bench mode: measurements keep the map's fixed markers), unless
   // the bench asks for a live one (?bench&live: units, torches, weather, sound; no input).
@@ -360,7 +373,7 @@ export default function BattleScreen() {
   if (error) return <LoadingScreen label={`Le champ de bataille n’a pas pu être tracé : ${error}`} />;
   if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" tips />;
   return (
-    <main className="scene-screen">
+    <main className="scene-screen" style={{ '--ui-scale': uiScale } as CSSProperties}>
       <GameCanvas>
         <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
@@ -387,6 +400,8 @@ export default function BattleScreen() {
           end={(battle) => endFor(setup.mode, battle, { replay: () => window.location.reload(), toMap, toTitle: () => navigate(ROUTES.title) })}
           actionsFor={(u) => actionsFor(session, u)}
           onAction={(id) => triggerAction(session, id)}
+          summons={() => summonsInfo(session)}
+          onSummon={() => session.issue({ type: 'summon' })}
         />
       )}
       {started?.lost && sceneReady && <p className="hud-card hud-notice">La bataille sauvegardée vient d’une autre version du jeu : elle reprend depuis le début.</p>}

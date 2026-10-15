@@ -220,6 +220,25 @@ test('hero: keys 1 and 2 name the abilities; 1 casts the volley at once and show
   expect(errors).toEqual([]);
 });
 
+/** Rounds the herald waits before he may summon again (src/data/damage.json battle.summons.cooldownRounds). */
+const SUMMONS_COOLDOWN_ROUNDS = 3;
+
+test('summons: the herald tells the chance, is refused by a fresh garrison, and must wait', async ({ page }) => {
+  const errors = trackErrors(page);
+  await open(page, 'e2e&fast');
+  const summon = page.getByRole('button', { name: /Sommer la garnison/ });
+  await expect(summon).toBeEnabled();
+  await expect(summon).toContainText('chance qu’elle cède : 1 %, son capitaine la tient');
+
+  await summon.click();
+  await idle(page);
+  await expect(page.locator('.hud-log')).toContainText('Votre héraut somme la garnison de rendre la place. Elle refuse');
+  expect((await state(page)).status).toBe('ongoing');
+  await expect(summon).toBeDisabled();
+  await expect(summon).toContainText(`le héraut revient dans ${SUMMONS_COOLDOWN_ROUNDS} tours`);
+  expect(errors).toEqual([]);
+});
+
 test('briefing: shown at turn 1 without ?e2e, closed by "Compris" and gone for good', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto(`/battle?fast&seed=${SEED}`);

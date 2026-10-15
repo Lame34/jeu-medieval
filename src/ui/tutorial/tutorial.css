@@ -1,12 +1,15 @@
-/* La leçon de Guillaume : un panneau à droite, sous la fin du tour ; la partie du HUD nommée s'illumine. */
+/* Guillaume's lesson: a panel on the right, under the herald's button (battle-hud.css) and scaled like it
+   with the battle's text. Only its text scrolls: its buttons stay in sight. The part of the HUD it names glows. */
 .tutorial {
   position: absolute;
-  top: 64px;
+  top: calc(var(--hud-summon-top) + var(--hud-summon-height) + 8px);
   right: 16px;
   z-index: 5;
   width: 340px;
-  max-height: calc(100% - 260px);
-  overflow-y: auto;
+  max-height: calc(100% - 196px - var(--hud-summon-top) - var(--hud-summon-height) - 8px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   color: var(--ink);
   animation: tutorial-in 360ms var(--ease-out) both;
   zoom: var(--ui-scale, 1);
@@ -40,6 +43,9 @@
 }
 
 .tutorial__text {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   margin: 8px 0;
   font-size: 15.5px;
   line-height: 1.45;
@@ -94,7 +100,7 @@
 
 .tutorial-tab {
   position: absolute;
-  top: 64px;
+  top: calc(var(--hud-summon-top) + var(--hud-summon-height) + 8px);
   right: 16px;
   z-index: 5;
   background: var(--parchment);

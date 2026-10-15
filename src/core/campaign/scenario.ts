@@ -171,6 +171,7 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
     ...(startHour !== undefined ? { startHour } : {}),
     ...(Object.keys(morale).length > 0 ? { morale } : {}),
     ...(Object.values(aim).some((a) => a !== 0) ? { aim } : {}),
+    ...(effects.some((e) => e.sworn) || base.sworn ? { sworn: true } : {}),
     ...(starts.length > 0 ? { structures: starts } : {}),
     ...(filled.length > 0 ? { filled } : {}),
   };
