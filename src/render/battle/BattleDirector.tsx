@@ -132,6 +132,36 @@ interface Step {
   finish(): void;
 }
 
+/**
+ * Walks of different men that follow one another in the queue, played together (ADR-045): men
+ * sent off at once (orders for several, the enemy's advance) march at the same time instead of
+ * one after the other. Each keeps its own pace (`speeds`: the enemy's out of view, at once).
+ */
+function together(steps: readonly Step[], speeds: readonly number[]): Step {
+  const ends = steps.map((s, i) => s.duration / (speeds[i] as number));
+  const done = steps.map(() => false);
+  return {
+    duration: Math.max(...ends),
+    update(t, dt) {
+      steps.forEach((s, i) => {
+        if (done[i]) return;
+        const speed = speeds[i] as number;
+        s.update(Math.min(t * speed, s.duration), dt * speed);
+        if (t >= (ends[i] as number)) {
+          s.finish();
+          done[i] = true;
+        }
+      });
+    },
+    finish() {
+      steps.forEach((s, i) => {
+        if (!done[i]) s.finish();
+        done[i] = true;
+      });
+    },
+  };
+}
+
 interface FloatText {
   readonly el: HTMLSpanElement;
   readonly at: Vector3;
@@ -994,7 +1024,25 @@ export function BattleDirector({
       lastSpeed.current = enemy ? speedOf(event) : 1;
       lastType.current = event.type;
       if (enemy) follow(event);
-      const next = makeStep(event);
+      let next = makeStep(event);
+      // The walks of other men just behind this one set off with it.
+      if (next && event.type === 'unitMoved') {
+        const walks = [next];
+        const speeds = [lastSpeed.current];
+        const walkers = new Set([event.unitId]);
+        for (let head = queue.current[0]; head && head.event.type === 'unitMoved' && head.enemy === enemy && !walkers.has(head.event.unitId); head = queue.current[0]) {
+          queue.current.shift();
+          walkers.add(head.event.unitId);
+          const walk = makeStep(head.event);
+          if (!walk) continue;
+          walks.push(walk);
+          speeds.push(enemy ? speedOf(head.event) : 1);
+        }
+        if (walks.length > 1) {
+          next = together(walks, speeds);
+          lastSpeed.current = 1;
+        }
+      }
       if (next) current = step.current = { step: next, t: 0, speed: lastSpeed.current, type: lastType.current };
     }
     if (current) {
