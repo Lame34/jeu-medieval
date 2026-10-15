@@ -43,6 +43,7 @@ interface TestBattleState {
   readonly turn: number;
   /** Past this round the defenders are relieved (a campaign's plan or `?turns=` changes it). */
   readonly turnLimit: number;
+  readonly aim?: Readonly<Record<string, number>>;
   readonly activeFaction: TestFaction;
   readonly status: 'ongoing' | 'attackerWon' | 'defenderWon';
   readonly units: readonly TestUnitState[];

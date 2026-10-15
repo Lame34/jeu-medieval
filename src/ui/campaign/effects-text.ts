@@ -2,7 +2,7 @@
  * What a castle's conditions and a stratagem do, in a few French lines for the campaign's letters
  * and the council's cards: boons, costs, and plain conditions.
  */
-import type { BattleEffects, CampaignBattle, Stratagem } from '../../core/campaign/types.ts';
+import type { BattleEffects, CampaignBattle, RankRule, Stratagem } from '../../core/campaign/types.ts';
 import type { GarrisonGroup } from '../../core/worldgen/garrison.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 
@@ -73,6 +73,10 @@ export function effectLines(e: BattleEffects, base = false): EffectLine[] {
   const morale = e.morale ?? {};
   if (morale.attacker) out.push({ tone: morale.attacker > 0 ? 'boon' : 'cost', text: `Moral de l’ost ${morale.attacker > 0 ? '+' : '−'}${Math.abs(morale.attacker)}` });
   if (morale.defender) out.push({ tone: morale.defender < 0 ? 'boon' : 'cost', text: `Moral de la garnison ${morale.defender > 0 ? '+' : '−'}${Math.abs(morale.defender)}` });
+  // A side's skill at arms (the player's rank).
+  const aim = e.aim ?? {};
+  if (aim.defender) out.push({ tone: aim.defender < 0 ? 'boon' : 'cost', text: `La garnison frappe ${aim.defender < 0 ? 'moins' : 'plus'} juste : ${aim.defender > 0 ? '+' : '−'}${pct(Math.abs(aim.defender))} à ses coups` });
+  if (aim.attacker) out.push({ tone: aim.attacker > 0 ? 'boon' : 'cost', text: `Vos hommes frappent ${aim.attacker > 0 ? 'plus' : 'moins'} juste : ${aim.attacker > 0 ? '+' : '−'}${pct(Math.abs(aim.attacker))} à leurs coups` });
   if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillard : on ne voit qu’à ${w.fogSightM} m` });
   if (e.weather === 'rain') out.push({ tone: 'plain', text: `Pluie : −${pct(w.rainAccuracyPenalty)} de précision, le feu prend mal` });
   if (e.weather === 'clear' && !base) out.push({ tone: 'plain', text: 'Ciel dégagé' });
@@ -99,4 +103,9 @@ export function castleLines(battle: CampaignBattle): EffectLine[] {
 
 export function stratagemLines(s: Stratagem): EffectLine[] {
   return effectLines(s.effects);
+}
+
+/** What the player's rank changes (ADR-045). */
+export function rankLines(rank: RankRule): EffectLine[] {
+  return [...(rank.fullGarrison ? [{ tone: 'cost' as const, text: 'Garnison au complet : ses absents sont revenus' }] : []), ...effectLines(rank.effects)];
 }

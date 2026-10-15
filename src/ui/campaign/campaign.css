@@ -550,7 +550,7 @@
 
 .council__plan {
   /* The scouts' sheet: as large as the screen's height allows. */
-  --plan-size: clamp(300px, 54vh, 520px);
+  --plan-size: clamp(300px, 50vh, 520px);
   flex: none;
   padding: 16px 18px 12px;
   border-radius: var(--radius-plaque);
@@ -733,6 +733,48 @@
   font-size: 22px;
   font-weight: 700;
   animation: seal-stamp 520ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+/* The player's rank, above the seal: one line. */
+.council__rank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 10px;
+  color: var(--parchment);
+}
+
+.council__rank p {
+  margin: 0;
+  font-style: italic;
+}
+
+.council__ranks {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.council__ranks button {
+  padding: 4px 14px;
+  font: inherit;
+  color: var(--parchment);
+  background: rgb(43 35 38 / 70%);
+  border: 1px solid var(--iron-light);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.council__ranks button:hover {
+  border-color: var(--gold);
+}
+
+.council__ranks button[data-on] {
+  border-color: #5b2a12;
+  background: linear-gradient(180deg, #a3301e, #7a1a10);
+  color: #fbe9d6;
 }
 
 .council__foot {

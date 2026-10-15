@@ -5,7 +5,7 @@
  * map takes seconds to generate: it is built once, in beforeAll.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { applyCommand, createBattle, createBattleContext, hashBattleState, isPassable, replay, ScenarioError, type BattleContext, type BattleState, type Command, type Scenario, type UnitSpawn, type Vec2 } from '@core/index.ts';
+import { applyCommand, createBattle, createBattleContext, hashBattleState, isPassable, previewAttack, replay, ScenarioError, type BattleContext, type BattleState, type Command, type Scenario, type UnitSpawn, type Vec2 } from '@core/index.ts';
 import { facingSlot } from '@core/battle/approaches.ts';
 import { DEFAULT_MORALE } from '@core/battle/create.ts';
 import { heroSpawnCells } from '@core/battle/heroes.ts';
@@ -217,6 +217,63 @@ describe('shapeScenario', () => {
     let state: BattleState = start;
     for (const c of commands) state = applyCommand(ctx, state, c).state;
     expect(hashBattleState(replay(ctx, SEED, a, commands).state)).toBe(hashBattleState(state));
+  });
+});
+
+describe('the player’s rank (ADR-045)', () => {
+  const level = () => CAMPAIGN.levels[0]!;
+  const defenders = (sc: Scenario) => sc.units.filter((u) => factionOf(u) === 'defender').length;
+
+  it('ships three ranks, the knight changing nothing', () => {
+    expect(Object.keys(CAMPAIGN.ranks)).toEqual(['squire', 'knight', 'baron']);
+    const knight = shapeScenario(ctx, base, battleEffects(level(), null, CAMPAIGN.ranks.knight));
+    expect(knight).toEqual(shapeScenario(ctx, base, battleEffects(level(), null)));
+  });
+
+  it('a squire faces a thinner, clumsier garrison, with more time; a baron, the full garrison, abler, with less', () => {
+    const plain = shapeScenario(ctx, base, battleEffects(level(), null));
+    const squire = shapeScenario(ctx, base, battleEffects(level(), null, CAMPAIGN.ranks.squire));
+    const baron = shapeScenario(ctx, base, battleEffects(level(), null, CAMPAIGN.ranks.baron));
+    const castleCut = (level().battle.cut ?? []).reduce((n, c) => n + c.count, 0);
+    expect(defenders(squire)).toBe(defenders(plain) - 2);
+    expect(defenders(baron)).toBe(defenders(plain) + castleCut);
+    expect(squire.turnLimit).toBe(plain.turnLimit! + (CAMPAIGN.ranks.squire.effects.turnDelta ?? 0));
+    expect(baron.turnLimit).toBe(plain.turnLimit! + (CAMPAIGN.ranks.baron.effects.turnDelta ?? 0));
+    expect(squire.aim).toEqual({ defender: CAMPAIGN.ranks.squire.effects.aim?.defender });
+    expect(baron.aim).toEqual({ defender: CAMPAIGN.ranks.baron.effects.aim?.defender });
+    expect(plain.aim).toBeUndefined();
+  });
+
+  it('the garrison’s skill at arms moves the hit chance of its blows and shots, not of ours', () => {
+    const clumsy = -0.1;
+    const shaped: Scenario = {
+      units: [
+        { id: 'att', typeKey: 'soldier', position: { x: 300.5, z: 300.5 } },
+        { id: 'def', typeKey: 'wallGuard', position: { x: 301.5, z: 300.5 } },
+      ],
+      firstFaction: 'defender',
+    };
+    const odds = (sc: Scenario, who: string, whom: string) => {
+      const b = createBattle(ctx, SEED, sc);
+      const r = previewAttack(ctx, b, who, whom);
+      if (!r.ok) throw new Error(r.reason);
+      return r.preview;
+    };
+    const plain = odds(shaped, 'def', 'att');
+    const weak = odds({ ...shaped, aim: { defender: clumsy } }, 'def', 'att');
+    expect(weak.blow.hitChance - plain.blow.hitChance).toBeCloseTo(clumsy, 9);
+    expect(weak.conditions).toContainEqual({ kind: 'aim', accuracy: clumsy, rangeFactor: 1 });
+    const ours = (sc: Scenario) => odds({ ...sc, firstFaction: 'attacker' }, 'att', 'def').blow.hitChance;
+    expect(ours({ ...shaped, aim: { defender: clumsy } })).toBe(ours(shaped));
+  });
+
+  it('rejects a skill at arms beyond ±0.3 and a missing rank', () => {
+    const tooAble = raw();
+    (tooAble['ranks'] as Record<string, { effects: Record<string, unknown> }>)['baron']!.effects['aim'] = { defender: 0.5 };
+    expect(() => validateCampaign(tooAble, DEFAULT_RULES)).toThrow(RulesValidationError);
+    const noBaron = raw();
+    delete (noBaron['ranks'] as Record<string, unknown>)['baron'];
+    expect(() => validateCampaign(noBaron, DEFAULT_RULES)).toThrow(/ranks\.baron/);
   });
 });
 

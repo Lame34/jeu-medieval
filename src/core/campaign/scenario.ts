@@ -15,7 +15,7 @@ import { distance, type Vec2 } from '../math/vec2.ts';
 import { isPassable } from '../nav-grid/nav-grid.ts';
 import type { Faction } from '../rules/types.ts';
 import { garrisonGroupOf } from '../worldgen/garrison.ts';
-import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, Stratagem } from './types.ts';
+import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, RankRule, Stratagem } from './types.ts';
 
 /** Reinforcements gather this far behind the army (or the siege park), away from the castle (m). */
 const REINFORCE_REAR_M = 10;
@@ -41,9 +41,18 @@ function behind(from: Vec2, castle: Vec2, m: number): Vec2 {
   return { x: from.x + (dx / len) * m, z: from.z + (dz / len) * m };
 }
 
-/** The effects of a battle in order: the castle's, then the stratagem's. */
-export function battleEffects(battle: CampaignBattle, stratagem: Stratagem | null): readonly BattleEffects[] {
-  return stratagem ? [battle.battle, stratagem.effects] : [battle.battle];
+/**
+ * The effects of a battle in order: the castle's, the stratagem's, then the player's rank (ADR-045).
+ * A rank that brings the garrison to full strength takes back the castle's own absentees.
+ */
+export function battleEffects(battle: CampaignBattle, stratagem: Stratagem | null, rank?: RankRule): readonly BattleEffects[] {
+  const castle = rank?.fullGarrison ? withoutCut(battle.battle) : battle.battle;
+  return [castle, ...(stratagem ? [stratagem.effects] : []), ...(rank ? [rank.effects] : [])];
+}
+
+function withoutCut(e: BattleEffects): BattleEffects {
+  const { cut: _absent, ...rest } = e;
+  return rest;
 }
 
 /**
@@ -138,12 +147,14 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
   let turnLimit = base.turnLimit ?? rules.battle.turnLimit;
   let turnDelta = 0;
   const moraleDelta: Partial<Record<Faction, number>> = {};
+  const aim: Partial<Record<Faction, number>> = { ...base.aim };
   for (const e of effects) {
     if (e.weather !== undefined) weather = e.weather;
     if (e.startHour !== undefined) startHour = e.startHour;
     if (e.turnLimit !== undefined) turnLimit = e.turnLimit;
     turnDelta += e.turnDelta ?? 0;
     for (const [f, d] of Object.entries(e.morale ?? {}) as [Faction, number][]) moraleDelta[f] = (moraleDelta[f] ?? 0) + d;
+    for (const [f, d] of Object.entries(e.aim ?? {}) as [Faction, number][]) aim[f] = (aim[f] ?? 0) + d;
   }
   // A stratagem never starts a side shaken.
   const morale: Partial<Record<Faction, number>> = { ...base.morale };
@@ -159,6 +170,7 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
     ...(weather !== undefined ? { weather } : {}),
     ...(startHour !== undefined ? { startHour } : {}),
     ...(Object.keys(morale).length > 0 ? { morale } : {}),
+    ...(Object.values(aim).some((a) => a !== 0) ? { aim } : {}),
     ...(starts.length > 0 ? { structures: starts } : {}),
     ...(filled.length > 0 ? { filled } : {}),
   };

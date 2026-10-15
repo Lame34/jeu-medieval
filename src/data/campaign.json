@@ -4,6 +4,26 @@
   "prologue": "L’hiver dernier, le vieux comte Raoul est mort sans fils. Son cousin Thibaut de Morneval, que tout le Val appelle déjà le Félon, a fait fermer les portes de cinq châteaux et s’est proclamé seigneur du Val d’Orle. La comtesse Isabeau, nièce du défunt, vous confie son ost : trois compagnons, quelques engins, et le printemps pour reprendre ce qui lui revient.",
   "epilogue": "Les cinq châteaux sont tombés. Isabeau entre à Haute-Garde au son des cloches, et le Val d’Orle a de nouveau une comtesse. Aude compte ses flèches, Bertrand répare ses engins, Guillaume dort enfin.",
   "banners": { "swiftShare": 0.67, "maxLosses": 3 },
+  "ranks": {
+    "squire": {
+      "name": "Écuyer",
+      "summary": "La garnison est clairsemée et frappe moins juste ; le délai est plus large.",
+      "fullGarrison": false,
+      "effects": { "cut": [{ "count": 2 }], "turnDelta": 4, "morale": { "defender": -10 }, "aim": { "defender": -0.1 } }
+    },
+    "knight": {
+      "name": "Chevalier",
+      "summary": "Le château tel que l’ont vu les éclaireurs.",
+      "fullGarrison": false,
+      "effects": {}
+    },
+    "baron": {
+      "name": "Baron",
+      "summary": "La garnison est au complet et frappe plus juste ; le délai est plus court.",
+      "fullGarrison": true,
+      "effects": { "turnDelta": -1, "morale": { "defender": 10 }, "aim": { "defender": 0.05 } }
+    }
+  },
   "tutorial": {
     "id": "fortin",
     "name": "Le Fortin du Gué",

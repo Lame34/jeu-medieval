@@ -9,7 +9,8 @@ import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import type { BriefingContent, EndAction, EndContent } from '../battle/BattleHud.tsx';
 import type { BattleMode } from './battle-setup.ts';
 import { EffectList } from './Council.tsx';
-import { stratagemLines } from './effects-text.ts';
+import { rankLines, stratagemLines } from './effects-text.ts';
+import { DEFAULT_RANK, type Rank } from '../../core/campaign/types.ts';
 import { HeroEmblem } from './HeroEmblem.tsx';
 
 export interface StoryActions {
@@ -18,9 +19,23 @@ export interface StoryActions {
   readonly toTitle: () => void;
 }
 
-export function briefingFor(mode: BattleMode, resting: readonly string[]): BriefingContent | null {
+/** The rank's line in the briefing (nothing at the knight's). */
+function RankNote({ rank }: { readonly rank: Rank }) {
+  if (rank === DEFAULT_RANK) return null;
+  const rule = CAMPAIGN.ranks[rank];
+  return (
+    <>
+      <p>
+        <strong>Rang : {rule.name}.</strong> {rule.summary}
+      </p>
+      <EffectList lines={rankLines(rule)} />
+    </>
+  );
+}
+
+export function briefingFor(mode: BattleMode, resting: readonly string[], rank: Rank): BriefingContent | null {
   if (mode.kind === 'tutorial') return null;
-  if (mode.kind === 'skirmish') return { title: 'Prenez le château' };
+  if (mode.kind === 'skirmish') return { title: 'Prenez le château', ...(rank === DEFAULT_RANK ? {} : { lead: <RankNote rank={rank} /> }) };
   const { level, stratagem } = mode;
   const absent = resting.filter((h) => DEFAULT_RULES.heroes[h]);
   return {
@@ -38,6 +53,7 @@ export function briefingFor(mode: BattleMode, resting: readonly string[]): Brief
             <EffectList lines={stratagemLines(stratagem)} />
           </>
         )}
+        <RankNote rank={rank} />
         {absent.map((h) => (
           <p key={h} className="hud-detail">
             {CAMPAIGN.heroLines[h]?.resting}

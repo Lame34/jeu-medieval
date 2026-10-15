@@ -46,6 +46,25 @@ export interface BattleEffects {
   readonly structures?: readonly StructureEffect[];
   /** Moat slots already crossed by fascines, in front of the walls nearest the siege towers. */
   readonly fillMoat?: number;
+  /** Added to a side's skill at arms: the hit chance of its men's blows and shots (the player's rank). */
+  readonly aim?: Readonly<Partial<Record<Faction, number>>>;
+}
+
+/** The player's rank in a siege (ADR-045): how hard the castle holds, chosen at the council. */
+export const RANKS = ['squire', 'knight', 'baron'] as const;
+export type Rank = (typeof RANKS)[number];
+/** The rank of a battle that names none (the castle as the scouts saw it). */
+export const DEFAULT_RANK: Rank = 'knight';
+
+export interface RankRule {
+  /** « Écuyer », « Chevalier », « Baron ». */
+  readonly name: string;
+  /** What it changes, in a sentence for the council. */
+  readonly summary: string;
+  /** Added after the castle's and the plan's. */
+  readonly effects: BattleEffects;
+  /** The castle's own absentees are back at their posts (the garrison at full strength). */
+  readonly fullGarrison: boolean;
 }
 
 /** A hero's plan at the council of war. */
@@ -109,5 +128,6 @@ export interface CampaignData {
   readonly levels: readonly CampaignLevel[];
   /** The three banners of a victory: taken, swiftly (within this share of the turn limit), with few losses. */
   readonly banners: { readonly swiftShare: number; readonly maxLosses: number };
+  readonly ranks: Readonly<Record<Rank, RankRule>>;
   readonly heroLines: Readonly<Record<string, HeroCampaignLines>>;
 }

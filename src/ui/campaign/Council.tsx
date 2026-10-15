@@ -6,13 +6,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { battleEffects, shapeScenario } from '../../core/campaign/scenario.ts';
 import { surrenderLine } from '../../core/battle/combat.ts';
-import type { CampaignLevel, Stratagem } from '../../core/campaign/types.ts';
+import { RANKS, type CampaignLevel, type Rank, type Stratagem } from '../../core/campaign/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WorldLayout } from '../../core/worldgen/types.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { BattleSession } from '../battle/session.ts';
 import { requestBattleMap } from './battle-map.ts';
-import { stratagemLines, type EffectLine } from './effects-text.ts';
+import { rankLines, stratagemLines, type EffectLine } from './effects-text.ts';
+import { useSettings } from '../../state/settings.ts';
 import { HeroEmblem } from './HeroEmblem.tsx';
 import { ScoutPlan, type PlanMarks } from './ScoutPlan.tsx';
 import './effects.css';
@@ -64,24 +65,48 @@ function PlanCard({ stratagem, resting, chosen, onChoose, index }: { readonly st
 }
 
 /** The scouts' view of the battle: the castle as it stands, and each plan's version of it. */
-function usePlans(level: CampaignLevel, layout: WorldLayout | null, resting: readonly string[]) {
+/**
+ * The player's rank for this siege: how hard the castle holds (ADR-045). One line, so that the
+ * council fits a laptop's screen; the figures are in the battle's briefing.
+ */
+function RankChoice({ rank, onChange }: { readonly rank: Rank; readonly onChange: (rank: Rank) => void }) {
+  const rule = CAMPAIGN.ranks[rank];
+  return (
+    <section className="council__rank" aria-label="Votre rang">
+      <div className="council__ranks" role="radiogroup" aria-label="Votre rang">
+        <span>Votre rang :</span>
+        {RANKS.map((r) => (
+          <button key={r} type="button" role="radio" aria-checked={r === rank} data-on={r === rank || undefined} onClick={() => onChange(r)} title={rankLines(CAMPAIGN.ranks[r]).map((l) => l.text).join(' · ') || CAMPAIGN.ranks[r].summary}>
+            {CAMPAIGN.ranks[r].name}
+          </button>
+        ))}
+      </div>
+      <p>{rule.summary}</p>
+    </section>
+  );
+}
+
+function usePlans(level: CampaignLevel, layout: WorldLayout | null, resting: readonly string[], rank: Rank) {
   return useMemo(() => {
     if (!layout) return null;
     const session = new BattleSession(layout, level.seed);
-    const castle = shapeScenario(session.ctx, session.scenario, battleEffects(level, null), resting);
+    const castle = shapeScenario(session.ctx, session.scenario, battleEffects(level, null, CAMPAIGN.ranks[rank]), resting);
     const plans = new Map<string, PlanMarks>();
     for (const s of level.stratagems) {
-      const scenario = shapeScenario(session.ctx, session.scenario, battleEffects(level, s), resting);
+      const scenario = shapeScenario(session.ctx, session.scenario, battleEffects(level, s, CAMPAIGN.ranks[rank]), resting);
       const kept = new Set(scenario.units.map((u) => u.id));
       const before = new Set(castle.units.map((u) => u.id));
       const removed: Vec2[] = castle.units.filter((u) => !kept.has(u.id)).map((u) => u.position);
       plans.set(s.id, { scenario, removed, added: scenario.units.filter((u) => !before.has(u.id)).map((u) => u.id) });
     }
     return { ctx: session.ctx, castle, plans };
-  }, [level, layout, resting]);
+  }, [level, layout, resting, rank]);
 }
 
-export function Council({ level, resting, onClose, onMarch }: { readonly level: CampaignLevel; readonly resting: readonly string[]; readonly onClose: () => void; readonly onMarch: (plan: string | null) => void }) {
+export function Council({ level, resting, onClose, onMarch }: { readonly level: CampaignLevel; readonly resting: readonly string[]; readonly onClose: () => void; readonly onMarch: (plan: string | null, rank: Rank) => void }) {
+  // The rank last chosen, offered again (and remembered when it changes).
+  const rank = useSettings((s) => s.rank);
+  const setRank = (r: Rank) => useSettings.getState().set('rank', r);
   const [layout, setLayout] = useState<WorldLayout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -95,7 +120,7 @@ export function Council({ level, resting, onClose, onMarch }: { readonly level: 
       live = false;
     };
   }, [level]);
-  const plans = usePlans(level, layout, resting);
+  const plans = usePlans(level, layout, resting, rank);
   const available = level.stratagems.filter((s) => !resting.includes(s.hero));
   const marks = chosen ? (plans?.plans.get(chosen) ?? null) : null;
   const shown = marks?.scenario ?? plans?.castle;
@@ -108,11 +133,11 @@ export function Council({ level, resting, onClose, onMarch }: { readonly level: 
       const n = Number(e.key);
       const s = level.stratagems[n - 1];
       if (s && !resting.includes(s.hero)) setChosen(s.id);
-      if (e.key === 'Enter' && chosen) onMarch(chosen);
+      if (e.key === 'Enter' && chosen) onMarch(chosen, rank);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [level, resting, chosen, onClose, onMarch]);
+  }, [level, resting, chosen, rank, onClose, onMarch]);
 
   return (
     <div className="council" role="dialog" aria-modal="true" aria-labelledby="council-title">
@@ -146,9 +171,10 @@ export function Council({ level, resting, onClose, onMarch }: { readonly level: 
           ))}
         </section>
       </div>
+      <RankChoice rank={rank} onChange={setRank} />
       <footer className="council__foot">
         <p>{plan ? `${DEFAULT_RULES.heroes[plan.hero]?.name ?? ''} mènera le plan : « ${plan.name} ».` : available.length > 0 ? 'Choisissez le plan d’un de vos compagnons (1, 2, 3).' : 'Vos trois compagnons sont blessés : l’ost attaquera sans stratagème.'}</p>
-        <button type="button" className="council__march" disabled={!chosen && available.length > 0} onClick={() => onMarch(chosen)}>
+        <button type="button" className="council__march" disabled={!chosen && available.length > 0} onClick={() => onMarch(chosen, rank)}>
           Sceller le plan et marcher sur {level.name}
         </button>
       </footer>

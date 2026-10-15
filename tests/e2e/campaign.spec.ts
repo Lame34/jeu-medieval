@@ -58,6 +58,32 @@ test('a new campaign: the first castle open, the others locked, the fort a lesso
   expect(errors).toEqual([]);
 });
 
+test('the rank chosen at the council shapes the siege, and is offered again', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto('/campagne?e2e&fast');
+  await openCastle(page, 'roche-grise');
+  await page.getByRole('button', { name: 'Réunir le conseil de guerre' }).click();
+  await page.locator('.scout-plan canvas').first().waitFor({ timeout: PLAN_TIMEOUT_MS });
+  const ranks = page.getByRole('radiogroup', { name: 'Votre rang' });
+  await expect(ranks.getByRole('radio', { name: 'Chevalier' })).toHaveAttribute('aria-checked', 'true');
+  await ranks.getByRole('radio', { name: 'Écuyer' }).click();
+  await expect(page.locator('.council__rank')).toContainText('le délai est plus large');
+  await page.keyboard.press('2');
+  await page.getByRole('button', { name: /Sceller le plan et marcher sur Roche-Grise/ }).click();
+  await expect(page).toHaveURL(/\/battle\?.*plan=fascines.*rank=squire/);
+  await waitForBattle(page);
+  const state = await page.evaluate(() => window.__battle!.state());
+  // 22 rounds, one lost to Bertrand's causeway, four more for a squire; a clumsier garrison.
+  expect(state.turnLimit).toBe(25);
+  expect(state.aim).toEqual({ defender: -0.1 });
+  // The rank is remembered: the council offers it again.
+  await page.goto('/campagne?e2e&fast');
+  await openCastle(page, 'roche-grise');
+  await page.getByRole('button', { name: 'Réunir le conseil de guerre' }).click();
+  await expect(page.getByRole('radiogroup', { name: 'Votre rang' }).getByRole('radio', { name: 'Écuyer' })).toHaveAttribute('aria-checked', 'true');
+  expect(errors).toEqual([]);
+});
+
 test('the council seals a plan, and the battle starts as the plan says', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/campagne?e2e&fast');

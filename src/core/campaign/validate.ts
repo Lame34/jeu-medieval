@@ -4,7 +4,7 @@ import type { StructureKind } from '../battle/structures.ts';
 import { integer, num, obj, oneOf, RulesValidationError, str, strings, type Json } from '../rules/json.ts';
 import type { Faction, GameRules } from '../rules/types.ts';
 import { GARRISON_GROUPS, type GarrisonGroup } from '../worldgen/garrison.ts';
-import { VIGNETTES, type BattleEffects, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
+import { RANKS, VIGNETTES, type BattleEffects, type Rank, type RankRule, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
 
 const STRUCTURE_KINDS: readonly StructureKind[] = ['wall', 'gate', 'portcullis', 'drawbridge'];
 const FACTION_KEYS: readonly Faction[] = ['attacker', 'defender'];
@@ -13,6 +13,8 @@ const CASTLE_INDEX = [1, 4] as const;
 const DIFFICULTY = [1, 5] as const;
 const MAX_TURN_DELTA = 6;
 const MAX_MORALE_DELTA = 40;
+/** A side's skill at arms is added to hit chances within ± this. */
+const MAX_AIM = 0.3;
 const MAX_UNITS = 6;
 
 function list(value: unknown, path: string): unknown[] {
@@ -65,6 +67,12 @@ function readEffects(raw: unknown, rules: GameRules, path: string): BattleEffect
     for (const key of Object.keys(o)) out[oneOf<Faction>(key, FACTION_KEYS, `${p}.${key}`)] = integer(o[key], `${p}.${key}`, -MAX_MORALE_DELTA, MAX_MORALE_DELTA);
     return out;
   }, path);
+  const aim = optional(e, 'aim', (v, p) => {
+    const o = obj(v, p);
+    const out: Partial<Record<Faction, number>> = {};
+    for (const key of Object.keys(o)) out[oneOf<Faction>(key, FACTION_KEYS, `${p}.${key}`)] = num(o[key], `${p}.${key}`, -MAX_AIM, MAX_AIM);
+    return out;
+  }, path);
   const out: BattleEffects = {
     ...(e['weather'] !== undefined ? { weather: oneOf<Weather>(e['weather'], WEATHERS, `${path}.weather`) } : {}),
     ...(e['startHour'] !== undefined ? { startHour: num(e['startHour'], `${path}.startHour`, 0, 24) } : {}),
@@ -75,6 +83,7 @@ function readEffects(raw: unknown, rules: GameRules, path: string): BattleEffect
     ...(reinforce ? { reinforce } : {}),
     ...(structures ? { structures } : {}),
     ...(e['fillMoat'] !== undefined ? { fillMoat: integer(e['fillMoat'], `${path}.fillMoat`, 1, 4) } : {}),
+    ...(aim ? { aim } : {}),
   };
   return Object.freeze(out);
 }
@@ -98,6 +107,17 @@ function readBattle(raw: unknown, rules: GameRules, path: string): CampaignBattl
     difficulty: integer(b['difficulty'], `${path}.difficulty`, DIFFICULTY[0], DIFFICULTY[1]),
     battle: readEffects(b['battle'] ?? {}, rules, `${path}.battle`),
   };
+}
+
+function readRanks(raw: unknown, rules: GameRules, path: string): Readonly<Record<Rank, RankRule>> {
+  const o = obj(raw, path);
+  const out = {} as Record<Rank, RankRule>;
+  for (const id of RANKS) {
+    const q = `${path}.${id}`;
+    const r = obj(o[id], q);
+    out[id] = Object.freeze({ name: str(r['name'], `${q}.name`), summary: str(r['summary'], `${q}.summary`), effects: readEffects(r['effects'] ?? {}, rules, `${q}.effects`), fullGarrison: r['fullGarrison'] === true });
+  }
+  return Object.freeze(out);
 }
 
 function readStratagem(raw: unknown, rules: GameRules, path: string): Stratagem {
@@ -149,6 +169,7 @@ export function validateCampaign(raw: unknown, rules: GameRules): CampaignData {
     tutorial,
     levels,
     banners: { swiftShare: num(banners['swiftShare'], 'banners.swiftShare', 0.1, 1), maxLosses: integer(banners['maxLosses'], 'banners.maxLosses', 0) },
+    ranks: readRanks(c['ranks'], rules, 'ranks'),
     heroLines: readHeroLines(c['heroLines'], rules),
   });
 }

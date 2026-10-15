@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { POINTER_DEVICES, type PointerDevice } from '../render/camera/wheel-gesture.ts';
 import { QUALITY_PRESET_IDS, type QualityPresetId } from '../render/quality/presets.ts';
+import { DEFAULT_RANK, RANKS, type Rank } from '../core/campaign/types.ts';
 import { readStored, writeStored } from './storage.ts';
 
 /** How fast the battle's animations play: ×1, ×2, or at once (brief §10). */
@@ -38,6 +39,8 @@ export interface SavedSettings {
   readonly textScale: TextScale;
   /** Mouse or touchpad: what two fingers sliding on the pad do (pan, not zoom). */
   readonly pointer: PointerDevice;
+  /** The rank last chosen, offered again at the council and used for skirmishes (ADR-045). */
+  readonly rank: Rank;
 }
 
 export interface SettingsState extends SavedSettings {
@@ -67,6 +70,7 @@ export const DEFAULT_SETTINGS: SavedSettings = {
   cameraSpeed: 'normal',
   textScale: 'normal',
   pointer: 'auto',
+  rank: DEFAULT_RANK,
 };
 
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => ((allowed as readonly unknown[]).includes(v) ? (v as T) : fallback);
@@ -92,6 +96,7 @@ function load(): SavedSettings {
     textScale: oneOf(raw['textScale'], Object.keys(TEXT_SCALES) as TextScale[], d.textScale),
     // Added with ADR-042: an older save without it keeps all its other options.
     pointer: oneOf(raw['pointer'], POINTER_DEVICES, d.pointer),
+    rank: oneOf(raw['rank'], RANKS, d.rank),
   };
 }
 

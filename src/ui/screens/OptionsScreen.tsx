@@ -9,6 +9,8 @@ import { QUALITY_PRESET_IDS, QUALITY_PRESETS } from '../../render/quality/preset
 import { useCampaign } from '../../state/campaign.ts';
 import { cameraKeys, useKeyLabels } from '../../state/keyboard.ts';
 import { POINTER_DEVICES } from '../../render/camera/wheel-gesture.ts';
+import { RANKS } from '../../core/campaign/types.ts';
+import { CAMPAIGN } from '../../data/index.ts';
 import { ANIMATION_SPEEDS, CAMERA_SPEEDS, TEXT_SCALES, useSettings, type SavedSettings, type VolumeBus } from '../../state/settings.ts';
 import { IronFrame } from '../components/IronFrame.tsx';
 import { navigate, ROUTES } from '../router.ts';
@@ -138,6 +140,7 @@ export default function OptionsScreen() {
             ))}
             <h2>Partie</h2>
             <Choice label="Animations" value={s.animation} options={(Object.keys(ANIMATION_SPEEDS) as (keyof typeof ANIMATION_SPEEDS)[]).map((k) => [k, ANIMATION_LABEL[k]] as const)} onChange={set('animation')} hint="La vitesse des déplacements, des tirs et du tour adverse." />
+            <Choice label="Rang" value={s.rank} options={RANKS.map((r) => [r, CAMPAIGN.ranks[r].name] as const)} onChange={set('rank')} hint={`${CAMPAIGN.ranks[s.rank].summary} Il se choisit aussi au conseil de guerre.`} />
             <Toggle label="Confirmer la fin du tour" value={s.confirmEndTurn} onChange={set('confirmEndTurn')} hint="Si des troupes peuvent encore agir." />
             <Toggle label="Conseils en bataille" value={s.hints} onChange={set('hints')} hint="Les consignes du premier tour et les rappels de commandes." />
           </div>

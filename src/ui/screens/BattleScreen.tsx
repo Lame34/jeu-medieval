@@ -66,7 +66,7 @@ function testTurnLimit(): number | null {
 
 /** The battle's shape, with a test's deadline last (it wins over the castle's). */
 function battleShape(setup: BattleSetup, resting: readonly string[]): BattleShape | undefined {
-  const shape = shapeOf(setup.mode, resting);
+  const shape = shapeOf(setup.mode, resting, setup.rank);
   const turns = testTurnLimit();
   if (turns === null) return shape;
   return { effects: [...(shape?.effects ?? []), { turnLimit: turns }], ...(shape?.absentHeroes ? { absentHeroes: shape.absentHeroes } : {}) };
@@ -383,7 +383,7 @@ export default function BattleScreen() {
         <BattleHud
           onEndTurn={() => requestEndTurn(session)}
           stillActing={() => unitsStillActing(session)}
-          briefing={briefingFor(setup.mode, resting)}
+          briefing={briefingFor(setup.mode, resting, setup.rank)}
           end={(battle) => endFor(setup.mode, battle, { replay: () => window.location.reload(), toMap, toTitle: () => navigate(ROUTES.title) })}
           actionsFor={(u) => actionsFor(session, u)}
           onAction={(id) => triggerAction(session, id)}

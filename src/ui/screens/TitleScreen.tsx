@@ -1,4 +1,6 @@
 import { CAMPAIGN } from '../../data/index.ts';
+import { DEFAULT_RANK, type Rank } from '../../core/campaign/types.ts';
+import { useSettings } from '../../state/settings.ts';
 import { useState } from 'react';
 import { loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { useCampaign } from '../../state/campaign.ts';
@@ -21,6 +23,12 @@ function skirmishSeed(): string {
   return `escarmouche-${(n[0] ?? 0).toString(36)}`;
 }
 
+/** A skirmish at the rank last chosen (the address names it, unless it is the knight's). */
+function skirmishRank(): { rank?: Rank } {
+  const rank = useSettings.getState().rank;
+  return rank === DEFAULT_RANK ? {} : { rank };
+}
+
 export function TitleScreen() {
   const tutorialDone = useCampaign((s) => s.tutorialDone);
   const taken = useCampaign((s) => CAMPAIGN.levels.filter((l) => s.conquered[l.id]).length);
@@ -30,7 +38,7 @@ export function TitleScreen() {
     ...(saved ? [{ label: 'Reprendre la bataille', hint: `${saved.title}, au tour ${saved.turn}`, action: () => navigate(ROUTES.battle, resumeParams(saved)) }] : []),
     { label: 'Bataille d’essai', hint: 'Guillaume vous apprend le siège, pas à pas', action: () => navigate(ROUTES.battle, { tutorial: '' }), ...(tutorialDone ? {} : { mark: 'Commencez ici' }) },
     { label: 'Campagne', hint: taken > 0 ? `${taken} château${taken > 1 ? 'x' : ''} sur ${CAMPAIGN.levels.length} repris au Félon` : `Cinq châteaux à reprendre au ${CAMPAIGN.realm}`, action: () => navigate(ROUTES.campaign) },
-    { label: 'Escarmouche', hint: 'Un château au hasard, sans histoire', action: () => navigate(ROUTES.battle, { seed: skirmishSeed() }) },
+    { label: 'Escarmouche', hint: 'Un château au hasard, sans histoire', action: () => navigate(ROUTES.battle, { seed: skirmishSeed(), ...skirmishRank() }) },
     { label: 'Options', hint: 'Graphismes, son, jeu, accessibilité', action: () => navigate(ROUTES.options) },
   ];
   return (

@@ -4,7 +4,7 @@
  * which the council of war is called. The tutorial's fort waits at the start of the road.
  */
 import { useEffect, useState } from 'react';
-import type { CampaignBattle, CampaignLevel } from '../../core/campaign/types.ts';
+import { DEFAULT_RANK, type CampaignBattle, type CampaignLevel } from '../../core/campaign/types.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { isSaveOf, loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { bannerTotal, isUnlocked, useCampaign, type CastleRecord } from '../../state/campaign.ts';
@@ -207,7 +207,7 @@ export default function CampaignScreen() {
           )}
         </aside>
       </div>
-      {council && level && <Council level={level} resting={resting} onClose={() => setCouncil(false)} onMarch={(plan) => navigate(ROUTES.battle, plan ? { level: level.id, plan } : { level: level.id })} />}
+      {council && level && <Council level={level} resting={resting} onClose={() => setCouncil(false)} onMarch={(plan, rank) => navigate(ROUTES.battle, { level: level.id, ...(plan ? { plan } : {}), ...(rank === DEFAULT_RANK ? {} : { rank }) })} />}
     </main>
   );
 }
