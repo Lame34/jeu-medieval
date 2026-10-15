@@ -4,6 +4,7 @@
  * show on the map — seals it and marches. A hero resting from a grave wound has no plan to offer.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { Glossed } from '../components/Glossed.tsx';
 import { battleEffects, shapeScenario } from '../../core/campaign/scenario.ts';
 import { surrenderLine } from '../../core/battle/combat.ts';
 import { RANKS, type CampaignLevel, type Rank, type Stratagem } from '../../core/campaign/types.ts';
@@ -50,7 +51,9 @@ function PlanCard({ stratagem, resting, chosen, onChoose, index }: { readonly st
           <span className="plan-card__pitch">{lines?.resting}</span>
         ) : (
           <>
-            <span className="plan-card__pitch">« {stratagem.pitch} »</span>
+            <span className="plan-card__pitch">
+              « <Glossed>{stratagem.pitch}</Glossed> »
+            </span>
             <EffectList lines={stratagemLines(stratagem)} />
           </>
         )}
@@ -151,12 +154,12 @@ export function Council({ level, resting, onClose, onMarch }: { readonly level: 
         </button>
       </header>
       <div className="council__table">
-        <section className="council__plan parchment-sheet" aria-label="Plan des éclaireurs">
-          <h3>Le plan des éclaireurs</h3>
+        <section className="council__plan parchment-sheet" aria-label="Ce qu’ont vu les coureurs">
+          <h3>Ce qu’ont vu les coureurs</h3>
           {plans && layout ? (
             <ScoutPlan layout={layout} ctx={plans.ctx} base={plans.castle} marks={marks} />
           ) : (
-            <div className="scout-plan scout-plan--pending">{error ? `Le plan s’est perdu : ${error}` : 'Les éclaireurs dessinent le plan…'}</div>
+            <div className="scout-plan scout-plan--pending">{error ? `Les coureurs ne sont pas revenus : ${error}` : 'Les coureurs rapportent ce qu’ils ont vu…'}</div>
           )}
           <p className="council__legend">
             <span className="dot dot--ours" /> votre ost : {count('attacker')} · <span className="dot dot--theirs" /> la garnison : {count('defender')}

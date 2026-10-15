@@ -4,7 +4,8 @@
  * journal. Reads the battle UI store only; orders go through the session.
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { garrisonStrength } from '../../core/battle/combat.ts';
+import { Glossed } from '../components/Glossed.tsx';
+import { garrisonStrength, INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
 import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
@@ -109,7 +110,7 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
   return (
     <section className="hud-card hud-unit" data-hero={hero ? true : undefined} aria-label="Homme choisi">
       <h2>
-        {type.name}
+        <Glossed>{type.name}</Glossed>
         {hero && <small>, {hero.title}</small>}
       </h2>
       <div className="hud-bar" role="meter" aria-valuemin={0} aria-valuemax={type.hp} aria-valuenow={unit.hp} aria-label="Points de vie">
@@ -155,7 +156,7 @@ function WalkLine({ walk, battleUnits }: { readonly walk: WalkFirst; readonly ba
   return (
     <p className={n > 0 ? 'hud-warn' : ''}>
       <strong>S’approcher</strong> : {actionPoints(walk.plan.apSpent)}, puis {walk.then}
-      {n > 0 ? ` (${exposed(walk.plan.unitId, battleUnits)} à ${n} tireur${n > 1 ? 's' : ''} en chemin)` : ''}.
+      {n > 0 ? ` (${exposed(walk.plan.unitId, battleUnits)} au trait de ${n} ennemi${n > 1 ? 's' : ''} en chemin)` : ''}.
     </p>
   );
 }
@@ -232,7 +233,7 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
             </p>
           )}
           <p className={hover.threats.length > 0 ? 'hud-warn' : ''}>
-            {hover.threats.length === 0 ? 'Hors de portée des tireurs ennemis.' : `${capitalized(exposed(hover.plan.unitId, battleUnits))} à ${hover.threats.length} tireur${hover.threats.length > 1 ? 's' : ''} (jusqu’à ${pct(worst)}).`}
+            {hover.threats.length === 0 ? 'Hors de portée de trait.' : `${capitalized(exposed(hover.plan.unitId, battleUnits))} au trait de ${hover.threats.length} ennemi${hover.threats.length > 1 ? 's' : ''} (jusqu’à ${pct(worst)}).`}
           </p>
         </>
       );
@@ -244,7 +245,7 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
       return (
         <>
           <p>
-            <strong>{p.melee ? 'Coup de bélier' : 'Tir de siège'}</strong> sur {STRUCTURE_OBJECT[hover.structure]} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
+            <strong>{p.melee ? 'Coup de mouton' : 'Pierre de mangonneau'}</strong> sur {STRUCTURE_OBJECT[hover.structure]} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
           </p>
           <p>
             Dégâts {p.blow.damage.min}–{p.blow.damage.max} (coup terrible {pct(p.blow.critChance)}) · {actionPoints(p.apCost)}
@@ -291,7 +292,7 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
         const after = Math.min(p.work.required, p.work.progress + p.ability.workFactor);
         return (
           <p>
-            <strong>{p.ability.name}</strong> : {p.work.kind === 'fill' ? 'fascines' : 'mine'} {p.work.progress}/{p.work.required} → {after}/{p.work.required}
+            <strong>{p.ability.name}</strong> : {p.work.kind === 'fill' ? 'fagots' : 'mine'} {p.work.progress}/{p.work.required} → {after}/{p.work.required}
           </p>
         );
       }
@@ -305,10 +306,13 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
     case 'attack': {
       const p = hover.preview;
       const target = battleUnits.find((u) => u.id === p.targetId);
+      // A shot is named by what flies: an arrow, or the mangonel's stone.
+      const shooter = battleUnits.find((u) => u.id === p.attackerId);
+      const lob = shooter ? (DEFAULT_RULES.units[shooter.typeKey]?.tags.includes(INDIRECT_FIRE_TAG) ?? false) : false;
       return (
         <>
           <p>
-            <strong>{p.melee ? 'Attaque au contact' : 'Tir'}</strong> sur {target ? (DEFAULT_RULES.units[target.typeKey]?.name ?? target.typeKey) : p.targetId} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
+            <strong>{p.melee ? 'Attaque au contact' : lob ? 'Pierre de mangonneau' : 'Flèche'}</strong> sur {target ? (DEFAULT_RULES.units[target.typeKey]?.name ?? target.typeKey) : p.targetId} : <strong>{pct(p.blow.hitChance)}</strong> de toucher
           </p>
           <p>
             Dégâts {p.blow.damage.min}–{p.blow.damage.max} (coup terrible {pct(p.blow.critChance)}) · {actionPoints(p.apCost)}
@@ -368,7 +372,9 @@ function Briefing({ battle, content, onClose }: { readonly battle: BattleState; 
         . Passé ce délai, les renforts lèvent le siège.
       </p>
       <p>
-        Ouvrez-vous un chemin : le <strong>mangonneau</strong> fait brèche dans la courtine, le <strong>bélier</strong> enfonce la porte une fois le pont-levis abattu, le <strong>mineur</strong> comble la douve ou mine un mur, le <strong>beffroi</strong> porte vos hommes sur le rempart.
+        <Glossed>
+        Ouvrez-vous un chemin : le <strong>mangonneau</strong> fait brèche dans la muraille, le <strong>mouton</strong> enfonce la porte une fois le pont-levis abattu, le <strong>mineur</strong> comble la douve ou mine un mur, le <strong>beffroi</strong> porte vos hommes en haut des murs.
+        </Glossed>
       </p>
       <p className="hud-detail">
         Choisissez un homme, puis cliquez pour le déplacer ou frapper ; ses ordres sont sur sa carte. <kbd>Entrée</kbd> : fin du tour.
@@ -430,7 +436,7 @@ function EndPanel({ battle, content }: { readonly battle: BattleState; readonly 
   if (count('wall') > 0) works.push(`${count('wall')} brèche${count('wall') > 1 ? 's' : ''}`);
   if (count('drawbridge') > 0) works.push('pont-levis abattu');
   if (count('gate') > 0) works.push('porte enfoncée');
-  if (count('portcullis') > 0) works.push('herse forcée');
+  if (count('portcullis') > 0) works.push('coulisse forcée');
   const filled = battle.works.filter((w) => w.done && w.id.startsWith('fill:')).length;
   if (filled > 0) works.push(`${filled} tronçon${filled > 1 ? 's' : ''} de douve comblé${filled > 1 ? 's' : ''}`);
   return (

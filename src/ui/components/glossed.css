@@ -1,0 +1,46 @@
+/* A word of the siege: underlined with dots, its meaning shown on hover or focus (ADR-046). */
+.term {
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.term:focus-visible {
+  outline: 2px solid var(--gold, #c99a3b);
+  outline-offset: 2px;
+}
+
+/* Over the whole page (Glossed.tsx places it): never cut by a letter or a lesson. */
+.term__tip {
+  position: fixed;
+  z-index: 1000;
+  display: block;
+  width: max-content;
+  max-width: 300px;
+  padding: 8px 10px;
+  font-family: var(--font-body, inherit);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  letter-spacing: normal;
+  color: var(--ink, #2b2326);
+  background: var(--parchment, #e8d9b5);
+  border: 1px solid var(--iron-light, #6d6258);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
+  pointer-events: none;
+}
+
+.term__tip[hidden] {
+  display: none;
+}
+
+.term__tip em {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--ink-soft, #5a4a3a);
+}

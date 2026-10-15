@@ -23,13 +23,13 @@ function theMan(state: BattleState, id: string | undefined): string {
 
 const TOWARDS = { gate: 'vers la porte', works: 'vers la douve', dock: 'vers les murs', enemy: 'vers l’ennemi' } as const;
 
-/** The walk: « avance à couvert (3 points d’action), hors de portée des tireurs ennemis ». */
+/** The walk: « avance à couvert (3 points d’action), hors de portée de trait ». */
 function walkText(a: Advice, towards: boolean): string {
   if (!a.walk) return '';
   const w = a.walk;
   const where = towards && a.towards ? ` ${TOWARDS[a.towards]}` : '';
   const cover = w.cover === 'partial' || w.cover === 'heavy' ? ' à couvert' : '';
-  const danger = w.threats === 0 ? ', hors de portée des tireurs ennemis' : `, sous la menace de ${w.threats} tireur${w.threats > 1 ? 's' : ''}`;
+  const danger = w.threats === 0 ? ', hors de portée de trait' : `, au trait de ${w.threats} ennemi${w.threats > 1 ? 's' : ''}`;
   return `avance${where}${cover} (${actionPoints(w.plan.apSpent)})${danger}`;
 }
 
@@ -58,11 +58,11 @@ function deedText(a: Advice, state: BattleState): string {
     case 'fillMoat':
       return 'comble la douve';
     case 'undermine':
-      return 'mine la courtine';
+      return 'mine la muraille';
     case 'dock':
       return 'accole le beffroi au mur';
     case 'climb':
-      return 'monte par le beffroi sur le chemin de ronde';
+      return 'monte par le beffroi en haut du mur';
     case 'fireArrow':
       return 'met le feu';
     case 'extinguish':
@@ -81,7 +81,7 @@ function deedText(a: Advice, state: BattleState): string {
 const WAITING = {
   drawbridge: 'Qu’il attende à l’abri : la porte reste hors d’atteinte tant que le pont-levis n’est pas abattu.',
   gate: 'Qu’il attende à l’abri : la porte n’est pas encore à sa portée.',
-  causeway: 'Qu’il attende : il faut d’abord combler la douve devant une courtine pour qu’il y roule.',
+  causeway: 'Qu’il attende : il faut d’abord combler la douve devant une muraille pour qu’il y roule.',
 } as const;
 
 export function adviceText(a: Advice, state: BattleState): string {

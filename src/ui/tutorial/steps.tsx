@@ -54,7 +54,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Bienvenue au Fortin du Gué',
       text: (
         <>
-          Approche, recrue. Une bande de brigands tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, abats ou mets en fuite la garnison avant la fin du <strong>tour {turnLimit}</strong> ; quand il ne lui reste que {surrenderLine(surrendersAt)}, elle se rend. Le compte est en haut de l’écran.
+          Approche donc. Une bande de routiers tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, abats ou mets en fuite la garnison avant la fin du <strong>tour {turnLimit}</strong> ; quand il ne lui reste que {surrenderLine(surrendersAt)}, elle se rend. Le compte est en haut de l’écran.
         </>
       ),
     },
@@ -94,8 +94,8 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'attack',
       title: 'Frapper',
-      text: <>Des brigands gardent le village, en rouge. Survole-en un avec ton homme choisi : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Clique sur l’ennemi : s’il est à sa portée ce tour, ton homme s’approche de lui-même, puis frappe ; le chemin s’affiche avant. Trop loin, avance d’abord.</>,
-      goal: { label: 'Attaquez un brigand', flag: 'attacked' },
+      text: <>Des routiers gardent le village, en rouge. Survole-en un avec ton homme choisi : l’aperçu donne la chance de toucher, les dégâts et le risque de riposte. La hauteur, le couvert (forêt, maison, haie) et l’armure comptent. Clique sur l’ennemi : s’il est à sa portée ce tour, ton homme s’approche de lui-même, puis frappe ; le chemin s’affiche avant. Trop loin, avance d’abord.</>,
+      goal: { label: 'Attaquez un routier', flag: 'attacked' },
       focus: 'outpost',
     },
     {
@@ -103,7 +103,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Monter la garde',
       text: (
         <>
-          Un tireur qui n’a pas encore agi ce tour peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
+          Un archer qui n’a pas encore agi ce tour peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
         </>
       ),
       goal: { label: 'Mettez un archer en garde', flag: 'guarded' },
@@ -145,7 +145,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'castle',
       title: 'Le château',
-      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au bélier, ouvrir une brèche au mangonneau, miner un mur, ou monter sur le rempart par le beffroi. Elles se combinent.</>,
+      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au mouton, ouvrir une brèche au mangonneau, miner un mur, ou monter sur les murs par le beffroi. Elles se combinent.</>,
       focus: 'castle',
     },
     {
@@ -153,7 +153,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Le pont-levis',
       text: (
         <>
-          L’archer de la tour de porte tient le treuil : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, {actionPoints(DEFAULT_RULES.fire.arrowExtraAp)} de plus). Tant que le pont est levé, la porte est hors d’atteinte.
+          L’archer de la tour de porte tient les chaînes du pont : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, {actionPoints(DEFAULT_RULES.fire.arrowExtraAp)} de plus). Tant que le pont est levé, la porte est hors d’atteinte.
         </>
       ),
       goal: { label: 'Abattez le pont-levis', flag: 'bridgeDown' },
@@ -161,16 +161,16 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     },
     {
       id: 'ram',
-      title: 'Le bélier',
-      text: <>Le bélier n’enfonce que les portes : la porte d’abord, puis la herse derrière elle. Clique sur la porte : s’il peut l’atteindre ce tour, il y roule de lui-même, puis frappe. Son toit le protège des flèches, pas des chevaliers qui sortent. Escorte-le.</>,
-      goal: { label: 'Frappez la porte au bélier', flag: 'gateHit' },
+      title: 'Le mouton',
+      text: <>Le mouton, qu’on appellera plus tard « bélier », n’enfonce que les portes : la porte d’abord, puis la coulisse, la grille qui descend derrière elle. Clique sur la porte : s’il peut l’atteindre ce tour, il y roule de lui-même, puis frappe. Son toit le protège des flèches, pas des chevaliers qui sortent. Escorte-le.</>,
+      goal: { label: 'Frappez la porte au mouton', flag: 'gateHit' },
       focus: 'park',
     },
     {
       id: 'catapult',
       title: 'Le mangonneau',
-      text: <>Il tire en cloche jusqu’à {catapultRange} m, par-dessus les murs. Une courtine se fissure, puis s’effondre en gravats qu’on peut franchir. Le vent dévie ses pierres ; Bertrand, à côté de lui, règle son tir.</>,
-      goal: { label: 'Frappez une courtine au mangonneau', flag: 'wallHit' },
+      text: <>Il tire en cloche jusqu’à {catapultRange} m, par-dessus les murs. Une muraille se fissure, puis s’effondre en gravats qu’on peut franchir. Le vent dévie ses pierres ; Bertrand, à côté de lui, corrige ses coups.</>,
+      goal: { label: 'Frappez une muraille au mangonneau', flag: 'wallHit' },
       focus: 'park',
     },
     {
@@ -178,7 +178,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Mineurs et beffroi',
       text: (
         <>
-          Le mineur comble la douve en {s.fillTurns} tours, ou mine le pied d’un mur en {s.mineTurns} : <kbd>F</kbd>, puis clique sur l’endroit, et il s’y rend de lui-même. Sur la douve comblée, accole le beffroi à la courtine (<kbd>F</kbd>) : il s’y pousse s’il le peut ce tour. Tes hommes y montent (<kbd>F</kbd>) et prennent pied sur le rempart.
+          Le mineur comble la douve en {s.fillTurns} tours, ou mine le pied d’un mur en {s.mineTurns} : <kbd>F</kbd>, puis clique sur l’endroit, et il s’y rend de lui-même. Sur la douve comblée, accole le beffroi à la muraille (<kbd>F</kbd>) : il s’y pousse s’il le peut ce tour. Tes hommes y montent (<kbd>F</kbd>) et prennent pied sur les murs.
         </>
       ),
       goal: { label: 'Mettez un mineur à l’ouvrage', flag: 'works' },

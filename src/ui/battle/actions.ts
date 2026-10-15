@@ -149,13 +149,13 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   }
   const atOnce = worksAtOnce(session, unit);
   if (hasTag(unit, TOWER_TAG) && !dockOf(state, unit.id)) {
-    out.push({ id: 'works', label: 'Accoler', key: 'F', description: 'Pousse le beffroi contre la courtine la plus proche et abaisse son pont : vos gens de pied pourront monter.', note: atOnce ? (atOnce.walk ? 's’approche d’abord du mur' : null) : 'aucune courtine à portée ce tour', disabled: !atOnce || !canAct });
+    out.push({ id: 'works', label: 'Accoler', key: 'F', description: 'Pousse le beffroi contre la muraille la plus proche et abaisse son pont : vos gens de pied pourront monter.', note: atOnce ? (atOnce.walk ? 's’approche d’abord du mur' : null) : 'aucune muraille à portée ce tour', disabled: !atOnce || !canAct });
   } else if (atOnce) {
     // A docked beffroi within this turn's walk: F walks there and climbs it.
     const climb = actionPoints(ctx.rules.structures.towerClimbAp);
-    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par le beffroi jusqu’au chemin de ronde.', note: atOnce.walk ? `s’approche d’abord, puis ${climb}` : climb, disabled: false });
+    out.push({ id: 'works', label: 'Monter', key: 'F', description: 'Grimpe par le beffroi jusqu’en haut du mur.', note: atOnce.walk ? `s’approche d’abord, puis ${climb}` : climb, disabled: false });
   } else if (hasTag(unit, FILL_MOAT_TAG) || hasTag(unit, UNDERMINE_TAG)) {
-    out.push({ id: 'works', label: 'Combler ou miner', key: 'F', description: 'Visez la douve pour y jeter des fascines (une chaussée), ou le pied d’une courtine pour la miner.', note: 'tout le tour', disabled: !canAct || unit.ap < d.attackApCost });
+    out.push({ id: 'works', label: 'Combler ou miner', key: 'F', description: 'Visez la douve pour y jeter des fagots (une chaussée), ou le pied d’une muraille pour la miner.', note: 'tout le tour', disabled: !canAct || unit.ap < d.attackApCost });
   }
   const hero = ctx.rules.heroes[unit.typeKey];
   hero?.abilities.forEach((a, i) => {

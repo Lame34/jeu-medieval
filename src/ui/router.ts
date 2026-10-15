@@ -7,6 +7,7 @@ export const ROUTES = {
   battle: '/battle',
   campaign: '/campagne',
   options: '/options',
+  lexicon: '/lexique',
 } as const;
 
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];

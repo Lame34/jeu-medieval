@@ -165,7 +165,7 @@ function armedIntent(session: BattleSession, unit: UnitState, id: ActionId, targ
       }
       const w = plan.preview;
       const left = w.required - w.progress - 1;
-      const what = command.type === 'fillMoat' ? 'Combler la douve' : 'Miner la courtine';
+      const what = command.type === 'fillMoat' ? 'Combler la douve' : 'Miner la muraille';
       const approach = walkFirst(session, unit, plan.move, what.toLowerCase());
       return {
         key,

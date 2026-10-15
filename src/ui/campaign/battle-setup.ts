@@ -75,7 +75,7 @@ export function battleTitle(setup: BattleSetup): string {
   const { mode } = setup;
   if (mode.kind === 'tutorial') return mode.battle.name;
   if (mode.kind === 'campaign') return mode.level.name;
-  return 'Escarmouche';
+  return 'Siège au hasard';
 }
 
 /** The battle's shape: the castle's (and the plan's) effects, then the rank's; a knight's skirmish has none. */

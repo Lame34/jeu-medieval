@@ -584,7 +584,7 @@ export function BattleDirector({
             const work = castleWork(session, event.workId, event.kind, event.progress / event.required, unit.position);
             if (work) castle?.setWork(work);
             const p = h?.root.position;
-            if (p) showFloat(`${event.kind === 'fill' ? 'Fascines' : 'Mine'} ${event.progress}/${event.required}`, 'work', p.x, p.y + FLOAT_HEIGHT_M, p.z);
+            if (p) showFloat(`${event.kind === 'fill' ? 'Fagots' : 'Mine'} ${event.progress}/${event.required}`, 'work', p.x, p.y + FLOAT_HEIGHT_M, p.z);
           },
           finish() {
             h?.play('idle');

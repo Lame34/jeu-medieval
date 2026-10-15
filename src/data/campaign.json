@@ -13,7 +13,7 @@
     },
     "knight": {
       "name": "Chevalier",
-      "summary": "Le château tel que l’ont vu les éclaireurs.",
+      "summary": "Le château tel que l’ont vu les coureurs.",
       "fullGarrison": false,
       "effects": {}
     },
@@ -28,11 +28,11 @@
     "id": "fortin",
     "name": "Le Fortin du Gué",
     "epithet": "la bataille d’essai",
-    "lord": "Mauclerc, chef de brigands",
+    "lord": "Mauclerc, chef de routiers",
     "lordLine": "Venez donc ! On a de la soupe et des carreaux pour tout le monde.",
-    "intro": "Une bande de brigands s’est retranchée dans le vieux fortin qui garde le gué. Guillaume y voit une leçon toute trouvée : avant de marcher sur le Félon, chacun doit savoir tenir son rang, viser juste et faire tomber une muraille.",
-    "victory": "Les brigands se sont égaillés dans les bois. Guillaume hoche la tête : « Vous apprenez vite. Le Val d’Orle vous attend. »",
-    "defeat": "Les brigands tiennent encore le gué. Guillaume ramasse son épée : « On recommence. Personne n’a jamais pris un château du premier coup. »",
+    "intro": "Une bande de routiers s’est retranchée dans le vieux fortin qui garde le gué. Guillaume y voit une leçon toute trouvée : avant de marcher sur le Félon, chacun doit savoir tenir son rang, viser juste et faire tomber une muraille.",
+    "victory": "Les routiers se sont égaillés dans les bois. Guillaume hoche la tête : « Vous apprenez vite. Le Val d’Orle vous attend. »",
+    "defeat": "Les routiers tiennent encore le gué. Guillaume ramasse son épée : « On recommence. Personne n’a jamais pris un château du premier coup. »",
     "seed": "orle-essai",
     "castleIndex": 1,
     "vignette": "fort",
@@ -85,8 +85,8 @@
         {
           "id": "fascines",
           "hero": "heroEngineer",
-          "name": "Les fascines de la nuit",
-          "pitch": "Vingt bûcherons et une nuit sans lune. Au matin, la douve aura son chemin de fagots au pied de la courtine : le beffroi n’aura plus qu’à rouler. Comptez un tour de perdu, pas plus.",
+          "name": "Les fagots de la nuit",
+          "pitch": "Vingt bûcherons et une nuit sans lune. Au matin, la douve aura son chemin de fagots au pied de la muraille : le beffroi n’aura plus qu’à rouler. Comptez un tour de perdu, pas plus.",
           "effects": { "fillMoat": 1, "turnDelta": -1 }
         },
         {
@@ -106,7 +106,7 @@
       "lordLine": "Le comte Thibaut m’a confié ces murs. Je les lui rendrai entiers.",
       "intro": "Entre deux moulins, au bord de l’Orle, ce château prélève un sac sur dix de toute la farine du Val. Les meuniers grondent, la dame n’en a cure. Ses arbalétriers, eux, ont l’œil.",
       "victory": "Les meuniers ont sonné les cloches et rouvert les vannes. On mangera du pain blanc ce soir, et Dame Ermessinde part pour le couvent.",
-      "defeat": "La dame fait relever la herse en riant. Les meuniers baissent la tête : ils paieront encore leur sac sur dix.",
+      "defeat": "La dame fait relever la coulisse en riant. Les meuniers baissent la tête : ils paieront encore leur sac sur dix.",
       "seed": "orle-moulins",
       "castleIndex": 1,
       "vignette": "mill",
@@ -125,7 +125,7 @@
           "id": "poterne",
           "hero": "heroArcher",
           "name": "La poterne du meunier",
-          "pitch": "Gautier le meunier connaît la poterne sous la porte. Pour une bourse, il sciera les chaînes de la herse et entaillera les gonds. Je lui ai promis de ne pas le faire attendre.",
+          "pitch": "Gautier le meunier connaît la poterne sous la porte. Pour une bourse, il sciera les chaînes de la coulisse et entaillera les gonds. Je lui ai promis de ne pas le faire attendre.",
           "effects": { "structures": [{ "kind": "portcullis", "broken": true }, { "kind": "gate", "hpFraction": 0.5 }] }
         },
         {
@@ -193,7 +193,7 @@
       "epithet": "le château aux hourds",
       "lord": "Hugues le Roux",
       "lordLine": "Qu’ils viennent. Mes hourds ont soif.",
-      "intro": "Haute muraille, hourds de chêne sur les tours, et un capitaine qui a juré de ne jamais se rendre. Le soir tombe quand l’ost arrive en vue ; bientôt, seules les torches des remparts éclaireront le combat.",
+      "intro": "Haute muraille, hourds de chêne sur les tours, et un capitaine qui a juré de ne jamais se rendre. Le soir tombe quand l’ost arrive en vue ; bientôt, seules les torches des murs éclaireront le combat.",
       "victory": "Pierre-Ardente a mérité son nom : ses hourds fument encore. Hugues le Roux a tenu parole. Il ne s’est pas rendu : il a été pris.",
       "defeat": "Les torches de Pierre-Ardente brûlent toute la nuit. Hugues fait sonner les trompes : il a tenu.",
       "seed": "orle-ardente",
@@ -221,8 +221,8 @@
         {
           "id": "mine",
           "hero": "heroEngineer",
-          "name": "La mine sous la courtine",
-          "pitch": "Mes mineurs creusent sous la courtine depuis trois nuits. Elle ne tient plus que par habitude. Encore deux tours de patience, et une seule pierre suffira.",
+          "name": "La mine sous la muraille",
+          "pitch": "Mes mineurs creusent sous la muraille depuis trois nuits. Elle ne tient plus que par habitude. Encore deux tours de patience, et une seule pierre suffira.",
           "effects": { "structures": [{ "kind": "wall", "hpFraction": 0.3 }], "turnDelta": -2 }
         },
         {
@@ -242,7 +242,7 @@
       "lordLine": "Le Val d’Orle est à moi. Venez donc me le reprendre.",
       "intro": "La plus grande forteresse du Val se dresse sur sa butte de calcaire. Thibaut s’y est enfermé avec ses meilleurs hommes et le trésor du vieux comte. Tout finit ici : prenez Haute-Garde, et le Val d’Orle est libre.",
       "victory": "La bannière d’Isabeau flotte sur le donjon de Haute-Garde. On a trouvé Thibaut le Félon dans la cave, assis sur le trésor qu’il n’a pas eu le temps d’emporter.",
-      "defeat": "Haute-Garde tient. Thibaut fait festoyer ses hommes sur les remparts ; on entend leurs chants jusqu’au camp.",
+      "defeat": "Haute-Garde tient. Thibaut fait festoyer ses hommes sur les murs ; on entend leurs chants jusqu’au camp.",
       "seed": "orle-haute",
       "castleIndex": 3,
       "vignette": "citadel",
@@ -254,14 +254,14 @@
           "id": "guetteur",
           "hero": "heroArcher",
           "name": "Le guetteur de la porte",
-          "pitch": "Un guetteur de la tour de porte me doit la vie : une vieille histoire de pari et de pomme sur la tête. À notre signal, il coupera la corde du treuil.",
+          "pitch": "Un guetteur de la tour de porte me doit la vie : une vieille histoire de pari et de pomme sur la tête. Au signe convenu, il tranchera la corde du pont.",
           "effects": { "structures": [{ "kind": "drawbridge", "broken": true }] }
         },
         {
           "id": "deux-tours",
           "hero": "heroEngineer",
           "name": "Deux beffrois valent mieux qu’un",
-          "pitch": "J’ai dessiné un second beffroi, et les fascines du premier sont prêtes. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
+          "pitch": "J’ai dessiné un second beffroi, et les fagots du premier sont prêts. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
           "effects": { "reinforce": [{ "typeKey": "siegeTower", "count": 1 }], "fillMoat": 1, "turnDelta": -3 }
         },
         {

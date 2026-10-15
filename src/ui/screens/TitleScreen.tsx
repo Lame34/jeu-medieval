@@ -38,7 +38,8 @@ export function TitleScreen() {
     ...(saved ? [{ label: 'Reprendre la bataille', hint: `${saved.title}, au tour ${saved.turn}`, action: () => navigate(ROUTES.battle, resumeParams(saved)) }] : []),
     { label: 'Bataille d’essai', hint: 'Guillaume vous apprend le siège, pas à pas', action: () => navigate(ROUTES.battle, { tutorial: '' }), ...(tutorialDone ? {} : { mark: 'Commencez ici' }) },
     { label: 'Campagne', hint: taken > 0 ? `${taken} château${taken > 1 ? 'x' : ''} sur ${CAMPAIGN.levels.length} repris au Félon` : `Cinq châteaux à reprendre au ${CAMPAIGN.realm}`, action: () => navigate(ROUTES.campaign) },
-    { label: 'Escarmouche', hint: 'Un château au hasard, sans histoire', action: () => navigate(ROUTES.battle, { seed: skirmishSeed(), ...skirmishRank() }) },
+    { label: 'Siège au hasard', hint: 'Un château tiré au sort, sans histoire', action: () => navigate(ROUTES.battle, { seed: skirmishSeed(), ...skirmishRank() }) },
+    { label: 'Lexique', hint: 'Les mots du siège, et leur âge', action: () => navigate(ROUTES.lexicon) },
     { label: 'Options', hint: 'Graphismes, son, jeu, accessibilité', action: () => navigate(ROUTES.options) },
   ];
   return (

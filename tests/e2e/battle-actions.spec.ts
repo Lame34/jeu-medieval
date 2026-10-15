@@ -34,7 +34,7 @@ const AIM_OFFSETS_M: ReadonlyArray<TestVec2> = [
 ];
 /** Hero unit id and its first ability's log line / cooldown (src/data/heroes.json: volley, 3 turns). */
 const HERO_ID = 'att-hero-heroArcher';
-const HERO_LOG = 'Aude : Volée !';
+const HERO_LOG = 'Aude : Commandement !';
 /** The journal keeps this many lines (src/state/battle-ui.ts LOG_LINES). */
 const LOG_LINES = 5;
 const FAR_OUTSIDE_MAP_M = 100_000;
@@ -206,17 +206,17 @@ test('hero: keys 1 and 2 name the abilities; 1 casts the volley at once and show
   await open(page, 'e2e&fast');
   await selectByClick(page, await unitOf(page, HERO_ID), 'Aude');
 
-  await expect(button(page, 'Volée')).toBeVisible();
-  await expect(button(page, 'Volée').locator('kbd')).toHaveText('1');
+  await expect(button(page, 'Commandement')).toBeVisible();
+  await expect(button(page, 'Commandement').locator('kbd')).toHaveText('1');
   await expect(button(page, 'Flèche perçante')).toBeVisible();
   await expect(button(page, 'Flèche perçante').locator('kbd')).toHaveText('2');
-  await expect(button(page, 'Volée')).toBeEnabled();
+  await expect(button(page, 'Commandement')).toBeEnabled();
 
   await page.keyboard.press('Digit1');
   await idle(page);
   await expect(page.locator('.hud-log')).toContainText(HERO_LOG);
-  await expect(button(page, 'Volée')).toBeDisabled();
-  await expect(button(page, 'Volée')).toContainText('prête dans');
+  await expect(button(page, 'Commandement')).toBeDisabled();
+  await expect(button(page, 'Commandement')).toContainText('prête dans');
   expect(errors).toEqual([]);
 });
 

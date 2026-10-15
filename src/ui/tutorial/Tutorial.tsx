@@ -5,6 +5,7 @@
  * what a lesson is about, and the part of the HUD it names lights up.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Glossed } from '../components/Glossed.tsx';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import type { Vec2 } from '../../core/math/vec2.ts';
@@ -174,7 +175,9 @@ export function Tutorial({ session, layout, getView, focusOn, onDone }: { readon
           <h2>{step.title}</h2>
         </div>
       </header>
-      <p className="tutorial__text">{step.text}</p>
+      <p className="tutorial__text">
+        <Glossed>{step.text}</Glossed>
+      </p>
       {step.goal && (
         <p className="tutorial__goal" data-done={done || undefined}>
           <span aria-hidden="true">{done ? '☑' : '☐'}</span> {step.goal.label}

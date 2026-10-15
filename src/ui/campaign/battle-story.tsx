@@ -4,6 +4,7 @@
  * banners, a hero's words, the wounded); the tutorial's end; a skirmish's plain panel.
  */
 import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
+import { Glossed } from '../components/Glossed.tsx';
 import type { BattleState } from '../../core/battle/types.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import type { BriefingContent, EndAction, EndContent } from '../battle/BattleHud.tsx';
@@ -92,7 +93,11 @@ export function endFor(mode: BattleMode, battle: BattleState, go: StoryActions):
   if (mode.kind === 'tutorial') {
     return {
       title: won ? 'Leçon réussie' : 'Leçon à reprendre',
-      story: <p className="hud-end-story">{won ? mode.battle.victory : mode.battle.defeat}</p>,
+      story: (
+        <p className="hud-end-story">
+          <Glossed>{won ? mode.battle.victory : mode.battle.defeat}</Glossed>
+        </p>
+      ),
       actions: won ? [{ label: 'Commencer la campagne', onClick: go.toMap, primary: true }, replay, { label: 'Menu', onClick: go.toTitle }] : [{ label: 'Réessayer', onClick: go.replay, primary: true }, { label: 'Menu', onClick: go.toTitle }],
     };
   }
@@ -108,8 +113,14 @@ export function endFor(mode: BattleMode, battle: BattleState, go: StoryActions):
     title: won ? `${level.name} est pris !` : 'L’assaut a échoué',
     story: (
       <>
-        <p className="hud-end-story">{won ? level.victory : level.defeat}</p>
-        {won && last && <p className="hud-end-story">{CAMPAIGN.epilogue}</p>}
+        <p className="hud-end-story">
+          <Glossed>{won ? level.victory : level.defeat}</Glossed>
+        </p>
+        {won && last && (
+          <p className="hud-end-story">
+            <Glossed>{CAMPAIGN.epilogue}</Glossed>
+          </p>
+        )}
       </>
     ),
     extra: (

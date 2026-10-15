@@ -139,7 +139,7 @@ export default function OptionsScreen() {
               <Slider key={bus} bus={bus} />
             ))}
             <h2>Partie</h2>
-            <Choice label="Animations" value={s.animation} options={(Object.keys(ANIMATION_SPEEDS) as (keyof typeof ANIMATION_SPEEDS)[]).map((k) => [k, ANIMATION_LABEL[k]] as const)} onChange={set('animation')} hint="La vitesse des déplacements, des tirs et du tour adverse." />
+            <Choice label="Animations" value={s.animation} options={(Object.keys(ANIMATION_SPEEDS) as (keyof typeof ANIMATION_SPEEDS)[]).map((k) => [k, ANIMATION_LABEL[k]] as const)} onChange={set('animation')} hint="La vitesse des marches, des traits et du tour de l’ennemi." />
             <Choice label="Rang" value={s.rank} options={RANKS.map((r) => [r, CAMPAIGN.ranks[r].name] as const)} onChange={set('rank')} hint={`${CAMPAIGN.ranks[s.rank].summary} Il se choisit aussi au conseil de guerre.`} />
             <Toggle label="Confirmer la fin du tour" value={s.confirmEndTurn} onChange={set('confirmEndTurn')} hint="Si des troupes peuvent encore agir." />
             <Toggle label="Conseils en bataille" value={s.hints} onChange={set('hints')} hint="Les consignes du premier tour et les rappels de commandes." />

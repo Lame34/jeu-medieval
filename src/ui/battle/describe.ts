@@ -32,24 +32,24 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   outOfRange: 'Trop loin pour l’atteindre ce tour : avancez d’abord.',
   noLineOfSight: 'Il ne le voit d’aucun endroit atteignable ce tour : avancez d’abord.',
   unitFleeing: 'Il fuit et n’obéit plus.',
-  cannotOverwatch: 'Seuls les tireurs peuvent monter la garde.',
+  cannotOverwatch: 'Seuls les archers et les arbalétriers peuvent monter la garde.',
   invalidDirection: 'Visez un point autour de lui pour orienter sa garde.',
   unknownStructure: 'Ouvrage inconnu.',
   structureDown: 'Cet ouvrage est déjà tombé.',
-  structureInvulnerable: 'On ne peut pas abattre cet ouvrage : il faut d’abord abattre l’homme du treuil.',
-  noSiegeWeapon: 'Seuls le bélier et le mangonneau entament les murailles.',
-  gatesOnly: 'Le bélier n’enfonce que les portes.',
+  structureInvulnerable: 'On ne peut pas abattre cet ouvrage : il faut d’abord abattre l’homme qui tient les chaînes du pont.',
+  noSiegeWeapon: 'Seuls le mouton et le mangonneau entament les murailles.',
+  gatesOnly: 'Le mouton n’enfonce que les portes.',
   structureShielded: 'Un autre ouvrage le protège : d’abord le pont-levis, puis la porte.',
   noSiegeSkill: 'Seuls les mineurs, et Bertrand, comblent la douve et minent les murs.',
   notAMoat: 'Visez la douve elle-même.',
   workDone: 'Ce tronçon de douve est déjà comblé.',
-  notAWall: 'On ne mine que les courtines.',
+  notAWall: 'On ne mine que les murailles.',
   notATower: 'Seul un beffroi s’accole aux murs.',
   alreadyDocked: 'Le beffroi est déjà accolé au mur.',
   notDocked: 'Ce beffroi n’est accolé à aucun mur.',
   towerFull: 'Le beffroi a déjà monté ce tour tous les hommes qu’il pouvait.',
-  cannotClimb: 'Ni les engins ni les cavaliers ne montent par le beffroi.',
-  noRoomOnWall: 'Plus de place sur ce chemin de ronde.',
+  cannotClimb: 'Ni les engins ni les gens à cheval ne montent par le beffroi.',
+  noRoomOnWall: 'Plus de place en haut de ce mur.',
   towerDocked: 'Accolé au mur, le beffroi ne bouge plus.',
   noFireArrows: 'Seuls les archers tirent des flèches enflammées.',
   alreadyBurning: 'Cela brûle déjà.',
@@ -67,9 +67,9 @@ export function actionPoints(n: number): string {
   return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} point${n >= 2 ? 's' : ''} d’action`;
 }
 
-export const STRUCTURE_LABEL = { wall: 'Courtine', gate: 'Porte', portcullis: 'Herse', drawbridge: 'Pont-levis' } as const;
+export const STRUCTURE_LABEL = { wall: 'Muraille', gate: 'Porte', portcullis: 'Coulisse', drawbridge: 'Pont-levis' } as const;
 
-export const STRUCTURE_OBJECT = { wall: 'la courtine', gate: 'la porte', portcullis: 'la herse', drawbridge: 'le pont-levis' } as const;
+export const STRUCTURE_OBJECT = { wall: 'la muraille', gate: 'la porte', portcullis: 'la coulisse', drawbridge: 'le pont-levis' } as const;
 
 /** "la porte" for "gate:castle-gate" (structure ids start with their kind). */
 function structureObject(id: string): string {
@@ -125,18 +125,18 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     }
     case 'structureBroken':
       return event.kind === 'wall'
-        ? `La courtine s’effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} homme${event.fallen.length > 1 ? 's' : ''} précipité${event.fallen.length > 1 ? 's' : ''} dans la chute.` : ''}`
+        ? `La muraille s’effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} homme${event.fallen.length > 1 ? 's' : ''} précipité${event.fallen.length > 1 ? 's' : ''} dans la chute.` : ''}`
         : event.kind === 'drawbridge'
-          ? 'L’homme du treuil est tombé : le pont-levis s’abat sur la douve !'
+          ? 'Le pont-levis s’abat sur la douve !'
           : `${STRUCTURE_LABEL[event.kind]} cède !`;
     case 'siegeWorkProgressed':
       return event.kind === 'fill'
-        ? `${unitLabel(state, event.unitId)} jette des fascines dans la douve (${event.progress}/${event.required}).`
-        : `${unitLabel(state, event.unitId)} mine la courtine (${event.progress}/${event.required}).`;
+        ? `${unitLabel(state, event.unitId)} jette des fagots dans la douve (${event.progress}/${event.required}).`
+        : `${unitLabel(state, event.unitId)} mine la muraille (${event.progress}/${event.required}).`;
     case 'moatFilled':
-      return 'La douve est comblée : une chaussée de fascines la traverse.';
+      return 'La douve est comblée : une chaussée de fagots la traverse.';
     case 'towerDocked':
-      return 'Le beffroi abaisse son pont sur le chemin de ronde !';
+      return 'Le beffroi abaisse son pont sur le haut du mur !';
     case 'towerUndocked':
       return 'Le beffroi n’a plus de mur où s’accoler.';
     case 'unitClimbed':

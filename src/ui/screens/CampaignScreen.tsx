@@ -4,6 +4,7 @@
  * which the council of war is called. The tutorial's fort waits at the start of the road.
  */
 import { useEffect, useState } from 'react';
+import { Glossed } from '../components/Glossed.tsx';
 import { DEFAULT_RANK, type CampaignBattle, type CampaignLevel } from '../../core/campaign/types.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { isSaveOf, loadBattleSave, resumeParams } from '../../state/battle-save.ts';
@@ -90,7 +91,9 @@ function Overview() {
     <>
       <h2 className="letter__title">{CAMPAIGN.realm}</h2>
       <p className="letter__epithet">{done ? 'la campagne est achevée' : `${taken} château${taken > 1 ? 'x' : ''} sur ${CAMPAIGN.levels.length} repris au Félon`}</p>
-      <p className="letter__story">{done ? CAMPAIGN.epilogue : CAMPAIGN.prologue}</p>
+      <p className="letter__story">
+        <Glossed>{done ? CAMPAIGN.epilogue : CAMPAIGN.prologue}</Glossed>
+      </p>
       {resting.length > 0 && (
         <div className="letter__resting">
           {resting.map((h) => (
@@ -123,8 +126,10 @@ function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignB
       <blockquote className="letter__lord">
         « {battle.lordLine} »<cite>{battle.lord}</cite>
       </blockquote>
-      <p className="letter__story">{battle.intro}</p>
-      <h3 className="letter__heading">Ce que savent les éclaireurs</h3>
+      <p className="letter__story">
+        <Glossed>{battle.intro}</Glossed>
+      </p>
+      <h3 className="letter__heading">Ce que savent les coureurs</h3>
       <EffectList lines={castleLines(battle)} />
       {record && (
         <>

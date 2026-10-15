@@ -38,7 +38,7 @@ test('the title menu leads with the trial battle, then the campaign', async ({ p
   const errors = trackErrors(page);
   await page.goto('/');
   const entries = page.locator('.title-menu__label');
-  await expect(entries).toHaveText(['Bataille d’essai', 'Campagne', 'Escarmouche', 'Options']);
+  await expect(entries).toHaveText(['Bataille d’essai', 'Campagne', 'Siège au hasard', 'Lexique', 'Options']);
   await expect(page.locator('.title-menu__mark')).toHaveText('Commencez ici');
   await page.getByRole('button', { name: /Campagne/ }).click();
   await expect(page).toHaveURL(/\/campagne$/);

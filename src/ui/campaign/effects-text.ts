@@ -28,10 +28,10 @@ const DUSK_FROM = 17;
 /** From this many absentees, a castle's garrison is "clairsemée". */
 const GARRISON_THIN = 3;
 
-const GROUP_LABEL: Readonly<Record<GarrisonGroup, string>> = { outpost: 'du village', wall: 'du rempart', tower: 'des tours', courtyard: 'de la cour' };
+const GROUP_LABEL: Readonly<Record<GarrisonGroup, string>> = { outpost: 'du village', wall: 'des murs', tower: 'des tours', courtyard: 'de la cour' };
 
-const STRUCTURE_DOWN = { drawbridge: 'Pont-levis abaissé dès le départ', portcullis: 'Herse hors d’usage', gate: 'Porte enfoncée', wall: 'Une courtine effondrée' } as const;
-const STRUCTURE_HURT = { drawbridge: 'Pont-levis', portcullis: 'Herse entamée', gate: 'Porte entamée', wall: 'Une courtine minée' } as const;
+const STRUCTURE_DOWN = { drawbridge: 'Pont-levis abaissé dès le départ', portcullis: 'Coulisse hors d’usage', gate: 'Porte enfoncée', wall: 'Une muraille effondrée' } as const;
+const STRUCTURE_HURT = { drawbridge: 'Pont-levis', portcullis: 'Coulisse entamée', gate: 'Porte entamée', wall: 'Une muraille minée' } as const;
 
 /** "2 arbalétriers", "1 sergent du rempart". */
 export function unitCount(typeKey: string, n: number): string {

@@ -7,12 +7,12 @@
       "feminine": true,
       "personality": "Vive et moqueuse ; elle compte les flèches des autres et ne rate jamais l’occasion de le faire savoir.",
       "abilities": [
-        { "id": "volley", "name": "Volée", "description": "Elle et les tireurs à moins de 12 m gagnent +15 % de précision jusqu’à la fin du tour.", "cooldown": 3, "apCost": 1, "target": "self", "radiusM": 12, "accuracyBonus": 0.15 },
-        { "id": "piercingShot", "name": "Flèche perçante", "description": "Un tir qui ignore le couvert et l’armure de la cible.", "cooldown": 2, "apCost": 1, "target": "enemy" }
+        { "id": "volley", "name": "Commandement", "description": "À son commandement, elle et les archers à moins de 12 m gagnent +15 % de précision jusqu’à la fin du tour.", "cooldown": 3, "apCost": 1, "target": "self", "radiusM": 12, "accuracyBonus": 0.15 },
+        { "id": "piercingShot", "name": "Flèche perçante", "description": "Une flèche qui ignore le couvert et l’armure de la cible.", "cooldown": 2, "apCost": 1, "target": "enemy" }
       ],
-      "passive": { "id": "eagleEye", "name": "Œil d’aigle", "description": "Les tireurs à moins de 10 m d’elle, elle comprise, gagnent +5 % de précision.", "radiusM": 10, "accuracyBonus": 0.05 },
+      "passive": { "id": "eagleEye", "name": "Œil d’aigle", "description": "Les archers à moins de 10 m d’elle, elle comprise, gagnent +5 % de précision.", "radiusM": 10, "accuracyBonus": 0.05 },
       "lines": {
-        "ability": ["Sur mon signal… lâchez !", "Visez les créneaux, pas les nuages.", "Une flèche, un homme. Comptez."],
+        "ability": ["À mon commandement… lâchez !", "Visez les créneaux, pas les nuages.", "Une flèche, un homme. Comptez."],
         "kill": ["Et d’un.", "Au suivant !", "Je vous l’avais bien dit."],
         "wounded": ["Ramenez-moi… je compterai plus tard."]
       }

@@ -1,0 +1,41 @@
+/* The lexicon of the siege: two columns of words on the parchment sheet. */
+.lexicon-panel {
+  width: min(1100px, 100%);
+}
+
+.lexicon-lead {
+  max-width: 760px;
+  margin: 12px auto 18px;
+  font-style: italic;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.lexicon {
+  margin: 0;
+  columns: 2 420px;
+  column-gap: 40px;
+}
+
+.lexicon__entry {
+  break-inside: avoid;
+  margin: 0 0 12px;
+}
+
+.lexicon dt {
+  font-family: var(--font-title);
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  color: #7a2a14;
+}
+
+.lexicon dd {
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
+
+.lexicon dd em {
+  display: block;
+  font-size: 14px;
+  color: var(--ink-soft);
+}

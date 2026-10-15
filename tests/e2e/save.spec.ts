@@ -47,13 +47,13 @@ test('a battle left after an order is saved, offered again, and taken up without
   const errors = trackErrors(page);
   await startAndOrder(page);
   const save = await savedBattle(page);
-  expect(save).toMatchObject({ title: 'Escarmouche', turn: 1 });
+  expect(save).toMatchObject({ title: 'Siège au hasard', turn: 1 });
   expect(save?.commands.length).toBeGreaterThan(0);
 
   // Back on the same battle: the question first.
   await page.reload();
   const dialog = page.getByRole('dialog', { name: 'Une bataille était en cours' });
-  await expect(dialog).toContainText('Escarmouche');
+  await expect(dialog).toContainText('Siège au hasard');
   await expect(dialog).toContainText('tour 1');
   await dialog.getByRole('button', { name: 'Reprendre la bataille' }).click();
   await sceneReady(page);
@@ -66,7 +66,7 @@ test('a battle left after an order is saved, offered again, and taken up without
   // The title menu offers it first.
   await page.goto('/');
   await expect(page.locator('.title-menu__label').first()).toHaveText('Reprendre la bataille');
-  await expect(page.locator('.title-menu__item').first()).toContainText('Escarmouche, au tour 1');
+  await expect(page.locator('.title-menu__item').first()).toContainText('Siège au hasard, au tour 1');
   expect(errors).toEqual([]);
 });
 

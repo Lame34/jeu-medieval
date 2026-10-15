@@ -16,7 +16,7 @@ test('title screen renders with the game font and menu', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Siège' })).toBeVisible();
-  for (const entry of [/Bataille d’essai/, /Campagne/, /Escarmouche/, /Options/]) await expect(page.getByRole('button', { name: entry })).toBeEnabled();
+  for (const entry of [/Bataille d’essai/, /Campagne/, /Siège au hasard/, /Options/]) await expect(page.getByRole('button', { name: entry })).toBeEnabled();
   const titleFont = await page.getByRole('heading', { name: 'Siège' }).evaluate((el) => getComputedStyle(el).fontFamily);
   expect(titleFont).toContain('Cinzel');
   expect(errors).toEqual([]);
