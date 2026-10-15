@@ -37,7 +37,7 @@ import {
 } from '@core/index.ts';
 import { shotConditions } from '@core/battle/conditions.ts';
 import { fireRound } from '@core/battle/fire.ts';
-import { previewAbility } from '@core/battle/heroes.ts';
+import { abilityCost, previewAbility } from '@core/battle/heroes.ts';
 import { fillSiteId, type MoatInfo } from '@core/battle/moat.ts';
 import { workState } from '@core/battle/siege-works.ts';
 import { DEFAULT_RULES } from '@data/index.ts';
@@ -298,6 +298,43 @@ describe('ability: rejections', () => {
   });
 });
 
+describe('abilityCost: what the card tells is what the rules take', () => {
+  const adjacent = spawn('def-adj', TARGET_TYPE, 19, 3);
+  const nearDitch = [spawn(BERTRAND, 'heroEngineer', MOAT_X1 + 2, ROW), spawn(DEF_FAR, 'militia', 60, 15)];
+  const cases: readonly { readonly id: string; readonly hero: string; readonly units: UnitSpawn[]; readonly rest?: { targetId?: string; at?: Vec2 } }[] = [
+    { id: 'volley', hero: AUDE, units: cast() },
+    { id: 'piercingShot', hero: AUDE, units: cast(), rest: { targetId: TARGET } },
+    { id: 'calibrate', hero: BERTRAND, units: cast(), rest: { targetId: CATAPULT } },
+    { id: 'rushWorks', hero: BERTRAND, units: nearDitch, rest: { at: pt(MOAT_X0 + 1, ROW) } },
+    { id: 'rally', hero: GUILLAUME, units: cast() },
+    { id: 'heroicCharge', hero: GUILLAUME, units: cast([adjacent]), rest: { targetId: 'def-adj' } },
+  ];
+  const rule = (id: string) => Object.values(H).flatMap((h) => h.abilities).find((a) => a.id === id);
+
+  it('covers every ability of the rules', () => {
+    expect(cases.map((c) => c.id).sort()).toEqual(Object.values(H).flatMap((h) => h.abilities.map((a) => a.id)).sort());
+  });
+
+  for (const c of cases) {
+    it(`${c.id}: the points of action and the deed of the turn it takes`, () => {
+      const a = rule(c.id);
+      if (!a) throw new Error(`no ability ${c.id}`);
+      const cost = abilityCost(DEFAULT_RULES, a);
+      const { ctx, state } = world(c.units);
+      const r = run(ctx, state, ability(c.hero, c.id, c.rest));
+      expect(r.rejections).toEqual([null]);
+      const before = unitOf(state, c.hero);
+      const after = unitOf(r.state, c.hero);
+      expect(before.ap - after.ap).toBe(cost.wholeTurn ? before.ap : cost.ap);
+      expect(before.actions - after.actions).toBe(cost.deed ? before.actions : 0);
+      // Refused short of its points of action, or (for a deed) once the turn's deed is spent.
+      expect(reject(ctx, withUnit(state, c.hero, { ap: cost.ap - 1 }), ability(c.hero, c.id, c.rest))).toBe('insufficientAp');
+      if (cost.deed) expect(reject(ctx, withUnit(state, c.hero, { actions: 0 }), ability(c.hero, c.id, c.rest))).toBe('noActionLeft');
+      else expect(reject(ctx, withUnit(state, c.hero, { actions: 0 }), ability(c.hero, c.id, c.rest))).toBeNull();
+    });
+  }
+});
+
 describe('Volée (volley)', () => {
   const units = cast([spawn('att-archer-far', 'archer', 16, MAP_D - 1), spawn('att-archer-edge', 'archer', 16 + 1, 6 + ABILITY.volley.radiusM - 1)]);
   const { ctx, state } = world(units);
@@ -391,7 +428,7 @@ describe('Flèche perçante (piercingShot)', () => {
   });
 });
 
-describe('Charge héroïque (heroicCharge)', () => {
+describe('Assaut du preux (heroicCharge)', () => {
   const adjacent = spawn('def-adj', TARGET_TYPE, 19, 3);
   const { ctx, state: base } = world(cast([adjacent]));
 
@@ -420,7 +457,7 @@ describe('Charge héroïque (heroicCharge)', () => {
   });
 });
 
-describe('Réglage du tir (calibrate)', () => {
+describe('Coup juste (calibrate)', () => {
   const { ctx, state: calm } = world(cast([spawn('def-dist', 'militia', FAR_SHOT.x, FAR_SHOT.z)]));
   const state: BattleState = { ...calm, wind: GALE };
   const calibrated = run(ctx, state, ability(BERTRAND, 'calibrate', { targetId: CATAPULT }));
@@ -451,7 +488,7 @@ describe('Réglage du tir (calibrate)', () => {
   });
 });
 
-describe('Chantier forcé (rushWorks)', () => {
+describe('Double besogne (rushWorks)', () => {
   const engineerAt = (x: number, z: number) => [spawn(BERTRAND, 'heroEngineer', x, z), spawn(DEF_FAR, 'militia', 60, 15), spawn('def-near', 'militia', 30, 3)];
   const ditch = pt(MOAT_X0 + 1, ROW);
 
@@ -572,7 +609,7 @@ describe('passives', () => {
     expect(shotConditions(ctx, state, archer.position, target, false, archer).modifiers.some((m) => m.source === 'masterBuilder')).toBe(false);
   });
 
-  describe('Inébranlable: morale losses halved within radiusM of Guillaume', () => {
+  describe('Fermeté: morale losses halved within radiusM of Guillaume', () => {
     // Guillaume stands at (18, 3): `near` is inside the radius, `out` and `victim` outside.
     const NEAR_DZ = PASSIVE.steadfast.radiusM - 2;
     const OUT_DZ = PASSIVE.steadfast.radiusM + 2;

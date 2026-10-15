@@ -14,7 +14,7 @@
 import type { Command, CommandRejection } from '../commands/types.ts';
 import type { GameEvent } from '../events/types.ts';
 import { distance, type Vec2 } from '../math/vec2.ts';
-import type { HeroAbilityRule, HeroRule } from '../rules/types.ts';
+import type { GameRules, HeroAbilityRule, HeroRule } from '../rules/types.ts';
 import { previewAttack, resolveAttack, type AttackPreview } from './combat.ts';
 import type { BattleContext } from './context.ts';
 import { moraleShift } from './morale.ts';
@@ -38,6 +38,31 @@ export type AbilityPreviewResult = { readonly ok: true; readonly preview: Abilit
 
 export function heroOf(ctx: BattleContext, unit: UnitState): HeroRule | null {
   return ctx.rules.heroes[unit.typeKey] ?? null;
+}
+
+/** What an ability takes from the hero's turn, as his card tells it before it is aimed. */
+export interface AbilityCost {
+  /** Points of action it needs. */
+  readonly ap: number;
+  /** A turn of works: it takes all the points of action left. */
+  readonly wholeTurn: boolean;
+  /** Is it his one deed of the turn (a blow, a turn of works): needed unspent, then spent? */
+  readonly deed: boolean;
+}
+
+/** The cost of `ability`, as previewAbility and resolveAbility charge it. */
+export function abilityCost(rules: GameRules, ability: HeroAbilityRule): AbilityCost {
+  switch (ability.id) {
+    case 'volley':
+    case 'calibrate':
+    case 'rally':
+      return { ap: ability.apCost, wholeTurn: false, deed: false };
+    case 'piercingShot':
+    case 'heroicCharge':
+      return { ap: rules.damage.attackApCost + ability.apCost, wholeTurn: false, deed: true };
+    case 'rushWorks':
+      return { ap: rules.damage.attackApCost, wholeTurn: true, deed: true };
+  }
 }
 
 /** Turns left before the ability can be used again (0: ready). */
