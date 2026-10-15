@@ -52,8 +52,8 @@ function BannersEarned({ battle }: { readonly battle: BattleState }) {
   const b = bannersOf(CAMPAIGN, battle);
   const items = [
     { won: b.taken, label: 'Pris' },
-    { won: b.swift, label: `Avant le tour ${Math.ceil(battle.turnLimit * CAMPAIGN.banners.swiftShare)}` },
-    { won: b.spared, label: `≤ ${CAMPAIGN.banners.maxLosses} pertes` },
+    { won: b.swift, label: `En ${Math.ceil(battle.turnLimit * CAMPAIGN.banners.swiftShare)} tours au plus` },
+    { won: b.spared, label: `${CAMPAIGN.banners.maxLosses} pertes au plus` },
   ];
   return (
     <ul className="hud-end-banners" aria-label="Étendards gagnés">

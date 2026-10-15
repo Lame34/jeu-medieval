@@ -21,7 +21,14 @@ import './battle-hud.css';
 const NO_BRIEFING = E2E;
 const pct = (p: number) => `${Math.round(p * 100)} %`;
 const COVER_LABEL = { none: 'aucun', light: 'léger', partial: 'partiel', heavy: 'lourd' } as const;
-const STANDING_LABEL = { steady: 'Ferme', shaken: 'Ébranlée', fleeing: 'En fuite' } as const;
+/** The standing of a man's morale (« moral », masculine). */
+const STANDING_LABEL = { steady: 'Ferme', shaken: 'Ébranlé', fleeing: 'En fuite' } as const;
+/** « exposé », or « exposée » for Aude. */
+const exposed = (unitId: string, units: readonly UnitState[]) => {
+  const unit = units.find((u) => u.id === unitId);
+  return unit && DEFAULT_RULES.heroes[unit.typeKey]?.feminine ? 'exposée' : 'exposé';
+};
+const capitalized = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
 const WEATHER_LABEL = { clear: 'Ciel clair', rain: 'Pluie', fog: 'Brouillard' } as const;
 /** Wind strength (0.3–1) in words. */
 const windLabel = (s: number) => (s < 0.5 ? 'Vent faible' : s < 0.8 ? 'Vent modéré' : 'Vent fort');
@@ -84,7 +91,7 @@ function ActionBar({ unit, actions, onAction }: { readonly unit: UnitState; read
       )}
       {hero && (
         <p className="hud-detail hud-passive" title={hero.passive.description}>
-          Passif : <strong>{hero.passive.name}</strong>
+          Talent : <strong>{hero.passive.name}</strong>
         </p>
       )}
     </div>
@@ -97,7 +104,7 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
   const standing = moraleStanding(DEFAULT_RULES.morale, unit.morale);
   const hero = DEFAULT_RULES.heroes[unit.typeKey];
   return (
-    <section className="hud-card hud-unit" data-hero={hero ? true : undefined} aria-label="Unité sélectionnée">
+    <section className="hud-card hud-unit" data-hero={hero ? true : undefined} aria-label="Homme choisi">
       <h2>
         {type.name}
         {hero && <small>, {hero.title}</small>}
@@ -112,7 +119,7 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
         Points d’action <Pips value={unit.ap} max={type.ap} />
       </p>
       <p>
-        Attaque <Pips value={unit.actions} max={DEFAULT_RULES.damage.actionsPerTurn} />
+        Action du tour <Pips value={unit.actions} max={DEFAULT_RULES.damage.actionsPerTurn} />
         {unit.overwatch && <span className="hud-tag">en garde</span>}
       </p>
       <p>
@@ -124,12 +131,12 @@ function UnitCard({ unit, actions, onAction }: { readonly unit: UnitState; reado
 }
 
 /** The walk before a deed out of reach: its cost, what follows, the guards it passes. */
-function WalkLine({ walk }: { readonly walk: WalkFirst }) {
+function WalkLine({ walk, battleUnits }: { readonly walk: WalkFirst; readonly battleUnits: readonly UnitState[] }) {
   const n = walk.threats.length;
   return (
     <p className={n > 0 ? 'hud-warn' : ''}>
       <strong>S’approcher</strong> : {actionPoints(walk.plan.apSpent)}, puis {walk.then}
-      {n > 0 ? ` (exposé à ${n} tireur${n > 1 ? 's' : ''} en chemin)` : ''}.
+      {n > 0 ? ` (${exposed(walk.plan.unitId, battleUnits)} à ${n} tireur${n > 1 ? 's' : ''} en chemin)` : ''}.
     </p>
   );
 }
@@ -158,7 +165,7 @@ function Preview({ hover, battleUnits }: { readonly hover: HoverPreview; readonl
   const walk = 'approach' in hover ? hover.approach : undefined;
   return (
     <>
-      {walk && <WalkLine walk={walk} />}
+      {walk && <WalkLine walk={walk} battleUnits={battleUnits} />}
       <PreviewBody hover={hover} battleUnits={battleUnits} />
     </>
   );
@@ -188,14 +195,15 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
             </p>
           )}
           <p className={hover.threats.length > 0 ? 'hud-warn' : ''}>
-            {hover.threats.length === 0 ? 'Hors de portée des tireurs ennemis.' : `Exposé à ${hover.threats.length} tireur${hover.threats.length > 1 ? 's' : ''} (jusqu'à ${pct(worst)}).`}
+            {hover.threats.length === 0 ? 'Hors de portée des tireurs ennemis.' : `${capitalized(exposed(hover.plan.unitId, battleUnits))} à ${hover.threats.length} tireur${hover.threats.length > 1 ? 's' : ''} (jusqu’à ${pct(worst)}).`}
           </p>
         </>
       );
     }
     case 'structure': {
       const p = hover.preview;
-      const blows = p.blow.damage.min > 0 ? Math.ceil(hover.hp / p.blow.damage.min) : 0;
+      // Blows that hit, at the mean damage (a terrible blow shortens it).
+      const blows = Math.max(1, Math.ceil(hover.hp / ((p.blow.damage.min + p.blow.damage.max) / 2)));
       return (
         <>
           <p>
@@ -205,7 +213,7 @@ function PreviewBody({ hover, battleUnits }: { readonly hover: HoverPreview; rea
             Dégâts {p.blow.damage.min}–{p.blow.damage.max} (coup terrible {pct(p.blow.critChance)}) · {actionPoints(p.apCost)}
           </p>
           <p className="hud-detail">
-            solidité {hover.hp} / {hover.maxHp} · encore {blows} coup{blows > 1 ? 's' : ''} au moins · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
+            solidité {hover.hp} / {hover.maxHp} · encore {blows} coup{blows > 1 ? 's' : ''} au but environ · {Math.round(p.distanceM)} / {Math.round(p.rangeM)} m
           </p>
           <ConditionsLine modifiers={p.conditions} />
         </>
@@ -313,7 +321,7 @@ function Briefing({ battle, content, onClose }: { readonly battle: BattleState; 
       <h2>{content.title}</h2>
       {content.lead}
       <p>
-        Abattez ou mettez en fuite la garnison avant le <strong>tour {battle.turnLimit}</strong>
+        Abattez ou mettez en fuite la garnison avant la fin du <strong>tour {battle.turnLimit}</strong>
         {surrendersAt > 0 && (
           <>
             {' '}
@@ -440,7 +448,7 @@ export function BattleHud({
           {clock(hourOf(DEFAULT_RULES, battle))} · {WEATHER_LABEL[battle.weather]} · {windLabel(battle.wind.strength)}
         </span>
         <GarrisonChip battle={battle} />
-        {!playerTurn && battle.status === 'ongoing' && <em>l'adversaire joue…</em>}
+        {!playerTurn && battle.status === 'ongoing' && <em>la garnison joue…</em>}
       </header>
       <button type="button" className="hud-end-turn" data-armed={armed || undefined} data-ready={(playerTurn && !busy && stillActing() === 0) || undefined} onClick={onEndTurn} disabled={!playerTurn || busy}>
         {armed ? `${stillActing()} troupe${stillActing() > 1 ? 's peuvent' : ' peut'} encore agir : finir quand même ?` : 'Fin du tour'} <kbd>Entrée</kbd>

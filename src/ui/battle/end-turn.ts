@@ -3,13 +3,14 @@
  * with units still able to move or act only arms the warning; the second ends the turn. Shared by
  * the HUD's button and the Enter key; the option turns the warning off.
  */
+import { canStillAct } from '../../core/battle/turn.ts';
 import { useBattleUi } from '../../state/battle-ui.ts';
 import { useSettings } from '../../state/settings.ts';
 import { PLAYER_FACTION, type BattleSession } from './session.ts';
 
-/** Units of ours that could still move or act this turn. */
+/** Men of ours who could still move or act this turn. */
 export function unitsStillActing(session: BattleSession): number {
-  return session.state.units.filter((u) => u.alive && u.faction === PLAYER_FACTION && (u.actions > 0 || u.ap > 0)).length;
+  return session.state.units.filter((u) => u.faction === PLAYER_FACTION && canStillAct(session.ctx, session.state, u)).length;
 }
 
 export function requestEndTurn(session: BattleSession): void {

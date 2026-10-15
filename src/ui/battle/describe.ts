@@ -6,7 +6,7 @@ import type { CommandRejection } from '../../core/commands/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 
-export const FACTION_LABEL = { attacker: 'Assaillants', defender: 'Défenseurs' } as const;
+export const FACTION_LABEL = { attacker: 'Assaillants', defender: 'Garnison' } as const;
 
 /** The journal's last line, by winner and by how the battle ended. */
 export const END_LABEL = {
@@ -16,7 +16,7 @@ export const END_LABEL = {
 
 export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   battleOver: 'La bataille est terminée.',
-  unknownUnit: 'Unité inconnue.',
+  unknownUnit: 'Homme inconnu.',
   unitDead: 'Il est déjà tombé.',
   notYourTurn: 'Attendez : c’est au tour de la garnison.',
   outOfBounds: 'C’est hors du champ de bataille.',
@@ -28,7 +28,7 @@ export const REJECTION_LABEL: Readonly<Record<CommandRejection, string>> = {
   targetDead: 'La cible est déjà tombée.',
   targetFriendly: 'C’est l’un des vôtres.',
   noAttack: 'Il ne peut pas frapper.',
-  noActionLeft: 'Il a déjà frappé ce tour : un seul coup par tour.',
+  noActionLeft: 'Il a déjà agi ce tour : une seule action par tour.',
   outOfRange: 'Trop loin pour l’atteindre ce tour : avancez d’abord.',
   noLineOfSight: 'Il ne le voit d’aucun endroit atteignable ce tour : avancez d’abord.',
   unitFleeing: 'Il fuit et n’obéit plus.',
@@ -125,7 +125,7 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     }
     case 'structureBroken':
       return event.kind === 'wall'
-        ? `La courtine s'effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} homme${event.fallen.length > 1 ? 's' : ''} précipité${event.fallen.length > 1 ? 's' : ''} dans la chute.` : ''}`
+        ? `La courtine s’effondre !${event.fallen.length > 0 ? ` ${event.fallen.length} homme${event.fallen.length > 1 ? 's' : ''} précipité${event.fallen.length > 1 ? 's' : ''} dans la chute.` : ''}`
         : event.kind === 'drawbridge'
           ? 'L’homme du treuil est tombé : le pont-levis s’abat sur la douve !'
           : `${STRUCTURE_LABEL[event.kind]} cède !`;
@@ -140,7 +140,7 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     case 'towerUndocked':
       return 'Le beffroi n’a plus de mur où s’accoler.';
     case 'unitClimbed':
-      return `${unitLabel(state, event.unitId)} monte à l'assaut par la tour.`;
+      return `${unitLabel(state, event.unitId)} monte à l’assaut par le beffroi.`;
     case 'fireArrowShot':
       return `${unitLabel(state, event.unitId)} tire une flèche enflammée (${Math.round(event.hitChance * 100)} %) : ${event.caught ? 'ça prend !' : 'elle s’éteint.'}`;
     case 'fireStarted':
@@ -160,13 +160,14 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
     case 'unitMoved':
       return event.fleeing ? `${unitLabel(state, event.unitId)} fuit !` : null;
     case 'moraleChanged': {
-      // Only a change of standing matters to the player (shaken: −1 PA; fleeing: no orders).
+      // Only a change of standing matters to the player (shaken: fewer points of action; fleeing: no orders).
       const before = moraleStanding(DEFAULT_RULES.morale, event.morale - event.delta);
       const after = moraleStanding(DEFAULT_RULES.morale, event.morale);
       if (before === after) return null;
       const who = unitLabel(state, event.unitId);
       if (after === 'fleeing') return `${who} perd pied !`;
-      if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ébranlé.` : `${who} est ébranlé (−1 point d’action).`;
+      const shaken = heroRule(state, event.unitId)?.feminine ? 'ébranlée' : 'ébranlé';
+      if (after === 'shaken') return before === 'fleeing' ? `${who} se reprend, ${shaken}.` : `${who} est ${shaken} (−${actionPoints(DEFAULT_RULES.morale.shakenApPenalty)}).`;
       return `${who} se ressaisit.`;
     }
     case 'turnStarted':

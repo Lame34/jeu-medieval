@@ -6,6 +6,7 @@
  */
 import type { ReactNode } from 'react';
 import { DEFAULT_RULES } from '../../data/index.ts';
+import { actionPoints } from '../battle/describe.ts';
 
 /** What the player has done so far in the trial battle. */
 export interface TutorialRecord {
@@ -38,7 +39,7 @@ export interface TutorialStep {
 }
 
 const meters = (layer: string) => DEFAULT_RULES.terrainLayers.find((l) => l.key === layer)?.metersPerAp.foot ?? 0;
-const { shakenBelow, fleeBelow } = DEFAULT_RULES.morale;
+const { shakenBelow, fleeBelow, shakenApPenalty } = DEFAULT_RULES.morale;
 const s = DEFAULT_RULES.structures;
 const catapultRange = DEFAULT_RULES.units['catapult']?.attack?.rangeM ?? 0;
 
@@ -53,7 +54,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Bienvenue au Fortin du Gué',
       text: (
         <>
-          Approche, recrue. Une bande de brigands tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, abats ou mets en fuite la garnison avant le <strong>tour {turnLimit}</strong> ; quand il ne lui reste que {surrenderLine(surrendersAt)}, elle se rend. Le compte est en haut de l’écran.
+          Approche, recrue. Une bande de brigands tient ce vieux fortin : on va le prendre ensemble, pas à pas. Pour gagner, abats ou mets en fuite la garnison avant la fin du <strong>tour {turnLimit}</strong> ; quand il ne lui reste que {surrenderLine(surrendersAt)}, elle se rend. Le compte est en haut de l’écran.
         </>
       ),
     },
@@ -102,7 +103,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Monter la garde',
       text: (
         <>
-          Un tireur à qui il reste des points d’action peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
+          Un tireur qui n’a pas encore agi ce tour peut monter la garde (<kbd>G</kbd>, ou le bouton de sa carte) : il tirera sur le premier ennemi qui entre dans son cône. De quoi couvrir une avance.
         </>
       ),
       goal: { label: 'Mettez un archer en garde', flag: 'guarded' },
@@ -124,7 +125,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Le moral',
       text: (
         <>
-          Les pertes, les blessures, le feu et les murs qui tombent font baisser le moral. Sous {shakenBelow}, un homme est ébranlé et perd un point d’action ; sous {fleeBelow}, il fuit et n’obéit plus. Une garnison en fuite, c’est une victoire, et un héros peut rallier nos hommes.
+          Les pertes, les blessures, le feu et les murs qui tombent font baisser le moral. Sous {shakenBelow}, un homme est ébranlé et perd {actionPoints(shakenApPenalty)} ; sous {fleeBelow}, il fuit et n’obéit plus. Une garnison en fuite, c’est une victoire, et un héros peut rallier nos hommes.
         </>
       ),
       highlight: 'log',
@@ -134,7 +135,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Les héros',
       text: (
         <>
-          Aude, Bertrand et moi avons chacun deux capacités sur notre carte (<kbd>1</kbd> et <kbd>2</kbd>), qui reviennent après quelques tours, et un talent toujours actif. Aude fait pleuvoir les flèches, Bertrand règle les engins et presse les travaux, je rallie et je charge. Sélectionne un héros et essaie une capacité.
+          Aude, Bertrand et moi avons chacun deux capacités sur notre carte (<kbd>1</kbd> et <kbd>2</kbd>), qui reviennent après quelques tours, et un talent toujours actif. Aude fait pleuvoir les flèches, Bertrand règle les engins et presse les travaux, je rallie nos hommes et je mène l’assaut. Sélectionne un héros et essaie une capacité.
         </>
       ),
       goal: { label: 'Utilisez une capacité de héros', flag: 'ability' },
@@ -152,7 +153,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Le pont-levis',
       text: (
         <>
-          L’archer de la tour de porte tient le treuil : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, un point d’action de plus). Tant que le pont est levé, la porte est hors d’atteinte.
+          L’archer de la tour de porte tient le treuil : abats-le, et le pont s’abat sur la douve. Un archer peut aussi y mettre le feu (<kbd>B</kbd>, flèche enflammée, {actionPoints(DEFAULT_RULES.fire.arrowExtraAp)} de plus). Tant que le pont est levé, la porte est hors d’atteinte.
         </>
       ),
       goal: { label: 'Abattez le pont-levis', flag: 'bridgeDown' },

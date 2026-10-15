@@ -9,7 +9,7 @@
 import type { BattleContext } from '../../core/battle/context.ts';
 import { distanceToStructure } from '../../core/battle/siege.ts';
 import { FIRE_ARROWS_TAG } from '../../core/battle/fire.ts';
-import { cooldownOf } from '../../core/battle/heroes.ts';
+import { abilityCost, cooldownOf } from '../../core/battle/heroes.ts';
 import { fillSiteAt } from '../../core/battle/moat.ts';
 import { findUnit } from '../../core/battle/movement.ts';
 import { canOverwatch } from '../../core/battle/overwatch.ts';
@@ -140,10 +140,10 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   }
   if (hasTag(unit, FIRE_ARROWS_TAG)) {
     const cost = d.attackApCost + ctx.rules.fire.arrowExtraAp;
-    out.push({ id: 'fireArrow', label: 'Flèche enflammée', key: 'B', description: 'Met le feu au point visé : champ, haie, bois. Le feu se propage avec le vent.', note: actionPoints(cost), disabled: !canAct || unit.ap < cost });
+    out.push({ id: 'fireArrow', label: 'Flèche enflammée', key: 'B', description: 'Met le feu au point visé : champ, haie, maison, porte ou pont-levis. Le feu se propage avec le vent.', note: actionPoints(cost), disabled: !canAct || unit.ap < cost });
   }
   if (fireNear(ctx, state, unit)) {
-    out.push({ id: 'extinguish', label: 'Éteindre', key: 'X', description: 'Étouffe le foyer visé et ses voisins.', note: null, disabled: !canAct });
+    out.push({ id: 'extinguish', label: 'Éteindre', key: 'X', description: 'Étouffe le foyer visé et ses voisins.', note: null, disabled: !canAct || unit.ap < d.attackApCost });
   }
   const atOnce = worksAtOnce(session, unit);
   if (hasTag(unit, TOWER_TAG) && !dockOf(state, unit.id)) {
@@ -158,7 +158,9 @@ export function actionsFor(session: BattleSession, unit: UnitState): ActionButto
   const hero = ctx.rules.heroes[unit.typeKey];
   hero?.abilities.forEach((a, i) => {
     const wait = cooldownOf(unit, a.id);
-    out.push({ id: `ability:${a.id}`, label: a.name, key: String(i + 1), description: a.description, note: wait > 0 ? `prête dans ${wait} tour${wait > 1 ? 's' : ''}` : a.apCost > 0 ? actionPoints(a.apCost) : null, disabled: wait > 0 || unit.ap < a.apCost });
+    const cost = abilityCost(ctx.rules, a);
+    const note = wait > 0 ? `prête dans ${wait} tour${wait > 1 ? 's' : ''}` : cost.wholeTurn ? 'tout le tour' : actionPoints(cost.ap);
+    out.push({ id: `ability:${a.id}`, label: a.name, key: String(i + 1), description: a.description, note, disabled: wait > 0 || unit.ap < cost.ap || (cost.deed && !canAct) });
   });
   return out;
 }

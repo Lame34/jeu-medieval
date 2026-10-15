@@ -34,8 +34,8 @@ function BannerRow({ record, level }: { readonly record: CastleRecord; readonly 
   const limit = level.battle.turnLimit ?? DEFAULT_RULES.battle.turnLimit;
   const items = [
     { won: record.banners.taken, label: 'Château pris' },
-    { won: record.banners.swift, label: `Pris avant le tour ${Math.ceil(limit * CAMPAIGN.banners.swiftShare)}` },
-    { won: record.banners.spared, label: `Au plus ${CAMPAIGN.banners.maxLosses} pertes` },
+    { won: record.banners.swift, label: `Pris en ${Math.ceil(limit * CAMPAIGN.banners.swiftShare)} tours au plus` },
+    { won: record.banners.spared, label: `${CAMPAIGN.banners.maxLosses} pertes au plus` },
   ];
   return (
     <ul className="letter__banners">

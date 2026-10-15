@@ -29,6 +29,7 @@ import type { FireHandle } from '../vfx/Fire.tsx';
 import type { ProjectileHandle } from '../vfx/Projectiles.tsx';
 import { INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
 import { findUnit } from '../../core/battle/movement.ts';
+import { canStillAct } from '../../core/battle/turn.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import type { Command } from '../../core/commands/types.ts';
 import type { GameEvent } from '../../core/events/types.ts';
@@ -832,7 +833,7 @@ export function BattleDirector({
       if (e.code === 'Tab') {
         // Next unit of ours still able to act (after the selected one, in id order).
         e.preventDefault();
-        const ours = state.units.filter((u) => u.alive && u.faction === PLAYER_FACTION && (u.ap > 0 || u.actions > 0));
+        const ours = state.units.filter((u) => u.faction === PLAYER_FACTION && canStillAct(session.ctx, state, u));
         if (ours.length === 0) return;
         const at = ours.findIndex((u) => u.id === ui.selectedId);
         const next = ours[(at + 1) % ours.length] as (typeof ours)[number];

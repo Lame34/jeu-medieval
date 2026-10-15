@@ -132,7 +132,7 @@ export default function OptionsScreen() {
             <h2>Partie</h2>
             <Choice label="Animations" value={s.animation} options={(Object.keys(ANIMATION_SPEEDS) as (keyof typeof ANIMATION_SPEEDS)[]).map((k) => [k, ANIMATION_LABEL[k]] as const)} onChange={set('animation')} hint="La vitesse des déplacements, des tirs et du tour adverse." />
             <Toggle label="Confirmer la fin du tour" value={s.confirmEndTurn} onChange={set('confirmEndTurn')} hint="Si des troupes peuvent encore agir." />
-            <Toggle label="Conseils en bataille" value={s.hints} onChange={set('hints')} hint="Le briefing du premier tour et les rappels de commandes." />
+            <Toggle label="Conseils en bataille" value={s.hints} onChange={set('hints')} hint="Les consignes du premier tour et les rappels de commandes." />
           </div>
           <div>
             <h2>Caméra</h2>

@@ -13,6 +13,9 @@ export interface EffectLine {
   readonly text: string;
 }
 
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+const w = DEFAULT_RULES.weather;
+
 /** French plural of a noun: as is after s, x or z; with an x after -au and -eu (mangonneaux); with an s otherwise. */
 function plural(word: string): string {
   if (/[sxz]$/.test(word)) return word;
@@ -48,8 +51,11 @@ export function hourLabel(h: number): string {
 }
 
 function isNightHour(h: number): boolean {
-  return h >= DEFAULT_RULES.weather.nightFrom || h < DEFAULT_RULES.weather.nightTo;
+  return h >= w.nightFrom || h < w.nightTo;
 }
+
+/** The deadline: past its last turn, an army comes to the garrison's relief (the Félon's, or the brigands' friends). */
+const reliefLine = (turns: number) => `${turns} tours avant l’armée de secours`;
 
 /** The lines of one set of effects (`base`: the castle's own, read as conditions, not changes). */
 export function effectLines(e: BattleEffects, base = false): EffectLine[] {
@@ -63,20 +69,21 @@ export function effectLines(e: BattleEffects, base = false): EffectLine[] {
   for (const s of e.structures ?? []) {
     out.push({ tone: 'boon', text: s.broken ? STRUCTURE_DOWN[s.kind] : `${STRUCTURE_HURT[s.kind]} (${Math.round((s.hpFraction ?? 1) * 100)} % de solidité)` });
   }
-  if (e.fillMoat) out.push({ tone: 'boon', text: e.fillMoat > 1 ? `${e.fillMoat} tronçons de douve déjà comblés` : 'Un tronçon de douve déjà comblé, face à la tour' });
+  if (e.fillMoat) out.push({ tone: 'boon', text: e.fillMoat > 1 ? `${e.fillMoat} tronçons de douve déjà comblés` : 'Un tronçon de douve déjà comblé, face au beffroi' });
   const morale = e.morale ?? {};
   if (morale.attacker) out.push({ tone: morale.attacker > 0 ? 'boon' : 'cost', text: `Moral de l’ost ${morale.attacker > 0 ? '+' : '−'}${Math.abs(morale.attacker)}` });
   if (morale.defender) out.push({ tone: morale.defender < 0 ? 'boon' : 'cost', text: `Moral de la garnison ${morale.defender > 0 ? '+' : '−'}${Math.abs(morale.defender)}` });
-  if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillard : on ne voit qu’à ${DEFAULT_RULES.weather.fogSightM} m` });
-  if (e.weather === 'rain') out.push({ tone: 'plain', text: 'Pluie : −10 % de précision, le feu prend mal' });
+  if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillard : on ne voit qu’à ${w.fogSightM} m` });
+  if (e.weather === 'rain') out.push({ tone: 'plain', text: `Pluie : −${pct(w.rainAccuracyPenalty)} de précision, le feu prend mal` });
   if (e.weather === 'clear' && !base) out.push({ tone: 'plain', text: 'Ciel dégagé' });
   if (e.startHour !== undefined) {
     const night = isNightHour(e.startHour);
     const dawn = e.startHour < DAWN_UNTIL && !night;
     const dusk = e.startHour >= DUSK_FROM && !night;
-    out.push({ tone: 'plain', text: `Assaut à ${hourLabel(e.startHour)}${night ? ' : nuit, portée −30 % hors des torches' : dawn ? ', à l’aube' : dusk ? ', au crépuscule : la nuit tombera' : ''}` });
+    const dark = ` : nuit ; hors de la lueur des torches, portée −${pct(1 - w.nightRangeFactor)} et précision −${pct(w.nightAccuracyPenalty)}`;
+    out.push({ tone: 'plain', text: `Assaut à ${hourLabel(e.startHour)}${night ? dark : dawn ? ', à l’aube' : dusk ? ', au crépuscule : la nuit tombera' : ''}` });
   }
-  if (e.turnLimit !== undefined) out.push({ tone: 'plain', text: `${e.turnLimit} tours avant les renforts du Félon` });
+  if (e.turnLimit !== undefined) out.push({ tone: 'plain', text: reliefLine(e.turnLimit) });
   if (e.turnDelta) out.push({ tone: e.turnDelta < 0 ? 'cost' : 'boon', text: e.turnDelta < 0 ? `${-e.turnDelta} tour${e.turnDelta < -1 ? 's' : ''} de moins pour prendre le château` : `${e.turnDelta} tour${e.turnDelta > 1 ? 's' : ''} de plus` });
   return out;
 }
@@ -86,7 +93,7 @@ export function castleLines(battle: CampaignBattle): EffectLine[] {
   const absent = (battle.battle.cut ?? []).reduce((n, c) => n + c.count, 0);
   const strength = absent >= GARRISON_THIN ? 'Garnison clairsemée' : absent > 0 ? 'Garnison réduite' : 'Garnison au complet';
   const lines: EffectLine[] = [{ tone: 'plain', text: strength }, ...effectLines(battle.battle, true)];
-  if (battle.battle.turnLimit === undefined) lines.push({ tone: 'plain', text: `${DEFAULT_RULES.battle.turnLimit} tours avant les renforts du Félon` });
+  if (battle.battle.turnLimit === undefined) lines.push({ tone: 'plain', text: reliefLine(DEFAULT_RULES.battle.turnLimit) });
   return lines;
 }
 
