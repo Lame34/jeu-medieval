@@ -122,6 +122,12 @@ describe('battle saves: a battle taken up exactly', () => {
     expect(replaySave(ctx, initial, { commands: broken, hash: 'x' })).toBeNull();
   });
 
+  it('reads back a save holding every kind of order, the summons and the end of a turn included', () => {
+    const every: Command[] = [...ORDERS, { type: 'summon' }, { type: 'endTurn' }];
+    const good = save(every, 'abc');
+    expect(parseBattleSave(JSON.parse(JSON.stringify(good)))).toEqual(good);
+  });
+
   it('reads back a sound save, and nothing from a damaged one', () => {
     const good = save(ORDERS, 'abc');
     expect(parseBattleSave(JSON.parse(JSON.stringify(good)))).toEqual(good);

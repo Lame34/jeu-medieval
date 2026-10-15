@@ -43,6 +43,24 @@ async function startAndOrder(page: Page): Promise<void> {
   await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, SAVE_KEY, { timeout: ORDER_TIMEOUT_MS });
 }
 
+test('a battle where the herald has summoned the garrison is saved and taken up', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(BATTLE);
+  await sceneReady(page);
+  await page.locator('.hud-briefing').getByRole('button', { name: 'Compris' }).click();
+  await page.getByRole('button', { name: /Sommer la garnison/ }).click();
+  await page.waitForFunction((key) => window.localStorage.getItem(key) !== null, SAVE_KEY, { timeout: ORDER_TIMEOUT_MS });
+  expect((await savedBattle(page))?.commands).toEqual([{ type: 'summon' }]);
+
+  await page.reload();
+  await page.getByRole('dialog', { name: 'Une bataille était en cours' }).getByRole('button', { name: 'Reprendre la bataille' }).click();
+  await sceneReady(page);
+  // The herald's summons replayed: he must wait again, and nothing was set aside.
+  await expect(page.getByRole('button', { name: /Sommer la garnison/ })).toContainText('le héraut revient dans');
+  await expect(page.locator('.hud-notice')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('a battle left after an order is saved, offered again, and taken up without its briefing', async ({ page }) => {
   const errors = trackErrors(page);
   await startAndOrder(page);

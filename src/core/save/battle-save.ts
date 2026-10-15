@@ -32,7 +32,23 @@ export interface BattleSave {
   readonly hash: string;
 }
 
-const COMMAND_TYPES: ReadonlySet<string> = new Set(['move', 'attack', 'attackStructure', 'fillMoat', 'undermine', 'dockTower', 'climbTower', 'fireArrow', 'extinguish', 'overwatch', 'ability', 'endTurn']);
+/** Every kind of order, the compiler holding the list to `Command`'s: a new order cannot be forgotten. */
+const COMMAND_KINDS = {
+  move: true,
+  attack: true,
+  attackStructure: true,
+  fillMoat: true,
+  undermine: true,
+  dockTower: true,
+  climbTower: true,
+  fireArrow: true,
+  extinguish: true,
+  overwatch: true,
+  ability: true,
+  summon: true,
+  endTurn: true,
+} as const satisfies Record<Command['type'], true>;
+const COMMAND_TYPES: ReadonlySet<string> = new Set(Object.keys(COMMAND_KINDS));
 /** More orders than any battle gives: a save beyond it is damaged. */
 const MAX_COMMANDS = 20_000;
 const MAX_TEXT_LENGTH = 512;
