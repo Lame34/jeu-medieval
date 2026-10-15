@@ -66,7 +66,7 @@
           "id": "fascines",
           "hero": "heroEngineer",
           "name": "Les fascines de la nuit",
-          "pitch": "Vingt bûcherons et une nuit sans lune. Au matin, la douve aura son chemin de fagots au pied de la courtine : la tour n’aura plus qu’à rouler. Comptez un tour de perdu, pas plus.",
+          "pitch": "Vingt bûcherons et une nuit sans lune. Au matin, la douve aura son chemin de fagots au pied de la courtine : le beffroi n’aura plus qu’à rouler. Comptez un tour de perdu, pas plus.",
           "effects": { "fillMoat": 1, "turnDelta": -1 }
         },
         {
@@ -86,7 +86,7 @@
       "lordLine": "Le comte Thibaut m’a confié ces murs. Je les lui rendrai entiers.",
       "intro": "Entre deux moulins, au bord de l’Orle, ce château prélève un sac sur dix de toute la farine du Val. Les meuniers grondent, la dame n’en a cure. Ses arbalétriers, eux, ont l’œil.",
       "victory": "Les meuniers ont sonné les cloches et rouvert les vannes. On mangera du pain blanc ce soir, et Dame Ermessinde part pour le couvent.",
-      "defeat": "La dame fait relever la herse en riant. Les meuniers baissent la tête : le péage continue.",
+      "defeat": "La dame fait relever la herse en riant. Les meuniers baissent la tête : ils paieront encore leur sac sur dix.",
       "seed": "orle-moulins",
       "castleIndex": 1,
       "vignette": "mill",
@@ -112,7 +112,7 @@
           "id": "catapulte",
           "hero": "heroEngineer",
           "name": "Le mangonneau du moulin",
-          "pitch": "Le moulin d’aval a de belles poutres et une roue qui ne sert plus à rien. Deux tours de travail, et je vous en fais un second mangonneau. Elle grincera, mais elle tirera.",
+          "pitch": "Le moulin d’aval a de belles poutres et une roue qui ne sert plus à rien. Deux tours de travail, et je vous en fais un second mangonneau. Il grincera, mais il tirera.",
           "effects": { "reinforce": [{ "typeKey": "catapult", "count": 1 }], "turnDelta": -2 }
         },
         {
@@ -130,7 +130,7 @@
       "epithet": "le château des brumes",
       "lord": "Messire Foulques, dit le Loup",
       "lordLine": "Dans ma brume, c’est moi qui vois.",
-      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans un brouillard qui ne se lève qu’à midi. On n’y voit pas à trente pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
+      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans un brouillard tenace, que seul le vent dissipe. On n’y voit pas à quarante pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
       "victory": "La brume s’est levée sur la bannière de la comtesse. Foulques s’est enfui par les marais, ses bottes à la main.",
       "defeat": "Le brouillard a avalé vos hommes un à un. Du haut de sa muraille, Foulques hurle comme le loup qu’il prétend être.",
       "seed": "orle-brume",
@@ -194,8 +194,8 @@
         {
           "id": "flambeaux",
           "hero": "heroArcher",
-          "name": "Les flambeaux de minuit",
-          "pitch": "À minuit, la moitié de la garnison dort et l’autre bâille. Hors de la lumière des torches, leurs carreaux ne porteront pas loin, et nos flèches enflammées n’en brilleront que mieux.",
+          "name": "Les flambeaux de la nuit",
+          "pitch": "À la nuit close, la moitié de la garnison dort et l’autre bâille. Hors de la lumière des torches, leurs carreaux ne porteront pas loin, et nos flèches enflammées n’en brilleront que mieux.",
           "effects": { "startHour": 22, "morale": { "defender": -15 } }
         },
         {
@@ -240,7 +240,7 @@
         {
           "id": "deux-tours",
           "hero": "heroEngineer",
-          "name": "Deux tours valent mieux qu’une",
+          "name": "Deux beffrois valent mieux qu’un",
           "pitch": "J’ai dessiné un second beffroi, et les fascines du premier sont prêtes. Il me faut trois tours de travail, mais Haute-Garde ne s’en ira pas.",
           "effects": { "reinforce": [{ "typeKey": "siegeTower", "count": 1 }], "fillMoat": 1, "turnDelta": -3 }
         },
