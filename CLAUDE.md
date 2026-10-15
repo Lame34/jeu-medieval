@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. L'étape 1, la prise en main (pavé tactile, conseil de Guillaume, ordres groupés : ADR-042 à 044), est faite ; vient l'étape 2, le rythme et la difficulté.
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044) et 2 (le rythme et les rangs : ADR-045) sont faites ; vient l'étape 3, la justesse historique.
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -109,7 +109,8 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
    - scripts `capture-*` ;
    - pour un cas précis, un script Playwright jetable dans le dossier temporaire (scratchpad).
 3. Après un changement de règle ou d'équilibrage : `node scripts/campaign-scout.ts --sim`.
-   - Référence ADR-037 : l'IA assaillante gagne 11 assauts sur 16, soit 1/1, 3/3, 2/3, 2/3, 2/3, 2/3 du fortin à Haute-Garde.
+   - Référence ADR-045 (rang Chevalier) : l'IA assaillante gagne 11 assauts sur 16, soit 1/1, 2/3, 2/3, 2/3, 2/3, 2/3 du fortin à Haute-Garde.
+   - Avec `--rank squire` : 14 sur 16 ; avec `--rank baron` : 7 sur 16.
 4. Après un changement qui pèse sur le rendu : `npm run bench:perf -- --preset portable --scene battle --query live`.
    - Comparer en **A/B** contre le commit précédent, dans un worktree : `git worktree add`, puis une jonction `mklink /J` vers `node_modules`.
    - Le « 1 % bas » varie avec l'état de la machine ; on ne compare jamais à une vieille ligne du journal.

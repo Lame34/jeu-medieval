@@ -6,7 +6,7 @@ Un jeu de stratégie au tour par tour : à la tête de l’ost de la comtesse Is
 
 ## Pour commencer
 1. **Bataille d’essai.** Guillaume, le vieux chevalier, vous apprend le siège en quinze leçons, toujours sur le même fortin.
-2. **Campagne.** La carte du Val d’Orle : choisissez un château, réunissez le conseil de guerre, scellez le plan d’un de vos trois compagnons (Aude, Bertrand ou Guillaume), puis donnez l’assaut.
+2. **Campagne.** La carte du Val d’Orle : choisissez un château, réunissez le conseil de guerre, scellez le plan d’un de vos trois compagnons (Aude, Bertrand ou Guillaume), puis donnez l’assaut. Votre rang règle la difficulté : **Écuyer** (une garnison clairsemée, plus de temps), **Chevalier**, ou **Baron** (une garnison au complet, moins de temps).
 3. **Escarmouche.** Un château tiré au hasard, sans histoire.
 
 Une garnison qui tombe à une poignée d’hommes debout se rend. Passé le délai, l’armée de secours lève le siège.

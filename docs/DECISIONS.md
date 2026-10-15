@@ -532,6 +532,47 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Les boutons de la carte (garde, travaux, capacités, conseil) restent ceux d'un seul homme.
 **Conséquences** : commandes ordinaires, rejeu exact ; aucun appel de dessin en plus hors d'un groupe.
 
+## ADR-045 — Une bataille d'une demi-heure, et trois rangs
+**Contexte** : l'utilisateur veut des batailles d'environ une demi-heure et trois niveaux de difficulté (ADR-041).
+
+**Mesures.**
+- À vitesse normale, une manche coûtait **43 s d'animations** : 39 s pour les marches de nos hommes, jouées une à une, pendant lesquelles le joueur ne peut rien ordonner ; 3,6 s pour le tour de la garnison.
+- En simulation (`campaign-scout --sim`, l'IA des deux côtés), l'assaillant gagnait entre le 16ᵉ et le 27ᵉ tour.
+- Une trace tour par tour montre où passe le temps :
+  - l'approche : l'armée part à 141–176 m de la porte, derrière le village ;
+  - la traque finale : de 7 à 5 défenseurs debout en 12 tours.
+- Un joueur qui mène ses hommes en groupe (ADR-044) approche plus vite que l'IA.
+
+**Décision.**
+- **Les marches qui se suivent dans la file d'animation, d'hommes différents, se jouent ensemble** (`BattleDirector`, `together`). C'est le cas d'un ordre groupé ou de l'avance de l'ennemi. Un tir, un coup, ou tout autre événement interrompt le lot : l'ordre des faits reste lisible. Mesuré : 39 s ramenées à 23 s par manche, alors même que l'IA intercale des coups ; un ordre groupé fait mieux.
+- **Le rythme du siège.**
+  - La garnison se rend sous 40 % d'hommes debout (30 % jusqu'ici) : une garnison sans espoir se rendait.
+  - Le délai passe à 22 tours (24). Les châteaux longs passent à 24 (26) ; la bataille d'essai, qui est une leçon, à 26 (30).
+  - Sur seize assauts simulés, quatre réglages ont été essayés :
+
+| Réglage | Victoires de l'IA |
+|---|---|
+| Courtines affaiblies, délai de 18 tours | 3 à 7 |
+| Reddition à 40 %, 20 tours | 7 |
+| Reddition à 40 %, 22 tours (retenu) | **11** (référence ADR-037 retrouvée) |
+| Reddition à 40 %, 24 tours | 13 |
+- **Trois rangs**, au choix du joueur au conseil de guerre et dans les options pour l'escarmouche (`campaign.json`, `ranks`). La bataille d'essai, une leçon, n'en a pas.
+
+| Rang | Effets | Victoires de l'IA assaillante (sur 16) |
+|---|---|---|
+| **Écuyer** | 2 défenseurs en moins, moral de la garnison −10, son adresse −10 %, 4 tours de plus | 14 |
+| **Chevalier** | aucun : le château tel que l'ont vu les éclaireurs | 11 |
+| **Baron** | garnison au complet (les absents du château reviennent), moral +10, adresse +5 %, 1 tour de moins | 7 |
+
+  Le Baron à 2 tours de moins ne laissait que 4 victoires sur 16. Les mots ont été vérifiés au TLF : « écuyer » (titre, début du XIIIᵉ siècle), « baron » (vers 1100). « Aguerri », sans entrée datée, est écarté.
+- **L'adresse** est une règle nouvelle du cœur, `aim`, propre à chaque camp, dans le `Scenario` et l'état. Elle s'ajoute à la chance de toucher des coups et des tirs des hommes de ce camp, tirs de garde compris, et apparaît comme une condition (`kind: 'aim'`). La riposte n'est pas concernée.
+- Le rang figure dans l'adresse de la bataille (`&rank=squire|baron`), donc dans la sauvegarde. Le rang Chevalier n'ajoute rien à l'adresse ni à la clé de sauvegarde : celles d'avant restent valables. Le dernier rang choisi est retenu dans les options (`siege.settings.v1`, champ `rank`, lu avec son défaut).
+- Le conseil montre le rang sur une ligne, pour tenir dans un écran de portable (1280 × 720) ; les consignes du premier tour en donnent les chiffres.
+
+**Conséquences.**
+- Les règles changent : une bataille sauvegardée avant cette version ne se rejoue plus à l'identique. Le joueur en est prévenu et la bataille repart du début (ADR-038).
+- La demi-heure dépend du joueur. Le jeu ne peut pas la mesurer seul : à vérifier en le regardant jouer.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
