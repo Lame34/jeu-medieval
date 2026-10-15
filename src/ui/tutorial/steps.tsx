@@ -63,11 +63,11 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
       title: 'Regarder le terrain',
       text: (
         <>
-          Déplace la caméra avec{' '}
+          Au pavé tactile, glisse deux doigts pour déplacer la vue, et pince-les pour la rapprocher. Les boutons sous la mini-carte la font pivoter, la rapprochent, et la ramènent sur tes hommes ; un clic sur la mini-carte y porte la vue. Au clavier :{' '}
           {keys.move.map((k) => (
             <kbd key={k}>{k}</kbd>
           ))}{' '}
-          (ou les flèches), ou en touchant les bords de l’écran. La molette zoome ; <kbd>{keys.turn[0]}</kbd> et <kbd>{keys.turn[1]}</kbd> font pivoter. La mini-carte, en haut à gauche, y porte la caméra d’un clic.
+          ou les flèches, et <kbd>{keys.turn[0]}</kbd>, <kbd>{keys.turn[1]}</kbd> pour pivoter.
         </>
       ),
       goal: { label: 'Déplacez la caméra', flag: 'cameraMoved' },

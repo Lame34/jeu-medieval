@@ -57,7 +57,7 @@ const errors: string[] = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto(`${baseUrl()}/battle?e2e&nosound&seed=${SEED}&castle=${CASTLE}&weather=clear&hour=${HOUR}`);
 await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true' && typeof (window as unknown as Hooks).__battleCamera !== 'undefined', undefined, { timeout: 180_000 });
-await page.addStyleTag({ content: '.battle-hud, .hud-minimap, .scene-back, .battle-floats { display: none !important; }' });
+await page.addStyleTag({ content: '.battle-hud, .hud-map-dock, .scene-back, .battle-floats { display: none !important; }' });
 await page.evaluate((view) => (window as unknown as Hooks).__battleCamera?.look(view), { focus, distance: DISTANCE_M, yawTurns: yaw, pitchDeg: PITCH_DEG });
 await page.waitForTimeout(SETTLE_MS);
 const png = await page.screenshot({ type: 'png' });

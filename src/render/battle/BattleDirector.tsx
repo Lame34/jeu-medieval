@@ -888,6 +888,18 @@ export function BattleDirector({
       if (armed) ui.armAction(null);
       issueOrders(session, intent.orders);
     };
+    /** Escape, or a right click (a two-finger tap on a touchpad): the advice, the armed action, else the choice. */
+    const cancel = () => {
+      const ui = useBattleUi.getState();
+      if (ui.advice) ui.setAdvice(null);
+      else if (ui.armedAction) ui.armAction(null);
+      else ui.select(null);
+      hoverKey.current = '';
+    };
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      cancel();
+    };
     const onKey = (e: KeyboardEvent) => {
       const ui = useBattleUi.getState();
       const state = session.state;
@@ -897,9 +909,7 @@ export function BattleDirector({
         return;
       }
       if (e.code === 'Escape') {
-        if (ui.armedAction) ui.armAction(null);
-        else ui.select(null);
-        hoverKey.current = '';
+        cancel();
         return;
       }
       if (ui.busy || state.activeFaction !== PLAYER_FACTION || state.status !== 'ongoing') return;
@@ -927,6 +937,7 @@ export function BattleDirector({
     el.addEventListener('pointermove', onMove);
     el.addEventListener('pointerleave', onLeave);
     el.addEventListener('pointerdown', onDown);
+    el.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('keydown', onKey);
     const unsubscribe = useBattleUi.subscribe((s, prev) => {
@@ -940,6 +951,7 @@ export function BattleDirector({
       el.removeEventListener('pointermove', onMove);
       el.removeEventListener('pointerleave', onLeave);
       el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('keydown', onKey);
       frame.remove();

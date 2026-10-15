@@ -5,6 +5,7 @@ import type { CastleHandle, CastleSiegeState } from '../../render/castle/Castle.
 import { Fire, type FireHandle } from '../../render/vfx/Fire.tsx';
 import { Rain } from '../../render/vfx/Rain.tsx';
 import { MiniMap } from '../battle/MiniMap.tsx';
+import { CameraButtons } from '../battle/CameraButtons.tsx';
 import { actionsFor } from '../battle/actions.ts';
 import { triggerAction } from '../battle/intent.ts';
 import { Torches } from '../../render/vfx/Torches.tsx';
@@ -87,6 +88,10 @@ function wantsIntro(): boolean {
 function isTestRun(): boolean {
   return E2E || isBenchMode();
 }
+
+/** A step of the camera's buttons: a sixteenth of a turn, and the zoom of a wheel notch and a half. */
+const CAMERA_BUTTON_TURNS = 1 / 16;
+const CAMERA_BUTTON_ZOOM = 1.2;
 
 /** Take up the saved battle (`resume`), start afresh, or ask first. */
 type ResumeChoice = 'ask' | 'resume' | 'fresh';
@@ -319,6 +324,7 @@ export default function BattleScreen() {
         if (v) camera.current?.setView(v, true);
       },
       look: (view) => camera.current?.setView(view, true),
+      view: () => camera.current?.getView() ?? null,
     };
     return () => {
       delete window.__battleCamera;
@@ -341,6 +347,15 @@ export default function BattleScreen() {
     const view = camera.current?.getView();
     if (view) camera.current?.setView({ ...view, focus: { x: p.x, z: p.z } });
   };
+  /** The camera's button: back on the chosen man, or on the middle of our army. */
+  const focusHome = () => {
+    if (!session) return;
+    const ui = useBattleUi.getState();
+    const chosen = session.state.units.find((u) => u.id === ui.selectedId && u.alive);
+    const ours = session.state.units.filter((u) => u.alive && u.faction === PLAYER_FACTION);
+    if (chosen) focusOn(chosen.position);
+    else if (ours.length > 0) focusOn({ x: ours.reduce((s, u) => s + u.position.x, 0) / ours.length, z: ours.reduce((s, u) => s + u.position.z, 0) / ours.length });
+  };
   if (choice === 'ask' && saved) return <ResumeDialog save={saved} onChoose={setChoice} />;
   if (error) return <LoadingScreen label={`Le champ de bataille n’a pas pu être tracé : ${error}`} />;
   if (!layout || !initial) return <LoadingScreen label="Le cartographe trace le champ de bataille" tips />;
@@ -358,7 +373,12 @@ export default function BattleScreen() {
         <TacticalCamera terrain={layout.terrain} initial={initial} limits={battleLimits(layout)} handleRef={camera} inputEnabled={!bench} {...(intro ? { intro: { ...intro, play: sceneReady } } : {})} />
       </GameCanvas>
       {!sceneReady && <LoadingScreen label="Le peintre prépare ses couleurs" tips />}
-      {session && sceneReady && <MiniMap layout={layout} session={session} getView={getView} onFocus={focusOn} />}
+      {session && sceneReady && (
+        <div className="hud-map-dock">
+          <MiniMap layout={layout} session={session} getView={getView} onFocus={focusOn} />
+          <CameraButtons onTurn={(d) => camera.current?.nudge({ turns: d * CAMERA_BUTTON_TURNS })} onZoom={(d) => camera.current?.nudge({ zoom: d > 0 ? 1 / CAMERA_BUTTON_ZOOM : CAMERA_BUTTON_ZOOM })} onHome={focusHome} />
+        </div>
+      )}
       {session && (
         <BattleHud
           onEndTurn={() => requestEndTurn(session)}
@@ -385,6 +405,8 @@ export interface BattleCameraHook {
   viewIds(): string[];
   setView(id: string): void;
   look(view: CameraView): void;
+  /** Where the camera is now (eased towards its target). */
+  view(): CameraView | null;
 }
 
 declare global {

@@ -1,7 +1,8 @@
 /**
  * Tactical camera (brief §8): orbit around a ground focus, damped. Physical key codes
  * (KeyW/A/S/D = ZQSD on AZERTY, arrows), screen-edge scrolling, wheel zoom, Q/E (A/E on
- * AZERTY) or middle-drag rotation. Pitch follows zoom inside a limited band; the camera never
+ * AZERTY) or middle-drag rotation; on a touchpad, two fingers pan and a pinch zooms
+ * (wheel-gesture.ts); the HUD's buttons turn and zoom through the handle (nudge). Pitch follows zoom inside a limited band; the camera never
  * dips under the relief. Publishes the focus to the painted globals (fog, grass radius, shadows).
  * A battle may open on an establishing shot: held on the castle, then a glide to the army; any
  * input or new view cuts it short.
@@ -13,6 +14,7 @@ import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { paintedGlobals, updateFogForCamera } from '../materials/painted-globals.ts';
 import { CAMERA_SPEEDS, useSettings } from '../../state/settings.ts';
+import { looksLikeTouchpad, wheelGesture } from './wheel-gesture.ts';
 
 export interface CameraView {
   readonly focus: Vec2;
@@ -33,11 +35,12 @@ export interface CameraLimits {
 
 const PAN_SPEED_PER_DISTANCE = 0.9;
 const ROTATE_SPEED_TURNS = 0.22;
-const ZOOM_STEP = 0.12;
 const EDGE_PX = 14;
 const DAMPING = 7;
 const GROUND_CLEARANCE_M = 3;
 const MIDDLE_DRAG_TURNS_PER_PX = 0.0012;
+/** Two fingers on a touchpad: metres panned per pixel slid, per metre of camera distance. */
+const TOUCHPAD_PAN_PER_PX = 0.002;
 /** The opening shot: held on its first view, then a glide to the initial one. */
 const INTRO_HOLD_S = 1.6;
 const INTRO_GLIDE_S = 3.2;
@@ -59,6 +62,17 @@ const turnDelta = (a: number, b: number) => ((((b - a + 0.5) % 1) + 1) % 1) - 0.
 export interface CameraHandle {
   setView(view: CameraView, immediate?: boolean): void;
   getView(): CameraView;
+  /** A step of the HUD's buttons: a turn (in turns) and a zoom factor, eased like the keys. */
+  nudge(step: { readonly turns?: number; readonly zoom?: number }): void;
+}
+
+/** Moves a focus `forward` and `right` (metres) as seen from a camera at `yawTurns`. */
+function pan(view: { yawTurns: number; focus: { x: number; z: number } }, forward: number, right: number): void {
+  const yaw = view.yawTurns * 2 * Math.PI;
+  const fx = -Math.sin(yaw);
+  const fz = -Math.cos(yaw);
+  view.focus.x += fx * forward - fz * right;
+  view.focus.z += fz * forward + fx * right;
 }
 
 export function TacticalCamera({
@@ -93,6 +107,7 @@ export function TacticalCamera({
   const keys = useRef(new Set<string>());
   const pointer = useRef({ x: 0.5, y: 0.5, inside: false, dragging: false, lastX: 0 });
   const scratch = useRef(new Vector3());
+  const seenTouchpad = useRef(false);
 
   useEffect(() => {
     if (!handleRef) return undefined;
@@ -103,11 +118,16 @@ export function TacticalCamera({
         if (immediate) current.current = { ...view, focus: { ...view.focus } };
       },
       getView: () => ({ ...current.current, focus: { ...current.current.focus } }),
+      nudge: ({ turns = 0, zoom = 1 }) => {
+        endShot.current();
+        target.current.yawTurns += turns;
+        target.current.distance = MathUtils.clamp(target.current.distance * zoom, limits.minDistance, limits.maxDistance);
+      },
     };
     return () => {
       handleRef.current = null;
     };
-  }, [handleRef]);
+  }, [handleRef, limits]);
 
   useEffect(() => {
     if (!inputEnabled) return undefined;
@@ -121,8 +141,16 @@ export function TacticalCamera({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       endShot.current();
-      const factor = 1 + Math.sign(e.deltaY) * ZOOM_STEP;
-      target.current.distance = MathUtils.clamp(target.current.distance * factor, limits.minDistance, limits.maxDistance);
+      // Said in the options, or guessed: once a wheel looks like a touchpad's, the next ones are too.
+      const { pointer: device, cameraSpeed } = useSettings.getState();
+      if (device === 'auto' && looksLikeTouchpad(e)) seenTouchpad.current = true;
+      const g = wheelGesture(e, device === 'touchpad' || (device === 'auto' && seenTouchpad.current));
+      const t = target.current;
+      if (g.kind === 'zoom') t.distance = MathUtils.clamp(t.distance * g.factor, limits.minDistance, limits.maxDistance);
+      else {
+        const metres = t.distance * TOUCHPAD_PAN_PER_PX * CAMERA_SPEEDS[cameraSpeed];
+        pan(t, g.forwardPx * metres, g.rightPx * metres);
+      }
     };
     const onMove = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
@@ -192,12 +220,8 @@ export function TacticalCamera({
     if (k.has('KeyQ')) t.yawTurns += ROTATE_SPEED_TURNS * pace * delta;
     if (k.has('KeyE')) t.yawTurns -= ROTATE_SPEED_TURNS * pace * delta;
     if (forward !== 0 || right !== 0) {
-      const yaw = t.yawTurns * 2 * Math.PI;
       const speed = t.distance * PAN_SPEED_PER_DISTANCE * pace * delta;
-      const fx = -Math.sin(yaw);
-      const fz = -Math.cos(yaw);
-      t.focus.x += (fx * forward + -fz * right) * speed;
-      t.focus.z += (fz * forward + fx * right) * speed;
+      pan(t, forward * speed, right * speed);
     }
     t.focus.x = MathUtils.clamp(t.focus.x, limits.bounds.minX, limits.bounds.maxX);
     t.focus.z = MathUtils.clamp(t.focus.z, limits.bounds.minZ, limits.bounds.maxZ);

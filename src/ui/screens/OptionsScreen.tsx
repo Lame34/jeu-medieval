@@ -1,12 +1,14 @@
 /**
  * Options (brief §10): graphics preset, text size, sound buses, animation speed, the end-of-turn
- * confirmation, battle hints, camera edge scrolling and speed; the controls; the campaign's reset.
+ * confirmation, battle hints, the pointing device, camera edge scrolling and speed; the controls;
+ * the campaign's reset.
  * Everything is saved in the browser (state/settings.ts) and applies at once.
  */
 import { useId, useState, type ReactNode } from 'react';
 import { QUALITY_PRESET_IDS, QUALITY_PRESETS } from '../../render/quality/presets.ts';
 import { useCampaign } from '../../state/campaign.ts';
 import { cameraKeys, useKeyLabels } from '../../state/keyboard.ts';
+import { POINTER_DEVICES } from '../../render/camera/wheel-gesture.ts';
 import { ANIMATION_SPEEDS, CAMERA_SPEEDS, TEXT_SCALES, useSettings, type SavedSettings, type VolumeBus } from '../../state/settings.ts';
 import { IronFrame } from '../components/IronFrame.tsx';
 import { navigate, ROUTES } from '../router.ts';
@@ -20,20 +22,24 @@ const QUALITY_HINT = {
 const ANIMATION_LABEL = { normal: '×1', fast: '×2', instant: 'Instantané' } as const;
 const CAMERA_LABEL = { slow: 'Lente', normal: 'Normale', fast: 'Rapide' } as const;
 const TEXT_LABEL = { normal: 'Normal', large: 'Grand', larger: 'Très grand' } as const;
+const POINTER_LABEL = { auto: 'Automatique', mouse: 'Souris', touchpad: 'Pavé tactile' } as const;
 const VOLUME_LABEL: Readonly<Record<VolumeBus, string>> = { master: 'Volume général', music: 'Musique', sfx: 'Effets', ambience: 'Ambiances' };
 
 /** The controls, the camera's keys as the player's keyboard prints them. */
 const controls = (keys: ReturnType<typeof cameraKeys>): readonly (readonly [string, string])[] => [
-  ['Clic gauche', 'Sélectionner, se déplacer, attaquer'],
-  [`${keys.move.join(' ')} ou flèches`, 'Déplacer la caméra (bords de l’écran aussi)'],
-  [`${keys.turn.join(' / ')}, clic molette`, 'Pivoter la caméra'],
-  ['Molette', 'Zoomer'],
+  ['Clic gauche', 'Choisir un homme, le déplacer, attaquer'],
+  ['Deux doigts sur le pavé', 'Déplacer la vue ; en pinçant, la rapprocher'],
+  ['Boutons sous la mini-carte', 'Pivoter, rapprocher, revenir sur vos hommes'],
+  [`${keys.move.join(' ')} ou flèches`, 'Déplacer la vue (bords de l’écran aussi)'],
+  [`${keys.turn.join(' / ')}, clic molette`, 'Pivoter la vue'],
+  ['Molette de la souris', 'Rapprocher ou éloigner la vue'],
+  ['Cadre tracé, ou Maj et clic', 'Choisir plusieurs hommes : ils marchent en rang et frappent ensemble'],
   ['Tab', 'Homme suivant'],
   ['C', 'Conseil de Guillaume ; encore une fois : le suivre'],
   ['Clic sur la mini-carte', 'Y porter la caméra'],
   ['G · B · X · F', 'Garde · flèche enflammée · éteindre · travaux de siège'],
   ['1 · 2', 'Capacités du héros'],
-  ['Échap', 'Annuler, désélectionner'],
+  ['Échap, clic droit', 'Annuler, désélectionner (sur le pavé : toucher à deux doigts)'],
   ['Entrée', 'Fin du tour'],
   ['M', 'Couper le son'],
 ];
@@ -137,6 +143,7 @@ export default function OptionsScreen() {
           </div>
           <div>
             <h2>Caméra</h2>
+            <Choice label="Pointeur" value={s.pointer} options={POINTER_DEVICES.map((k) => [k, POINTER_LABEL[k]] as const)} onChange={set('pointer')} hint="Au pavé tactile, deux doigts déplacent la vue au lieu de la rapprocher ; « Automatique » le devine." />
             <Toggle label="Défilement aux bords" value={s.edgeScroll} onChange={set('edgeScroll')} />
             <Choice label="Vitesse" value={s.cameraSpeed} options={(Object.keys(CAMERA_SPEEDS) as (keyof typeof CAMERA_SPEEDS)[]).map((k) => [k, CAMERA_LABEL[k]] as const)} onChange={set('cameraSpeed')} />
             <h2>Commandes</h2>

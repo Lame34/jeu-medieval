@@ -437,10 +437,18 @@ kbd {
 }
 
 /* Mini-map: under the back button, framed like a parchment inset. */
-.hud-minimap {
+/* The mini-map and the camera's buttons, top left. */
+.hud-map-dock {
   position: absolute;
   top: 64px;
   left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-minimap {
+  position: relative;
   overflow: hidden;
   border: 2px solid var(--ink, #2b2326);
   border-radius: 4px;
@@ -455,6 +463,39 @@ kbd {
 
 .hud-minimap canvas + canvas {
   cursor: crosshair;
+}
+
+.hud-camera {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.hud-camera button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--parchment);
+  background: var(--wood-mid);
+  border: 1px solid var(--iron-light);
+  border-radius: 3px;
+  box-shadow: var(--shadow-deep);
+  cursor: pointer;
+}
+
+.hud-camera button:hover {
+  background: var(--wood-light);
+  border-color: var(--gold, #c99a3b);
+}
+
+.hud-camera svg {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* A hero's card: title, abilities (keys 1 and 2) and passive. */

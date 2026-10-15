@@ -3,6 +3,7 @@
  * writing storage can fail (private window, blocked site data): the defaults then hold.
  */
 import { create } from 'zustand';
+import { POINTER_DEVICES, type PointerDevice } from '../render/camera/wheel-gesture.ts';
 import { QUALITY_PRESET_IDS, type QualityPresetId } from '../render/quality/presets.ts';
 import { readStored, writeStored } from './storage.ts';
 
@@ -35,6 +36,8 @@ export interface SavedSettings {
   readonly edgeScroll: boolean;
   readonly cameraSpeed: CameraSpeed;
   readonly textScale: TextScale;
+  /** Mouse or touchpad: what two fingers sliding on the pad do (pan, not zoom). */
+  readonly pointer: PointerDevice;
 }
 
 export interface SettingsState extends SavedSettings {
@@ -63,6 +66,7 @@ export const DEFAULT_SETTINGS: SavedSettings = {
   edgeScroll: true,
   cameraSpeed: 'normal',
   textScale: 'normal',
+  pointer: 'auto',
 };
 
 const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => ((allowed as readonly unknown[]).includes(v) ? (v as T) : fallback);
@@ -86,6 +90,8 @@ function load(): SavedSettings {
     edgeScroll: flag(raw['edgeScroll'], d.edgeScroll),
     cameraSpeed: oneOf(raw['cameraSpeed'], Object.keys(CAMERA_SPEEDS) as CameraSpeed[], d.cameraSpeed),
     textScale: oneOf(raw['textScale'], Object.keys(TEXT_SCALES) as TextScale[], d.textScale),
+    // Added with ADR-042: an older save without it keeps all its other options.
+    pointer: oneOf(raw['pointer'], POINTER_DEVICES, d.pointer),
   };
 }
 

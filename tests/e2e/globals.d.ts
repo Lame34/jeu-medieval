@@ -94,6 +94,7 @@ interface TestBattleCameraApi {
   viewIds(): string[];
   setView(id: string): void;
   look(view: TestCameraView): void;
+  view(): TestCameraView | null;
 }
 
 interface Window {
