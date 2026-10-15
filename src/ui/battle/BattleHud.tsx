@@ -55,6 +55,8 @@ function ConditionsLine({ modifiers }: { readonly modifiers: readonly ShotModifi
         return `vent de travers ${pct(m.accuracy)}`;
       case 'hero':
         return `${heroSkillName(m.source ?? '')} +${pct(m.accuracy)}`;
+      case 'aim':
+        return `adresse ${m.accuracy > 0 ? '+' : '−'}${pct(Math.abs(m.accuracy))}`;
     }
   });
   return <p className="hud-detail hud-conditions">Conditions : {parts.join(' · ')}</p>;

@@ -100,6 +100,8 @@ export interface BattleState {
   readonly fires: readonly FireState[];
   /** Cells that burnt out (they never catch again), sorted. */
   readonly burnt: readonly number[];
+  /** A side's skill at arms, from the scenario (absent: none). */
+  readonly aim?: Readonly<Partial<Record<Faction, number>>>;
   readonly rng: RngState;
 }
 
@@ -134,4 +136,6 @@ export interface Scenario {
   /** Fixed weather and start hour (drawn from the seed when absent). */
   readonly weather?: Weather;
   readonly startHour?: number;
+  /** A side's skill at arms (the player's rank, ADR-045): added to the hit chance of its men's blows and shots. */
+  readonly aim?: Readonly<Partial<Record<Faction, number>>>;
 }

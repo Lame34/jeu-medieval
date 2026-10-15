@@ -20,7 +20,7 @@ import { traverseSegment } from '../nav-grid/traverse.ts';
 import { Rng } from '../rng.ts';
 import { COVER_LEVELS, type ArmorClass, type CoverLevel, type GameRules, type MoraleRules, type UnitAttackRule, type UnitTypeRule } from '../rules/types.ts';
 import { sampleHeight } from '../terrain-data/terrain-data.ts';
-import { conditionedRange, NO_CONDITIONS, shotConditions, type ShotModifier } from './conditions.ts';
+import { conditionedRange, meleeConditions, shotConditions, type ShotModifier } from './conditions.ts';
 import { deckAt, type BattleContext } from './context.ts';
 import { moraleAfterBlows, moraleStanding, type BlowOutcome } from './morale.ts';
 import { syncNav } from './structures.ts';
@@ -176,7 +176,7 @@ export function previewAttack(ctx: BattleContext, state: BattleState, attackerId
   const indirect = aType.tags.includes(INDIRECT_FIRE_TAG);
   const distanceM = distance(attacker.position, target.position);
   const steps = indirect ? 0 : heightSteps(ctx, attacker.position, target.position);
-  const conditions = melee ? NO_CONDITIONS : shotConditions(ctx, state, attacker.position, target.position, indirect, attacker);
+  const conditions = melee ? meleeConditions(state, attacker) : shotConditions(ctx, state, attacker.position, target.position, indirect, attacker);
   const effectiveRangeM = melee ? d.meleeReachM : conditionedRange(attack.rangeM * Math.max(0, 1 + steps * d.rangePerHeightStep), conditions);
   if (distanceM > effectiveRangeM) return { ok: false, reason: 'outOfRange' };
 

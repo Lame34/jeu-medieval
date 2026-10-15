@@ -26,7 +26,7 @@ export type GroundCondition = 'dry' | 'mud';
 
 /** One modifier of a shot, for the preview's tooltip. */
 export interface ShotModifier {
-  readonly kind: 'rain' | 'fog' | 'night' | 'wind' | 'hero';
+  readonly kind: 'rain' | 'fog' | 'night' | 'wind' | 'hero' | 'aim';
   /** For a hero's: the ability or passive behind it. */
   readonly source?: string;
   /** Added to the hit chance (negative: a penalty). */
@@ -98,6 +98,18 @@ export function isLit(ctx: BattleContext, p: Vec2): boolean {
   return false;
 }
 
+/** The skill at arms of the shooter's side (the player's rank), as a modifier; null when it has none. */
+export function aimModifier(state: BattleState, shooter: UnitState): ShotModifier | null {
+  const aim = state.aim?.[shooter.faction] ?? 0;
+  return aim === 0 ? null : { kind: 'aim', accuracy: aim, rangeFactor: 1 };
+}
+
+/** A blow's conditions (no weather, no night at arm's length): the side's skill at arms alone. */
+export function meleeConditions(state: BattleState, striker: UnitState): ShotConditions {
+  const aim = aimModifier(state, striker);
+  return aim ? { ...NO_CONDITIONS, accuracy: aim.accuracy, modifiers: [aim] } : NO_CONDITIONS;
+}
+
 /** The conditions of a shot from `from` at `to`; `artillery` for indirect fire (the wind deflects it). */
 export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec2, to: Vec2, artillery: boolean, shooter?: UnitState): ShotConditions {
   const w = ctx.rules.weather;
@@ -107,6 +119,8 @@ export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec
   for (const b of shooter?.buffs ?? []) if (b.accuracy !== 0) modifiers.push({ kind: 'hero', source: b.source, accuracy: b.accuracy, rangeFactor: 1 });
   const aura = shooter ? auraAccuracy(ctx, state.units, shooter) : null;
   if (aura) modifiers.push({ kind: 'hero', source: aura.id, accuracy: aura.accuracy, rangeFactor: 1 });
+  const aim = shooter ? aimModifier(state, shooter) : null;
+  if (aim) modifiers.push(aim);
   let maxRangeM = Number.POSITIVE_INFINITY;
   if (state.weather === 'rain') modifiers.push({ kind: 'rain', accuracy: -w.rainAccuracyPenalty, rangeFactor: 1 });
   if (state.weather === 'fog') {

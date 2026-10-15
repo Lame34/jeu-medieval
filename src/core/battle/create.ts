@@ -121,6 +121,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     startHour,
     fires: [],
     burnt: [],
+    ...(scenario.aim ? { aim: scenario.aim } : {}),
     rng: root.fork(BATTLE_RNG_LABEL).getState(),
   };
 }
