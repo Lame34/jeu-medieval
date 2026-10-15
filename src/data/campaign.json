@@ -21,7 +21,7 @@
     "battle": {
       "weather": "clear",
       "startHour": 10,
-      "turnLimit": 30,
+      "turnLimit": 26,
       "cut": [
         { "group": "outpost", "typeKey": "sallyKnight", "count": 1 },
         { "group": "outpost", "typeKey": "crossbowman", "count": 1 },
@@ -184,7 +184,7 @@
       "battle": {
         "weather": "clear",
         "startHour": 18,
-        "turnLimit": 26,
+        "turnLimit": 24,
         "cut": [
           { "group": "outpost", "typeKey": "militia", "count": 1 },
           { "group": "tower", "typeKey": "towerArcher", "count": 1 }
@@ -228,7 +228,7 @@
       "vignette": "citadel",
       "map": { "x": 0.85, "y": 0.27 },
       "difficulty": 5,
-      "battle": { "weather": "clear", "startHour": 15, "turnLimit": 26 },
+      "battle": { "weather": "clear", "startHour": 15, "turnLimit": 24 },
       "stratagems": [
         {
           "id": "guetteur",

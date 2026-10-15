@@ -76,7 +76,7 @@ test('the council seals a plan, and the battle starts as the plan says', async (
   await expect(page).toHaveURL(/\/battle\?.*level=roche-grise.*plan=fascines/);
   await waitForBattle(page);
   const state = await page.evaluate(() => window.__battle!.state());
-  expect(state.turnLimit).toBe(23);
+  expect(state.turnLimit).toBe(21);
   expect(state.works.filter((w) => w.done)).toHaveLength(1);
   await expect(page.getByRole('button', { name: /Carte/ })).toBeVisible();
   expect(errors).toEqual([]);
@@ -165,7 +165,7 @@ test('the trial battle: Guillaume’s lessons tick off as the player acts', asyn
   await expect(lesson.locator('h2')).toHaveText('Bienvenue au Fortin du Gué');
   // The same battle every time: the fort's seed, a clear morning, thirty rounds.
   const state = await page.evaluate(() => window.__battle!.state());
-  expect(state).toMatchObject({ weather: 'clear', startHour: 10, turnLimit: 30 });
+  expect(state).toMatchObject({ weather: 'clear', startHour: 10, turnLimit: 26 });
   await lesson.getByRole('button', { name: /Commencer/ }).click();
   await expect(lesson.locator('h2')).toHaveText('Regarder le terrain');
   await expect(page.locator('body')).toHaveAttribute('data-tutorial-highlight', 'minimap');
