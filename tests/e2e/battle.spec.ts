@@ -30,7 +30,8 @@ const TRIANGLE_BUDGET = 1_500_000;
 // against a fresh, unbundled Vite dev server: its own webServer per run transforms every module on
 // first request, and React StrictMode builds every useMemo twice. That measures ~10 s on a warm dev
 // server and ~16 s on the suite's cold one. 20 s here catches a broken or runaway load without
-// chasing dev-server-only costs.
+// chasing dev-server-only costs. The test runs alone, before the rest of the suite (the
+// 'load-budget' project of playwright.config.ts): timed among other browsers, it measured them.
 const LOAD_BUDGET_MS = 20_000;
 const WORLDGEN_BUDGET_MS = 10_000;
 
