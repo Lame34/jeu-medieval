@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044) et 2 (le rythme et les rangs : ADR-045) sont faites ; vient l'étape 3, la justesse historique.
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045) et 3 (la justesse historique : ADR-046 à 048) sont faites ; vient l'étape 4, le camp entre deux sièges et la chronique enluminée.
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -37,31 +37,32 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 - **Une logique fidèle à l'histoire** :
   - une garnison réduite à une poignée d'hommes se rend ;
   - une armée de secours lève le siège ;
-  - on comble la douve de fascines ;
-  - on mine le pied d'une courtine ;
+  - on comble la douve de fagots ;
+  - on mine le pied d'une muraille ;
   - le beffroi s'accole au mur et abaisse son pont ;
   - la nuit, la pluie et le vent pèsent sur les tirs.
   Une règle ou un récit qui contredit l'histoire connue se discute avant d'entrer dans le jeu.
 - Les identifiants internes restent en anglais et ne changent pas (`catapult`, `siegeTower`, `sapper`, l'id de plan `catapulte`) : les sauvegardes et les adresses existantes en dépendent. Seuls les noms affichés suivent le glossaire.
 
 ### Glossaire (nom affiché ← identifiant interne)
-**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, en attente du choix de l'utilisateur** (langue d'époque stricte ou mots des historiens pour l'architecture) : tir (1660) et volée (décharge, 1555), encore dans l'interface ; bélier (engin, 1548 ; d'époque : « mouton »), fascines (1577 ; « fagots »), courtine (1587 ; « mur », « muraille »), sortie (militaire, 1570 ; « saillie »), milicien (1725), chemin de ronde.
+**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, écartés** (l'utilisateur a choisi la langue d'époque stricte, ADR-046) : tir (1660 ; « trait »), volée (décharge, 1555), bélier (engin, 1548), fascines (1577), courtine (1587), sortie (militaire, 1570), milicien (1725), éclaireur (militaire, 1792), brigand (1350), chemin de ronde. Chaque mot du jeu peu courant est dans le lexique (`data/glossary.json`, écran « Lexique »), avec son sens et son attestation.
 
 | Affiché | Interne | Remarque |
 |---|---|---|
 | Sergent | `soldier` | Fantassin à l'écu (les « sergents à pied ») |
-| Sergent du rempart | `wallGuard` | Défenseur du chemin de ronde, à l'écu |
-| Chevalier, Chevalier de sortie | `knight`, `sallyKnight` | « Sortie » : la charge hors des murs |
-| Cavalier | `cavalry` | |
+| Sergent des murs | `wallGuard` | Défenseur du haut du mur, à l'écu |
+| Chevalier, Chevalier de la garnison | `knight`, `sallyKnight` | Celui-ci charge hors des murs (une saillie) |
+| Sergent à cheval | `cavalry` | |
 | Archer, Archer de tour, Arbalétrier | `archer`, `towerArcher`, `crossbowman` | |
-| Milicien | `militia` | Les milices communales |
+| Vilain | `militia` | Paysan levé pour défendre le château |
 | Capitaine | `officer` | Commande la garnison |
 | Mangonneau | `catapult` | Engin à bras qui lance des pierres |
-| Bélier | `ram` | Couvert d'un toit, n'enfonce que les portes |
+| Mouton | `ram` | Couvert d'un toit, n'enfonce que les portes |
 | Beffroi | `siegeTower` | On l'« accole » au mur (pas « amarrer ») |
 | Mineur ; miner, mine | `sapper` ; `undermine` | Comble la douve, mine les courtines (pas « sapeur », « saper ») |
-| L'homme du treuil | `def-tower-0` | Celui qui tient le pont-levis |
-| Courtine, chemin de ronde, herse, pont-levis, douve, fascines, brèche | | Les mots justes, partout |
+| L'homme qui tient les chaînes du pont | `def-tower-0` | Celui qui tient le pont-levis |
+| Commandement | `volley` | La capacité d'Aude |
+| Muraille, le haut du mur, coulisse, pont-levis, douve, fagots, brèche, coureurs, routiers, héraut, sommation | `wall`, `portcullis`, `fill` | Les mots justes, partout |
 
 ## Sécurité — le site est public
 - **En-têtes HTTP** dans `vercel.json` : une politique de sécurité du contenu (CSP) stricte, plus `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` et COOP/CORP. HTTPS obligatoire (HSTS) est envoyé par Vercel.

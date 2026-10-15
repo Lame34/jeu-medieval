@@ -1,15 +1,18 @@
 # Siège
 
-Un jeu de stratégie au tour par tour : à la tête de l’ost de la comtesse Isabeau, vous reprenez au Félon les cinq châteaux du Val d’Orle. Pont-levis, bélier, mangonneau, mines sous les courtines, beffroi : chaque château se prend à sa manière.
+Un jeu de stratégie au tour par tour : à la tête de l’ost de la comtesse Isabeau, vous reprenez au Félon les cinq châteaux du Val d’Orle. Pont-levis, mouton, mangonneau, mines sous les murailles, beffroi : chaque château se prend à sa manière.
 
 **Jouer :** https://jeu-medieval.vercel.app. Il faut un navigateur récent (Chrome, Edge ou Firefox) et un ordinateur capable d’afficher de la 3D (WebGL 2) ; rien à installer.
 
 ## Pour commencer
 1. **Bataille d’essai.** Guillaume, le vieux chevalier, vous apprend le siège en quinze leçons, toujours sur le même fortin.
 2. **Campagne.** La carte du Val d’Orle : choisissez un château, réunissez le conseil de guerre, scellez le plan d’un de vos trois compagnons (Aude, Bertrand ou Guillaume), puis donnez l’assaut. Votre rang règle la difficulté : **Écuyer** (une garnison clairsemée, plus de temps), **Chevalier**, ou **Baron** (une garnison au complet, moins de temps).
-3. **Escarmouche.** Un château tiré au hasard, sans histoire.
+3. **Siège au hasard.** Un château tiré au sort, sans histoire.
+4. **Lexique.** Les mots du siège, leur sens et leur âge. Tous sont attestés au XIIᵉ ou au XIIIᵉ siècle (Trésor de la langue française) : le mouton plutôt que le bélier, la coulisse plutôt que la herse. Dans le jeu, un mot souligné de pointillés donne son sens au survol.
 
-Une garnison qui tombe à une poignée d’hommes debout se rend. Passé le délai, l’armée de secours lève le siège.
+Une garnison qui tombe à une poignée d’hommes debout se rend. Votre héraut peut la sommer de se rendre : plus elle a perdu d’hommes et de murs, plus elle est prête à traiter. Passé le délai, l’armée de secours lève le siège.
+
+Chaque château donne quatre étendards : le château pris, pris vite, pris sans trop de pertes, et son **fait d’armes**, un exploit tiré d’un siège véritable (la mine de Château-Gaillard, le beffroi de Jérusalem…).
 
 ## Commandes
 | Touche | Effet |
@@ -29,7 +32,7 @@ Une garnison qui tombe à une poignée d’hommes debout se rend. Passé le dél
 | Échap, clic droit (toucher à deux doigts) | Annuler, désélectionner |
 | M | Couper le son |
 
-Un clic suffit : sur un ennemi (ou, pour un engin, sur une porte ou une courtine), l’homme choisi s’approche de lui-même s’il peut l’atteindre ce tour, puis frappe. Sur le sol, il marche jusqu’au point visé ; trop loin pour ce tour, il avance autant qu’il le peut. Au survol, l’aperçu annonce le chemin et la chance de toucher.
+Un clic suffit : sur un ennemi (ou, pour un engin, sur une porte ou une muraille), l’homme choisi s’approche de lui-même s’il peut l’atteindre ce tour, puis frappe. Sur le sol, il marche jusqu’au point visé ; trop loin pour ce tour, il avance autant qu’il le peut. Au survol, l’aperçu annonce le chemin et la chance de toucher.
 
 ## Votre progression et vos données
 - La progression (châteaux pris, étendards, options) et **la bataille en cours** sont enregistrées dans votre navigateur, après chaque ordre. Fermer la page ne fait rien perdre : au retour, le menu propose « Reprendre la bataille ».

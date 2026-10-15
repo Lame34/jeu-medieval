@@ -573,6 +573,62 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Les règles changent : une bataille sauvegardée avant cette version ne se rejoue plus à l'identique. Le joueur en est prévenu et la bataille repart du début (ADR-038).
 - La demi-heure dépend du joueur. Le jeu ne peut pas la mesurer seul : à vérifier en le regardant jouer.
 
+## ADR-046 — La langue de l'époque, et le lexique
+**Contexte** : l'utilisateur a choisi la langue de l'époque, stricte (ADR-041, choix A). Le joueur visé connaît le Moyen Âge : un mot postérieur au XIIIᵉ siècle se remarque.
+**Décision** :
+- Chaque mot du jeu a été vérifié dans le Trésor de la langue française (cnrtl.fr/etymologie), à sa première attestation dans le sens où le jeu l'emploie. Les noms affichés changent ; les identifiants internes restent (les sauvegardes et les adresses en dépendent).
+
+| Avant | Maintenant | Attestation du mot retenu |
+|---|---|---|
+| Bélier (l'engin, 1548) | Mouton | 1155, Wace, « multons » |
+| Herse (la grille, 1358) | Coulisse | 1289, Renart le Nouvel, « coulice » |
+| Courtine (1587) | Muraille | vers 1200 |
+| Fascines (1577) | Fagots | XIIᵉ siècle |
+| Rempart (1370), chemin de ronde | les murs, le haut du mur | |
+| Cavalier (v. 1470) | Sergent à cheval | sergent, vers 1050 |
+| Milicien (1725) | Vilain | vers 1119, Philippe de Thaon |
+| Sergent du rempart | Sergent des murs | |
+| Chevalier de sortie (sortie militaire, 1570) | Chevalier de la garnison | garnison, vers 1200 |
+| Éclaireurs (sens militaire, 1792) | Coureurs | vers 1160, le Roman d'Énéas |
+| Brigands (1350) | Routiers | vers 1200 |
+| Escarmouche (v. 1360) | Siège au hasard | |
+| Volée (la capacité d'Aude) | Commandement | vers 1050, « ordre donné » |
+| L'homme du treuil (1376) | l'homme qui tient les chaînes du pont | |
+
+- **Le lexique** (`data/glossary.json`, validé par `core/text/glossary.ts`) : 33 mots du siège, leur sens et leur première attestation. Il a un écran, « Lexique » (`/lexique`, au menu). Dans les leçons, la lettre d'un château, le conseil, le briefing et les récits, un mot du lexique est souligné de pointillés, à sa première apparition, et donne son sens au survol ou au clavier (`ui/components/Glossed.tsx`). L'info-bulle est posée hors des panneaux, qui ne la coupent plus.
+- Une définition qui nomme le mot moderne le dit : « on dira plus tard « bélier » ». Les historiens disent « courtine » ; le jeu dit « muraille ».
+- Le gras d'Alegreya était simulé par le navigateur à partir de la graisse 500, avec des lettres plus épaisses que d'autres. Le jeu charge maintenant la vraie graisse 700, au même poids (24 Ko, téléchargés au premier texte en gras).
+**Conséquences** : tout mot nouveau passe par le TLF avant d'entrer dans le jeu, puis par le lexique s'il n'est pas d'usage courant.
+
+## ADR-047 — La sommation
+**Contexte** : un siège commençait souvent par une sommation, et beaucoup finissaient ainsi : la place se rendait, vies et biens saufs. En 1204, après Château-Gaillard, Falaise, Caen et Rouen se rendirent à Philippe Auguste presque sans combat. L'utilisateur a choisi cette idée (ADR-041).
+**Décision** :
+- Un bouton, « Sommer la garnison », sous « Fin du tour » : deux ordres pour toute l'armée, et le milieu du champ reste libre. Il reste à sa place toute la bataille, grisé hors de votre tour. Le panneau des leçons se place juste dessous ; il suit désormais la taille du texte choisie dans les options, comme le reste de la bataille, et seul son texte défile, ses boutons restant en vue. Le héraut part sans dépenser de point d'action, puis doit attendre 3 tours avant de revenir (`summonsTooSoon`).
+- La chance que la garnison cède (`core/battle/summons.ts`, réglages `damage.json` → `battle.summons`) : 2 %, plus 60 % de la part de ses hommes perdus, plus 10 % par brèche (deux au plus). Elle est divisée par deux tant que son capitaine est debout, et plafonnée à 80 %. Le bouton l'annonce : « chance qu'elle cède : 1 %, son capitaine la tient ».
+- Acceptée, la garnison sort vies sauves et le château est pris (`battleEnded`, `surrendered`). Refusée, elle répond dans le journal (« Nos murs tiennent encore. »).
+- Le capitaine de Pierre-Ardente a juré de ne jamais se rendre (`sworn` dans les effets du château) : tant qu'il vit, la chance est nulle, et le bouton le dit.
+- Le dé est celui de la bataille : le rejeu reste exact. L'IA ne somme pas ; son équilibre est celui de l'ADR-045.
+**Conséquences** : une règle nouvelle, donc une bataille sauvegardée avant cette version repart du début, et le joueur en est prévenu (ADR-038).
+
+## ADR-048 — Les faits d'armes, et la progression au format 2
+**Contexte** : l'utilisateur a choisi « le fait d'armes » (ADR-041) : chaque château propose un exploit tiré d'un siège véritable. « Fait », au sens d'« action mémorable », est attesté vers 1170 (Benoît de Sainte-Maure) ; « rançon », vers 1150 (Wace).
+**Décision** :
+- Un quatrième étendard par château, son fait d'armes (`campaign.json`, `feat` : la tâche et le siège dont elle vient). Il est jugé à la fin de la bataille, et seulement si le château est pris (`featDone`, `bannersOf`).
+
+| Château | Fait d'armes | Ce qui est demandé | Le siège |
+|---|---|---|---|
+| Roche-Grise | Par la sommation | La garnison se rend au héraut | Falaise, Caen, Rouen, 1204 |
+| Moulins-sur-Orle | La mine de Château-Gaillard | Une muraille croule par la mine | Château-Gaillard, février 1204 |
+| Brumefond | Le beffroi de Jérusalem | Un homme monte sur les murs par le beffroi | Jérusalem, 15 juillet 1099 |
+| Pierre-Ardente | Le feu aux portes | La porte ou le pont-levis abattus par le feu | les peaux fraîches sur les hourds |
+| Haute-Garde | Pris à rançon | Le château pris, son capitaine vivant | Ferrand, comte de Flandre, captif après Bouvines (1214) |
+
+- La bataille retient ce qu'il faut pour en juger : les hommes montés par un beffroi (`climbed`) et les ouvrages de bois abattus par le feu (`burned`). Ces champs sont absents tant qu'ils sont vides, donc les empreintes des batailles sans eux ne changent pas.
+- Le fait d'armes paraît dans la lettre du château (la tâche, puis le siège en italique), dans le briefing et parmi les étendards de la fin. La carte porte quatre fanions par château, et la campagne compte 20 étendards.
+- Chaque fait d'armes est faisable : chaque armée a son mineur, son beffroi et ses archers, et chaque garnison son capitaine. La sommation est demandée à Roche-Grise, pas à Pierre-Ardente, dont le capitaine a juré.
+- **La progression passe au format 2** (`core/save/progress.ts`). Une sauvegarde au format 1, ou sans numéro, se lit avec chaque château gardé et son fait d'armes « pas encore accompli ». Un château au format 2 sans cet étendard est abîmé, donc écarté. La clé de stockage reste `siege.campaign.v1`.
+**Conséquences** : aucun château ni étendard d'un joueur n'est perdu, et un fait d'armes se gagne en reprenant l'assaut.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
