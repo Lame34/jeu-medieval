@@ -448,6 +448,90 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Les fiches d'aperçu, en lecture seule, laissent passer le pointeur. Avant, une fiche apparue sous le pointeur le captait, puis disparaissait aussitôt : l'homme placé dessous ne pouvait être ni désigné ni choisi.
 **Conséquences** : les recherches au survol sont bornées (400 cases au plus, de la plus proche à la plus lointaine) et ne se refont que si la cible change (`intentKey`). L'IA n'est pas concernée : elle cherchait déjà ses positions.
 
+## ADR-040 — Revue de cohérence : ce que le jeu dit est ce que les règles font
+**Contexte** : l'utilisateur a demandé de revérifier toutes les incohérences du jeu. Chaque texte (interface, journal, leçons, conseils, lettres, plans, héros) a été relu contre les règles et les données, et chaque mot d'époque douteux contre le Trésor de la langue française.
+**Décision** :
+- **Les règles, une seule fois.**
+  - `core/battle/heroes.ts` (`abilityCost`) donne ce qu'une capacité prend au héros : ses points d'action, et si elle est son action du tour (un coup, un tour de travail). La carte en tire sa note et son grisé. Avant, la Flèche perçante affichait 1 point d'action pour 2 réels, et l'Assaut du preux et la Double besogne restaient cliquables une fois l'action du tour dépensée.
+  - `core/battle/turn.ts` (`canStillAct`) dit qui peut encore agir : des points d'action, pas en fuite, pas un beffroi accolé. L'avertissement de fin de tour et la touche Tab s'en servent. Avant, un homme sans point d'action, ou un beffroi accolé, « pouvait encore agir » à jamais.
+  - Les chiffres des textes viennent des règles : la pluie, la nuit, l'ébranlement, la flèche enflammée.
+- **Les délais.** Le dernier tour se joue en entier : « avant la fin du tour 24 », et les étendards disent « en 17 tours au plus », comme la règle qui les décerne.
+- **Les textes contre les règles.**
+  - Brumefond : le brouillard ne se lève pas pendant la bataille, c'est le vent de Bertrand qui le dissipe.
+  - Pierre-Ardente : l'assaut des flambeaux part à 22 h (« la nuit close »), pas à minuit.
+  - Les contours de déplacement de la leçon : le doré pour marcher en gardant de quoi frapper, le pâle pour marcher seulement.
+  - Le beffroi fait monter 4 hommes par tour.
+  - Une courtine effondrée coûte des points de moral : elle n'ébranle pas d'office.
+  - Le Fortin attend « l'armée de secours », pas « les renforts du Félon » (ce sont des brigands).
+- **La langue.** Le mangonneau est masculin. Le beffroi n'est plus « la tour ». Aude est « ébranlée », « exposée ». « Passif » devient « Talent », « briefing » devient « consignes », « unité » devient « homme ». Les apostrophes sont typographiques partout.
+- **Les noms des héros, vérifiés au Trésor de la langue française (15/10).**
+  - Les titres : « maître des engins » (engin, machine de guerre, 1155), au lieu de « maître ingénieur » (1537) ; « vieux chevalier », au lieu de « chevalier vétéran » (1520).
+  - Les capacités : « Coup juste », au lieu de « Réglage du tir » (réglage, 1870 ; tir, 1660) ; « Double besogne » (besogne, travail, 1268), au lieu de « Chantier forcé » ; « Assaut du preux » (assaut et preux, v. 1100), au lieu de « Charge héroïque » (charge, au sens militaire, 1540).
+  - Le talent : « Fermeté » (v. 1200), au lieu d'« Inébranlable » (1606).
+  - Les identifiants internes ne changent pas.
+- **Le banc d'essai.** Le budget de chargement des tests de bout en bout se mesure seul, avant les autres : mesuré au milieu de sept navigateurs, il échouait selon la charge de la machine.
+**Conséquences** :
+- Restent, en attente du choix de registre de l'utilisateur, les mots courants postérieurs : « tir » (1660), « volée » au sens d'une décharge (1555), « héroïque », ainsi que ceux du glossaire.
+- Les étiquettes d'unités inutilisées par les règles (`shieldWall`, `charge`, `boilingOil`…) restent dans `units.json` comme intention du brief.
+
+## ADR-041 — La feuille de route décidée avec l'utilisateur (15/10)
+**Contexte** : l'utilisateur veut « un jeu parfait » et a répondu à trois séries de questions.
+**Décisions de l'utilisateur** :
+- Le joueur joue sur un **ordinateur portable, au pavé tactile** : ni molette ni clic du milieu.
+- Une bataille dure environ **une demi-heure**.
+- La langue est celle de **l'époque, stricte** (choix A) : chaque mot est vérifié au Trésor de la langue française, et un glossaire explique les mots rares.
+- **Tout est permis, par étapes** : chaque étape est livrée, testée et déployée avant la suivante. Priorité à la **prise en main**.
+- Retenu :
+  - la sommation, les faits d'armes ;
+  - « Que ferait Guillaume ? », les ordres groupés ;
+  - le camp entre deux sièges, la chronique enluminée ;
+  - les saisons ;
+  - une musique refaite « en professionnel », à partir d'airs d'époque du domaine public arrangés avec des banques d'instruments CC0 ;
+  - la caméra par boutons à l'écran et gestes à deux doigts ;
+  - trois niveaux de difficulté.
+- Écarté pour l'instant : la contre-mine, le blocus, annuler un ordre, la défense d'un château, l'ost qui se souvient, les sièges historiques, les heures canoniales, la lecture à voix haute.
+**Étapes** :
+1. **Prise en main** : le pavé tactile, « Que ferait Guillaume ? », les ordres groupés.
+2. **Rythme et difficulté** : des batailles d'une demi-heure, trois niveaux, un rééquilibrage vérifié par `campaign-scout --sim`.
+3. **Justesse historique** : le vocabulaire strict et son glossaire, la sommation, un fait d'armes par château.
+4. **Campagne** : le camp entre deux sièges, la chronique enluminée.
+5. **Beauté et son** : la musique, les saisons.
+
+## ADR-042 — La caméra au pavé tactile
+**Contexte** : le joueur joue sur un ordinateur portable, au pavé tactile (ADR-041). Le jeu demandait une molette pour rapprocher la vue et un clic du milieu pour la faire pivoter. Sur un pavé, glisser à deux doigts arrive comme une molette : la vue se rapprochait au lieu de se déplacer.
+**Décision** :
+- `render/camera/wheel-gesture.ts` lit chaque molette :
+  - un pincement (une molette avec Ctrl, ainsi l'envoient les navigateurs) rapproche ou éloigne la vue ;
+  - deux doigts qui glissent déplacent la vue, comme une page qu'on fait défiler ;
+  - le cran d'une molette de souris rapproche ou éloigne.
+- Le navigateur ne dit pas d'où vient une molette. Un pavé envoie de petits pas en pixels, souvent de biais ou fractionnaires. Dès qu'une molette lui ressemble, les suivantes sont lues comme venant d'un pavé.
+- L'option **Pointeur** (Automatique, Souris, Pavé tactile) tranche quand la devinette se trompe. C'est un champ ajouté à `siege.settings.v1` et lu avec sa valeur par défaut : une ancienne sauvegarde garde ses autres options, d'où l'absence de nouveau numéro de version.
+- Des boutons sous la mini-carte permettent de pivoter, de rapprocher, d'éloigner et de revenir sur l'homme choisi ou sur le milieu de l'armée. Un clic fait un pas ; tenu, le bouton répète.
+- Le clic droit, soit un toucher à deux doigts sur le pavé, annule comme Échap.
+- La leçon « Regarder le terrain », les commandes des options et le README le disent.
+**Conséquences** : une souris à molette fine peut passer pour un pavé ; l'option « Souris » le corrige.
+
+## ADR-043 — « Que ferait Guillaume ? »
+**Contexte** : un joueur peu habitué aux jeux doit pouvoir apprendre en jouant, sans manuel (ADR-041).
+**Décision** :
+- Le bouton **Conseil** de la carte de chaque homme, ou la touche C, montre ce que ferait le vieux chevalier, en une phrase. Exemple : « Avance à couvert (2 points d'action), hors de portée des tireurs ennemis, puis tire sur le milicien : 70 % de toucher, de quoi l'abattre. »
+- Le chemin est tracé au sol. Appuyer de nouveau (ou « Suivre le conseil ») donne les ordres ; Échap, ou « Non merci », le range.
+- Le choix est celui de l'IA du jeu (`core/ai/advice.ts` appelle `decideUnit`), qui décide sur ce que voit le camp du joueur : un ennemi caché par le brouillard n'est jamais trahi.
+- Le cœur rend des faits (l'acte, la marche, les tireurs, le couvert, la chance, de quoi abattre). `ui/battle/advice.ts` en fait la phrase. Un engin qui doit attendre dit pourquoi : « la porte reste hors d'atteinte tant que le pont-levis n'est pas abattu ».
+- Tout ordre donné range le conseil : il valait pour la bataille telle qu'elle était.
+**Conséquences** : les ordres sont des commandes ordinaires, et le rejeu reste exact.
+
+## ADR-044 — Les ordres groupés
+**Contexte** : mener quinze hommes un à un coûte beaucoup de clics à chaque tour, surtout au pavé tactile (ADR-041).
+**Décision** :
+- Un cadre tracé sur le champ, en glissant le bouton enfoncé, choisit les hommes qui s'y trouvent. Maj et un clic en ajoute ou en retire un. Échap les laisse.
+- Sur le sol, ils marchent **en rang** (`core/battle/group.ts`, `planGroupMove`) : chacun garde sa place autour de leur milieu, resserrée à 6 m au plus. Une place prise ou hors d'atteinte est remplacée par la case libre la plus proche. Celui qui va trop loin pour ce tour s'arrête en chemin.
+- Sur un ennemi, ceux qui peuvent l'atteindre ce tour frappent, après une marche s'il le faut ; les autres s'approchent (`planGroupStrike`).
+- Chaque homme est planifié à son tour, sur une bataille où ceux d'avant se tiennent déjà là où ils vont. Les ordres sont donnés homme par homme : celui que les règles arrêtent (abattu en chemin, ennemi déjà tombé) s'arrête, les autres continuent.
+- L'aperçu résume (« En rang : 7 hommes marchent vers ce point ; 2 n'y seront qu'au tour suivant ») et trace tous les chemins. Un anneau doré marque chaque homme choisi : un seul appel de dessin, et seulement quand ils sont plusieurs.
+- Les boutons de la carte (garde, travaux, capacités, conseil) restent ceux d'un seul homme.
+**Conséquences** : commandes ordinaires, rejeu exact ; aucun appel de dessin en plus hors d'un groupe.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

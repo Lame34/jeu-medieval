@@ -59,6 +59,10 @@
 | Écus des soldats et des gardes de rempart | `render/units/shield.ts`, `render/units/Units.tsx` |
 | Écran-titre rendu par le jeu | `scripts/capture-title.ts` → `public/assets/ui/title.webp`, `ui/screens/TitleScreen.tsx` |
 | Conseils des héros au chargement, touches nommées selon le clavier | `ui/screens/loading-tips.ts`, `state/keyboard.ts` |
+| La caméra au pavé tactile : deux doigts déplacent la vue, pincer la rapproche ; boutons sous la mini-carte ; clic droit pour annuler ; option Pointeur (ADR-042) | `render/camera/wheel-gesture.ts`, `render/camera/TacticalCamera.tsx` (`nudge`), `ui/battle/CameraButtons.tsx`, `state/settings.ts` |
+| « Que ferait Guillaume ? » : le choix de l'IA pour l'homme choisi, sur ce que voit le joueur, dit en une phrase et suivi d'un mot (ADR-043) | `core/ai/advice.ts` (`adviseUnit`), `ui/battle/advice.ts`, `ui/battle/intent.ts` (`toggleAdvice`), `ui/battle/BattleHud.tsx` (`AdviceCard`) |
+| Les ordres groupés : un cadre ou Maj et clic, la marche en rang, l'attaque ensemble (ADR-044) | `core/battle/group.ts` (`planGroupMove`, `planGroupStrike`), `ui/battle/intent.ts` (`groupIntentAt`, `issueGroupOrders`), `render/battle/BattleDirector.tsx`, `render/battle/BattleOverlays.tsx` |
+| Ce que coûte une capacité (sa note sur la carte), qui peut encore agir (fin du tour, touche Tab) : une seule règle pour l'interface et le jeu (ADR-040) | `core/battle/heroes.ts` (`abilityCost`), `core/battle/turn.ts` (`canStillAct`), `ui/battle/actions.ts`, `ui/battle/end-turn.ts` |
 | Sauvegardes : progression versionnée et relue strictement, fusion entre onglets ; bataille en cours (ordres + empreinte) reprise à l'identique (ADR-038) | `core/save/{progress,battle-save}.ts`, `state/{storage,campaign,battle-save}.ts`, `BattleSession.restore`, `ui/screens/BattleScreen.tsx` (`ResumeDialog`) |
 | Sécurité du site : en-têtes et CSP, servis aussi par `vite preview` ; points d'accès de test réservés au développement | `vercel.json`, `vite.config.ts`, `ui/test-flags.ts` |
 | Vérification automatique de chaque envoi (typage, lint, tests, build, audit) ; contrôle du site en ligne | `.github/workflows/ci.yml`, `scripts/check-live.ts` |

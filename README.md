@@ -15,15 +15,21 @@ Une garnison qui tombe à une poignée d’hommes debout se rend. Passé le dél
 | Touche | Effet |
 |---|---|
 | Clic gauche | Choisir un homme, le déplacer, attaquer |
+| Deux doigts sur le pavé tactile | Déplacer la vue ; en pinçant, la rapprocher |
+| Boutons sous la mini-carte | Pivoter, rapprocher, revenir sur vos hommes |
 | Z Q S D ou flèches | Déplacer la vue (WASD sur un clavier QWERTY) |
 | A et E, ou clic sur la molette | Faire pivoter la vue |
-| Molette | Rapprocher ou éloigner la vue |
+| Molette de la souris | Rapprocher ou éloigner la vue |
+| Cadre tracé en glissant, ou Maj et clic | Choisir plusieurs hommes : ils marchent en rang et frappent ensemble |
 | Tab | Homme suivant qui peut encore agir |
+| C | Conseil de Guillaume : ce qu’il ferait à la place de l’homme choisi ; encore une fois pour le suivre |
 | G · B · X · F | Garde · flèche enflammée · éteindre · travaux de siège |
 | 1 · 2 | Capacités d’un héros |
 | Entrée | Fin du tour |
-| Échap | Annuler |
+| Échap, clic droit (toucher à deux doigts) | Annuler, désélectionner |
 | M | Couper le son |
+
+Un clic suffit : sur un ennemi (ou, pour un engin, sur une porte ou une courtine), l’homme choisi s’approche de lui-même s’il peut l’atteindre ce tour, puis frappe. Sur le sol, il marche jusqu’au point visé ; trop loin pour ce tour, il avance autant qu’il le peut. Au survol, l’aperçu annonce le chemin et la chance de toucher.
 
 ## Votre progression et vos données
 - La progression (châteaux pris, étendards, options) et **la bataille en cours** sont enregistrées dans votre navigateur, après chaque ordre. Fermer la page ne fait rien perdre : au retour, le menu propose « Reprendre la bataille ».

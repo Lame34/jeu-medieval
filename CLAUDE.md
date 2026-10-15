@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). Le prochain ⛳ est J8, la livraison.
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. L'étape 1, la prise en main (pavé tactile, conseil de Guillaume, ordres groupés : ADR-042 à 044), est faite ; vient l'étape 2, le rythme et la difficulté.
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -45,7 +45,7 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 - Les identifiants internes restent en anglais et ne changent pas (`catapult`, `siegeTower`, `sapper`, l'id de plan `catapulte`) : les sauvegardes et les adresses existantes en dépendent. Seuls les noms affichés suivent le glossaire.
 
 ### Glossaire (nom affiché ← identifiant interne)
-**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Postérieurs, en attente du choix de l'utilisateur** (langue d'époque stricte ou mots des historiens pour l'architecture) : bélier (engin, 1548 ; d'époque : « mouton »), fascines (1577 ; « fagots »), courtine (1587 ; « mur », « muraille »), sortie (militaire, 1570 ; « saillie »), milicien (1725), chemin de ronde.
+**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, en attente du choix de l'utilisateur** (langue d'époque stricte ou mots des historiens pour l'architecture) : tir (1660) et volée (décharge, 1555), encore dans l'interface ; bélier (engin, 1548 ; d'époque : « mouton »), fascines (1577 ; « fagots »), courtine (1587 ; « mur », « muraille »), sortie (militaire, 1570 ; « saillie »), milicien (1725), chemin de ronde.
 
 | Affiché | Interne | Remarque |
 |---|---|---|
