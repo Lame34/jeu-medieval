@@ -37,6 +37,20 @@ Trois règles guident chaque décision :
 | Mortier | `#847B6C` | — | Joints de la maçonnerie procédurale |
 | Torchis / enduit | `#E2D4B6` | `#A89A7E` | Murs des maisons |
 
+### Saisons de la campagne (ADR-052, `render/materials/season-palette.ts`)
+La palette ci-dessus est celle de **juillet, la moisson**, et des escarmouches. Les autres saisons changent ces rôles, le reste ne bouge pas.
+
+| Rôle | Printemps (avril) | Début d'été (mai, juin) | Automne (octobre) |
+|---|---|---|---|
+| Herbe grasse | `#93A85A` / `#58703A` | `#8EA25A` / `#546A3A` | `#8A9A5A` / `#536438` (reverdie par les pluies) |
+| Herbe sèche | `#A2A660` / `#6A7040` | `#AAA762` / `#767440` | `#A29C64` / `#6E6A44` |
+| Terre, chemin, boue | plus sombres, détrempés : `#8A6C4A`, `#A68C66`, `#5E4C3A` (lumière) | inchangés | inchangés |
+| Blé ; seigle | jeune, vert : `#9FB05C` / `#5E7238` ; `#98AA62` | qui dore : `#BDB466` / `#7F7C46` ; `#B4AA68` | chaume : `#CBB57E` / `#94805A` ; `#C4AE7C` |
+| Lit du champ ; jachère | sillons sombres `#6F5C42` ; `#7C6C4C` | `#8E7850` ; inchangée | `#8A7452` ; labours `#7A6648` |
+| Hauteur des blés | 55 %, sans épis | 90 % | 24 %, sans épis |
+| Haies | aubépine en fleur `#EFE8DC` | églantier `#EEE2DA` | rousses `#5C5030` |
+| Feuillus | plus clairs et plus jaunes (teinte −0,02, clarté +0,05) | inchangés | or, ocre, cuivre, rouille et un encore vert (teintes 0,11 à 0,05 ; clarté +0,03 pour l'or, −0,07 et −0,11 pour le cuivre et la rouille), saturation ×1,7 sous le plafond de 0,55 ; les pins restent verts |
+
 ### Eau
 | Rôle | Couleur |
 |---|---|
@@ -139,5 +153,6 @@ Les valeurs sont interpolées selon l'heure du tour (miroir de `src/render/atmos
 | J7 | 10/10 | `2026-10-10-j7b`, `j7c`, `docs/captures/j7c-*` | — | — | — | — | — | — | **Passe de polish, sans revue notée (ADR-037).** Écus à talon aux armes des camps (chevron d’or sur azur, fasce de fer sur gueules) pour les soldats et gardes de rempart. Anneau des engins affiné (plus de flaque bleue sous le bélier). Écran-titre : rendu du jeu (Haute-Garde à 16 h 24, ombres longues des tours) au lieu du décor plat, menu sur feuille de parchemin au texte net. Sceau de cire pendant à la fleur de lys sur la carte de campagne. Plan d’ouverture : le château, puis l’armée. |
 | Étape 4 | 16/10 | `docs/captures/s4-*` (tentes, chronique, briefing) | — | — | — | — | — | — | **Campagne, sans revue notée (ADR-049, ADR-050).** La chronique : une page de livre sur le bois sombre ; miniatures en SVG dans l'encre de la carte (fond d'azur losangé d'or, cadre doré, filet rouge), lettrine d'or sur azur à filigranes blancs, incipit et explicit en rouge ; l'impression garde les couleurs. Les tentes s'illuminent sur la carte comme un château ; une lettre longue défile sous sa feuille de parchemin, qui ne se déchire plus en bas. |
 | Étape 3 | 15/10 | captures du scratchpad (lettre, briefing, héraut) | — | — | — | — | — | — | **Interface seule, sans revue notée (ADR-046 à 048).** Le gras d’Alegreya était simulé par le navigateur à partir de la graisse 500 : des lettres plus épaisses que d’autres dans un même mot, visibles même en rendu logiciel. La vraie graisse 700 la remplace, au même poids. Le fait d’armes d’un château s’ajoute à sa lettre (la tâche, puis le siège en italique, encre adoucie). Le bouton du héraut se place sous « Fin du tour », pour laisser libre le milieu du champ ; la leçon se range dessous, à la taille du texte choisie, ses boutons toujours visibles. |
+| Étape 5 | 16/10 | `2026-10-16-seasons-v1`, `seasons-v2`, `seasons-v3` (`capture-weather.ts --seasons`) | — | — | — | — | — | — | **Saisons, sans revue notée (ADR-052).** v1 : avril se distingue bien de juillet (herbe tendre, chemins détrempés, blé vert) ; juin, des blés qui dorent ; les brouillas d'octobre au matin laissent deviner le château et cachent la garnison. Deux défauts en octobre : une prairie plus jaune qu'en juillet, à rebours de la nature (les pluies d'automne la font reverdir), et des feuillages kaki. v2 : prairie olive reverdie, feuillus saturés ×1,7 vers l'or et la rouille, sous le plafond de 0,55. v3 (`seasons-v3`, briefing de Haute-Garde) : de près, la rouille claire tirait sur le saumon, presque rose ; le cuivre et la rouille sont assombris (clarté −0,07 et −0,11), l'or éclairci (+0,03). Le bandeau du tour, allongé du mois, passait sur deux lignes à 1280 px : il prend sa largeur, entre les deux coins. |
 
 Carte de bataille (J2 §12) : `docs/captures/2026-09-27-battle-v1…v3`, vues dérivées de la carte (`src/render/battle/views.ts`). Château complet (donjon, porterie, pont-levis) et pont de pierre à partir de battle-v2.

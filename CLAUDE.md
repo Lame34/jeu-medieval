@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045), 3 (la justesse historique : ADR-046 à 048) et 4 (les tentes de l'ost et la chronique : ADR-049, 050) sont faites ; vient l'étape 5, la musique et les saisons.
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les cinq étapes sont faites : 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045), 3 (la justesse historique : ADR-046 à 048), 4 (les tentes de l'ost et la chronique : ADR-049, 050) et 5 (la musique d'époque et les saisons : ADR-051, 052).
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -45,7 +45,7 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 - Les identifiants internes restent en anglais et ne changent pas (`catapult`, `siegeTower`, `sapper`, l'id de plan `catapulte`) : les sauvegardes et les adresses existantes en dépendent. Seuls les noms affichés suivent le glossaire.
 
 ### Glossaire (nom affiché ← identifiant interne)
-**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, écartés** (l'utilisateur a choisi la langue d'époque stricte, ADR-046) : tir (1660 ; « trait »), volée (décharge, 1555), bélier (engin, 1548), fascines (1577), courtine (1587), sortie (militaire, 1570), milicien (1725), éclaireur (militaire, 1792), brigand (1350), chemin de ronde ; **vérification du 16/10** : camp (fin XVᵉ s. ; « les tentes de l'ost »), solde (1464), soudoyer (1465), butin (1350), médecin (1358 ; « mire », v. 1155), et « place » au sens militaire, non vérifiée (« le château »). Chaque mot du jeu peu courant est dans le lexique (`data/glossary.json`, écran « Lexique »), avec son sens et son attestation.
+**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, écartés** (l'utilisateur a choisi la langue d'époque stricte, ADR-046) : tir (1660 ; « trait »), volée (décharge, 1555), bélier (engin, 1548), fascines (1577), courtine (1587), sortie (militaire, 1570), milicien (1725), éclaireur (militaire, 1792), brigand (1350), chemin de ronde ; **vérification du 16/10** : camp (fin XVᵉ s. ; « les tentes de l'ost »), solde (1464), soudoyer (1465), butin (1350), médecin (1358 ; « mire », v. 1155), et « place » au sens militaire, non vérifiée (« le château ») ; **vérification du 16/10 (saisons, ADR-052)** : brouillard (XVᵉ s.) et brume au sens de brouillard (1562) sont remplacés par « brouillas » (« bruillat », v. 1210), tenace (1501) est retiré ; d'époque : avril, mai, juin, juillet, octobre, printemps (v. 1200), automne (1231), boue, détremper (1155), embourber (v. 1223), moisson, moissonner, chaume (1195). Chaque mot du jeu peu courant est dans le lexique (`data/glossary.json`, écran « Lexique »), avec son sens et son attestation.
 
 | Affiché | Interne | Remarque |
 |---|---|---|
@@ -63,6 +63,7 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 | L'homme qui tient les chaînes du pont | `def-tower-0` | Celui qui tient le pont-levis |
 | Commandement | `volley` | La capacité d'Aude |
 | Muraille, le haut du mur, coulisse, pont-levis, douve, fagots, brèche, coureurs, routiers, héraut, sommation | `wall`, `portcullis`, `fill` | Les mots justes, partout |
+| Brouillas ; brouillas du matin | `fog` ; le `mist` d'octobre | Jamais « brouillard » ni « brume » (sauf les noms propres Brumefond, la Brume) |
 
 ## Sécurité — le site est public
 - **En-têtes HTTP** dans `vercel.json` : une politique de sécurité du contenu (CSP) stricte, plus `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` et COOP/CORP. HTTPS obligatoire (HSTS) est envoyé par Vercel.
@@ -110,8 +111,8 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
    - scripts `capture-*` ;
    - pour un cas précis, un script Playwright jetable dans le dossier temporaire (scratchpad).
 3. Après un changement de règle ou d'équilibrage : `node scripts/campaign-scout.ts --sim`.
-   - Référence ADR-045 (rang Chevalier) : l'IA assaillante gagne 11 assauts sur 16, soit 1/1, 2/3, 2/3, 2/3, 2/3, 2/3 du fortin à Haute-Garde.
-   - Avec `--rank squire` : 14 sur 16 ; avec `--rank baron` : 7 sur 16.
+   - Référence ADR-052, avec les saisons (rang Chevalier) : l'IA assaillante gagne 12 assauts sur 16, soit 1/1, 2/3, 2/3, 2/3, 2/3, 3/3 du fortin à Haute-Garde.
+   - Avec `--rank squire` : 15 sur 16 ; avec `--rank baron` : 7 sur 16.
 4. Après un changement qui pèse sur le rendu : `npm run bench:perf -- --preset portable --scene battle --query live`.
    - Comparer en **A/B** contre le commit précédent, dans un worktree : `git worktree add`, puis une jonction `mklink /J` vers `node_modules`.
    - Le « 1 % bas » varie avec l'état de la machine ; on ne compare jamais à une vieille ligne du journal.
@@ -144,6 +145,7 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
 | `?bench`, `?bench&live` | Mesures : sans partie ni HUD, ou partie sans saisie |
 | `?seed=…&castle=1..4` | Escarmouche sur une carte précise |
 | `?weather=clear\|rain\|fog&hour=H` | Météo et heure imposées |
+| `?season=april\|may\|june\|july\|october` | Mois imposé (ADR-052) : sa boue, son feu, ses brouillas, ses couleurs |
 | `?tutorial` | Bataille d'essai |
 | `&resume` | Reprend la bataille sauvegardée sans poser la question |
 | `?level=<id>&plan=<id>` | Bataille de campagne avec son stratagème |
@@ -162,11 +164,12 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
 | `npm run bench:perf -- --preset portable [--scene battle] [--cpu-throttle 4] [--query "live&weather=rain&hour=22"] [--log]` | Bench GPU (Intel Arc obligatoire), une scène par passe ; `--query live` mesure une bataille en cours ; écrit dans `docs/PERF_LOG.md` avec `--log` |
 | `npm run capture:lookdev [-- <tag> --scene battle --breakdown]` | Captures des vues × 3 heures dans `docs/captures/` (ignoré par git) |
 | `node scripts/capture-siege.ts [<tag>] [--seed siege-1]` | Siège scripté (pont-levis, fissures, effondrement, parc d'engins) |
-| `node scripts/capture-weather.ts [<tag>]` | Nuit, crépuscule, pluie, brouillard |
+| `node scripts/capture-weather.ts [<tag>] [--seasons]` | Nuit, crépuscule, pluie, brouillas ; les saisons (avril, juin, juillet, octobre au matin et à midi) |
 | `node scripts/capture-campaign.ts [<tag>]` | Menu, carte, lettre, conseil de guerre, options, leçon, plan d'ouverture, briefing |
 | `node scripts/capture-title.ts [--hour 16.4 …]` | Illustration de l'écran-titre rendue par le jeu vers `public/assets/ui/title.webp` |
 | `node scripts/campaign-scout.ts [--sim] [--try <id> <graine>…]` | Cartes de la campagne : génération, validation, chaque stratagème ; `--sim` fait jouer l'IA des deux côtés |
 | `npm run assets:engines` / `assets:audio` / `assets:characters` / `assets:process` | Blender headless et pipeline d'assets (gltf-transform, meshopt, KTX2) vers `public/assets` |
+| `npm run assets:music-samples` / `assets:music` | Musique (ADR-051) : télécharge et vérifie les échantillons VCSL, puis rend les sept morceaux dans `assets-src/work/music` ; `assets:audio` les encode ensuite |
 | `node scripts/<x>.ts` | Scripts TypeScript exécutés nativement par Node 24 (ADR-013) |
 
 ## Architecture (détails dans `docs/ARCHITECTURE.md`)

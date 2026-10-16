@@ -676,6 +676,71 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - Vérifiés au TLF : « chronique » (1138), « clerc » (vers 1040), « enluminer » (1176-1181), « défunt » (1243), « enceinte » (1284), « crouler » (un mur, 1177-1180), « brûler » (vers 1120), « fuir », « périr », « rompre », « lier ». « Place », au sens militaire, n'a pas pu être vérifié : le jeu dit « rendre le château », et non plus « rendre la place ».
 **Conséquences** : la chronique ne raconte que ce que le cœur a relevé : elle ne peut pas contredire la bataille jouée.
 
+## ADR-051 — Une musique d'époque, jouée par le jeu
+**Contexte** : l'utilisateur veut une musique « de professionnel », faite d'airs d'époque du domaine public arrangés avec des banques d'instruments CC0 (ADR-041). Les trois morceaux d'OpenGameArt de J5 étaient des compositions modernes, sans lien avec le XIIᵉ siècle, et ne bouclaient pas sans couture. Les menus et la chronique étaient muets.
+**Décision** :
+- **Trois airs vrais**, transcrits note à note d'éditions du domaine public (`scripts/music/tunes.json`, la source de chaque air y figure) :
+  - « Kalenda maya », estampie de Raimbaut de Vaqueiras (vers 1200), d'après P. Aubry, *Trouvères et troubadours*, 1909, p. 56 ;
+  - « Reis glorios », aube de Guiraut de Bornelh (vers 1180), d'après Aubry, p. 87-88 ;
+  - le « Palästinalied » de Walther von der Vogelweide (vers 1224), d'après le fac-similé de Jostes (1912, Wikimedia Commons).
+
+  La notation (hauteur et durée, mesures vérifiées contre la mesure du chant) est validée par `scripts/music/score.ts`.
+- **Des instruments d'époque**, en échantillons CC0 de la Versilian Community Sample Library : harpe, psaltérion pincé et à l'archet, flûte à bec, orgue positif, tambour sur cadre, tabor, darbouka, tambourin, cloches. 165 fichiers sont listés dans `scripts/music/samples.json`, au commit figé du dépôt, et vérifiés par leur SHA-256 (`npm run assets:music-samples` ; ils ne sont pas versionnés).
+- **Un rendu hors ligne et déterministe** (`npm run assets:music`, `scripts/render-music.ts` et `scripts/music/*.ts`) :
+  - un échantillonneur prend l'échantillon le plus proche et le transpose ; il fait tenir les notes longues (orgue, archet) par une boucle fondue dans la partie stable du son ;
+  - les notes sont un peu humanisées (temps, force, accent du premier temps), avec une graine : chaque rendu est identique ;
+  - la réverbération d'une salle de pierre (Freeverb) ; la queue d'une boucle retombe sur son début, si bien qu'elle reprend sans couture ;
+  - les voix sont dosées sur leur sonie mesurée, puis le morceau est porté à −18 dB RMS, sous un plafond de −1 dBFS (limiteur à anticipation).
+
+  Le pipeline audio existant (`npm run assets:audio`) encode ensuite les WAV en OGG.
+- **Sept morceaux** (`scripts/music/arrangements.json`) :
+  - la carte et les menus : « Kalenda maya » à la harpe, sur un bourdon d'orgue ;
+  - la chronique : « Reis glorios » à la harpe, ouvert par les cloches ;
+  - le siège, en trois couches qui se fondent l'une dans l'autre selon la proximité du combat : le calme (« Palästinalied »), la menace (« Reis glorios » à l'archet et à la flûte) et la mêlée (« Kalenda maya » vive, aux tambours) ;
+  - la fin d'une bataille : la dernière phrase de « Kalenda maya » pour une victoire, celle du « Palästinalied » pour un échec. Le calme revient ensuite, plus bas.
+- **Dans le jeu** : rien ne joue avant le premier geste du joueur. Les sons se chargent alors (`ui/ScreenMusic.tsx`), et chaque écran a son air. Les morceaux sont lus en flux : seul celui qui joue est téléchargé. La musique garde sa hauteur (seuls les bruitages varient). `?nosound` les tait tous.
+**Conséquences** :
+- Les sept morceaux pèsent 11,5 Mio en tout (OGG à 128 kbit/s), contre 5,5 Mio pour les trois anciens ; on ne télécharge que celui qu'on entend.
+- Changer un arrangement ou une note demande `npm run assets:music`, puis `npm run assets:audio`.
+
+## ADR-052 — Les saisons de la campagne, et les brouillas
+**Contexte** : l'utilisateur a retenu « les saisons » (ADR-041) : « le printemps de la campagne avance : boue d'avril, blés hauts en juin (le feu prend mieux), brume d'automne ». La vérification au TLF a montré que « brume » ne veut dire brouillard qu'en 1562 et que « brouillard » date du XVᵉ siècle (Charles d'Orléans). Le jeu disait pourtant « Brouillard » dans la bataille et dans les textes de Brumefond.
+**Décision** :
+- **Un mois par château**, d'avril à octobre. La guerre commencée au printemps reprend après la moisson, comme l'ost féodal qui rentrait les blés :
+  - Roche-Grise en avril ;
+  - Moulins-sur-Orle en mai ;
+  - Brumefond en juin ;
+  - Pierre-Ardente en juillet ;
+  - Haute-Garde en octobre.
+
+  Le mois est une donnée du château (`campaign.json`, `battle.season`). Il entre dans le `Scenario` comme la météo, puis dans l'état de la bataille : le rejeu reste exact. Une escarmouche n'a pas de mois et se joue comme avant.
+- **Ce que change le mois** (`damage.json` → `weather.seasons`, `core/battle/conditions.ts`) :
+  - **avril** : la terre est détrempée. Le sol découvert est de la boue, aussi lente que sous la pluie, mais sans la pluie et sans sa gêne au tir ;
+  - **mai et juin** : rien, sinon l'aspect du pays ;
+  - **juillet** : les blés sont hauts et secs avant la moisson. Une flèche enflammée prend 1,3 fois mieux, jamais à coup sûr, et le feu se propage 1,5 fois plus, dans la limite habituelle. J'ai placé les blés secs en juillet plutôt qu'en juin : c'est à la veille de la moisson qu'ils sont secs ;
+  - **octobre** : les **brouillas du matin**. Jusqu'à 9 h 15, on ne voit ni ne tire au-delà de 50 m, puis ils se lèvent. Haute-Garde est donc assiégée à 8 h, et non plus à 15 h. Les champs sont moissonnés : leur chaume ne donne plus de couvert et ne masque plus la vue, comme la boue change le coût de la marche dans la grille de déplacement.
+- **Les mots** : « brouillas » (« bruillat », vers 1210, l'ancien mot de brouillard) remplace « brouillard » et « brume » dans la bataille, dans les lettres et dans les textes de Brumefond ; il entre au lexique. « Tenace » (1501) est retiré de l'introduction de Brumefond. Vérifiés au TLF :
+  - les mois : avril et mai (vers 1100), juin (1119), juillet (vers 1213), octobre (1213) ;
+  - printemps (vers 1200), automne (1231) ;
+  - boue (vers 1170), détremper (1155), embourber (vers 1223), avancer (1155) ;
+  - blé, moisson (vers 1170), moissonner (vers 1200), chaume (1195), pré, rassembler (1155), demeurer, cacher (XIIIᵉ siècle).
+- **Les textes** : chaque lettre de château et chaque briefing disent le mois en une phrase (`campaign.json` → `seasons`). Les conditions dites par les coureurs en tirent leurs lignes. La ligne du temps de la bataille commence par le mois (« Octobre · 8 h 00 · Brouillas »). La chronique date chaque siège (« En avril, l'ost de la comtesse… »). Le prologue donne à l'ost « jusqu'à l'automne ».
+- **Le rendu** (`render/materials/season-palette.ts`) a une palette par aspect :
+  - le printemps : herbe tendre, blé jeune et vert sur des sillons sombres, chemins détrempés, aubépine en fleur ;
+  - le début de l'été : vert profond, blés qui dorent, églantier ;
+  - la moisson : la palette de référence, celle des escarmouches ;
+  - l'automne : prairie reverdie par les pluies, chaume, labours, bois dorés, cuivrés et roux, les pins restant verts.
+
+  Les couleurs sont posées à la construction de la scène (uniformes, couleurs de sommets) : rien n'est calculé à chaque image. Les blés jeunes et le chaume sont plus bas, sans épis. Les brouillas du matin ont leur propre brouillard de distance, plus léger que celui de Brumefond, qui se lève avec eux.
+- **L'équilibre** (`campaign-scout --sim`). Avec des brouillas jusqu'à 10 h, l'IA assaillante ne prenait Haute-Garde qu'une fois sur trois ; à l'heure retenue de 9 h 15, elle la prend trois fois sur trois. Résultats sur seize assauts :
+  - au rang de Chevalier : 12, soit 1/1, 2/3, 2/3, 2/3, 2/3, 3/3, contre 11 auparavant ;
+  - au rang d'Écuyer : 15, contre 14 ;
+  - au rang de Baron : 7, comme auparavant.
+**Conséquences** :
+- Une bataille de campagne sauvegardée avant ce changement ne se rejoue plus à l'identique : l'empreinte la détecte, la sauvegarde est écartée et le joueur en est prévenu.
+- Le toponyme « Brumefond » et le « marais de la Brume » restent : ce sont des noms propres. Au XIIIᵉ siècle, « brume » voulait dire l'hiver.
+- `?season=april|may|june|july|october` impose un mois pour les captures et les bancs.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).

@@ -82,6 +82,20 @@ Bataille en cours (`--scene battle --query live`), sur secteur, A/B contre le co
 - Les écus coûtent 4 appels de dessin ; le plan d'ouverture et la caméra qui suit les coups ennemis, rien de mesurable.
 - Le 1 % bas sous 40 vient de la machine ce jour-là, et non du code : les deux versions font pareil, avec 5 à 24 à-coups de plus de 25 ms par vue. Le relevé du 09/10 donnait 53 i/s pour le même code de départ.
 
+## Musique et saisons (étape 5, 16/10, ADR-051, ADR-052)
+Bataille en cours (`--scene battle --query live`), A/B contre 35f2489 dans un worktree, en alternant deux tours. **La machine était sur batterie**, le processeur graphique bridé : les valeurs absolues ne se comparent pas au journal, seulement A contre B.
+
+| Version | Moyenne | 1 % bas | Appels max | Triangles max |
+|---|---|---|---|---|
+| Avant (35f2489), tour 1 / tour 2 | 26,5 / 24,0 i/s | 9,3 / 14,2 | 112 / 109 | 1,02 / 1,16 M |
+| Après, escarmouche (palette de la moisson), tour 1 / tour 2 | 25,4 / 22,9 i/s | 9,1 / 16,8 | 109 / 112 | 1,25 / 1,05 M |
+| Après, `&season=april` | 42,9 i/s | 18,2 | 114 | 1,16 M |
+| Après, `&season=october` (brouillas du matin) | 43,3 i/s | 26,4 | 112 | 1,00 M |
+
+- Les écarts entre A et B restent dans le bruit d'un tour à l'autre, triangles compris : les blés se chargent par morceaux autour de la caméra, et le relevé ne tombe pas au même instant. Les saisons ne coûtent rien par image : leurs couleurs sont posées à la construction de la scène. Les blés jeunes et le chaume sont plus bas et sans épis, donc moins lourds.
+- La musique n'est pas rendue par la carte graphique. Seul le morceau joué est téléchargé, en flux.
+- À refaire sur secteur, avec `--log`, pour une ligne de référence.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.

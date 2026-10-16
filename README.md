@@ -16,6 +16,8 @@ Chaque château donne quatre étendards : le château pris, pris vite, pris sans
 
 Entre deux sièges, **les tentes de l’ost** : chaque étendard y apporte dix marcs d’argent, de quoi payer l’ost, lier des fagots, fourbir les armes, engager deux sergents ou dresser un second mangonneau pour le siège suivant, ou faire venir le mire auprès d’un compagnon blessé. Et **la chronique** raconte la guerre château après château, d’après ce qui s’est vraiment passé dans chaque bataille, avec miniatures et lettrines dessinées par le jeu ; elle s’imprime.
 
+La guerre court **d’avril à octobre**, un château par mois : la boue d’avril ralentit les engins, les blés secs de juillet prennent feu plus volontiers, et les brouillas d’un matin d’octobre cachent l’approche de Haute-Garde avant de se lever. **La musique** est faite d’airs du temps, « Kalenda maya », « Reis glorios » et le chant de croisade de Walther von der Vogelweide, joués à la harpe, au psaltérion, à la flûte et à l’orgue.
+
 ## Commandes
 | Touche | Effet |
 |---|---|
@@ -58,11 +60,12 @@ npm run build        # build de production dans dist/
 - Décisions : `docs/DECISIONS.md`.
 - Direction artistique : `docs/STYLE_BIBLE.md`.
 - Consignes de travail : `CLAUDE.md`.
+- Musique : `npm run assets:music-samples` télécharge les échantillons, `npm run assets:music` rend les morceaux, `npm run assets:audio` les encode (`docs/DECISIONS.md`, ADR-051).
 
 Chaque envoi sur `main` est vérifié par GitHub Actions (typage, règles du code, tests, build), puis déployé par Vercel.
 
 ## Crédits
-Personnages, décors, sons et musiques sont sous licence libre CC0 (Quaternius, Kenney, OpenGameArt…) : la liste complète, avec les sources et les licences vérifiées, est dans `assets/CREDITS.md`. Les châteaux, le paysage, les engins et les écus sont produits par le code du jeu.
+Personnages, décors, sons et échantillons d’instruments sont sous licence libre CC0 (Quaternius, Kenney, OpenGameArt, Versilian Studios…) ; les airs de musique sont du domaine public. La liste complète, avec les sources et les licences vérifiées, est dans `assets/CREDITS.md`. Les châteaux, le paysage, les engins et les écus sont produits par le code du jeu.
 
 ## Signaler un problème
 Ouvrez une « issue » sur ce dépôt GitHub. Pour une faille de sécurité, décrivez-la sans la rendre publique en détail.
