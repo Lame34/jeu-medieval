@@ -145,7 +145,7 @@ export function tutorialSteps(turnLimit: number, surrendersAt: number, keys: { r
     {
       id: 'castle',
       title: 'Le château',
-      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au mouton, ouvrir une brèche au mangonneau, miner un mur, ou monter sur les murs par le beffroi. Elles se combinent. Et avant tout assaut, la coutume veut qu’on somme la garnison de rendre la place : ton héraut le fait d’un clic, sous « Fin du tour ». Plus elle a perdu d’hommes et de murs, plus elle cède volontiers.</>,
+      text: <>Voici le fortin. Plusieurs voies pour y entrer : abattre le pont-levis, enfoncer la porte au mouton, ouvrir une brèche au mangonneau, miner un mur, ou monter sur les murs par le beffroi. Elles se combinent. Et avant tout assaut, la coutume veut qu’on somme la garnison de rendre le château : ton héraut le fait d’un clic, sous « Fin du tour ». Plus elle a perdu d’hommes et de murs, plus elle cède volontiers.</>,
       focus: 'castle',
     },
     {

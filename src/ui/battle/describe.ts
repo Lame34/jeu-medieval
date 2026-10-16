@@ -175,7 +175,7 @@ export function describeEvent(event: GameEvent, state: BattleState): string | nu
       return `${who} se ressaisit.`;
     }
     case 'garrisonSummoned':
-      return event.accepted ? 'Votre héraut somme la garnison de rendre la place. Elle accepte : ses hommes sortent vies sauves et vous remettent le château.' : `Votre héraut somme la garnison de rendre la place. Elle refuse : « ${SUMMONS_REFUSALS[state.turn % SUMMONS_REFUSALS.length]} »`;
+      return event.accepted ? 'Votre héraut somme la garnison de rendre le château. Elle accepte : ses hommes sortent vies sauves et vous le remettent.' : `Votre héraut somme la garnison de rendre le château. Elle refuse : « ${SUMMONS_REFUSALS[state.turn % SUMMONS_REFUSALS.length]} »`;
     case 'turnStarted':
       return `Tour ${event.turn} : ${FACTION_LABEL[event.faction]}.`;
     case 'battleEnded':

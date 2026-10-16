@@ -31,7 +31,7 @@
     { "id": "routier", "word": "Routiers", "forms": ["routiers", "routier"], "definition": "Soldats de ces bandes qui couraient les routes en pillant et louaient leurs bras au plus offrant.", "attested": "vers 1200" },
     { "id": "saillie", "word": "Saillie", "forms": ["saillie"], "definition": "Attaque brusque de la garnison hors des murs, contre l’assaillant ; on dira plus tard « sortie ».", "attested": "vers 1165" },
     { "id": "sergent", "word": "Sergent", "forms": ["sergent", "sergents"], "definition": "Homme d’armes à pied au service d’un seigneur, à l’écu et à la lance ; à cheval, le sergent à cheval.", "attested": "vers 1050, « sergant »" },
-    { "id": "sommation", "word": "Sommation", "forms": ["sommation"], "definition": "Mise en demeure faite à une garnison de rendre la place, avant l’assaut.", "attested": "1283, Philippe de Beaumanoir, Coutumes de Beauvaisis" },
+    { "id": "sommation", "word": "Sommation", "forms": ["sommation"], "definition": "Mise en demeure faite à une garnison de rendre le château, avant l’assaut ou pendant.", "attested": "1283, Philippe de Beaumanoir, Coutumes de Beauvaisis" },
     { "id": "trait", "word": "Trait", "forms": ["trait"], "definition": "La portée d’une flèche ou d’un carreau : être « à portée de trait ».", "attested": "vers 1160, le Roman d’Énéas" },
     { "id": "vilain", "word": "Vilain", "forms": ["vilain", "vilains"], "definition": "Paysan libre, levé pour défendre le château de son seigneur.", "attested": "vers 1119, Philippe de Thaon" }
   ]

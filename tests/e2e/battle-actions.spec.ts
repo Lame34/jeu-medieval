@@ -232,7 +232,7 @@ test('summons: the herald tells the chance, is refused by a fresh garrison, and 
 
   await summon.click();
   await idle(page);
-  await expect(page.locator('.hud-log')).toContainText('Votre héraut somme la garnison de rendre la place. Elle refuse');
+  await expect(page.locator('.hud-log')).toContainText('Votre héraut somme la garnison de rendre le château. Elle refuse');
   expect((await state(page)).status).toBe('ongoing');
   await expect(summon).toBeDisabled();
   await expect(summon).toContainText(`le héraut revient dans ${SUMMONS_COOLDOWN_ROUNDS} tours`);

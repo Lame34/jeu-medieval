@@ -433,7 +433,7 @@ export interface SummonsInfo {
 /** Always in its place while the battle goes on (the lessons sit below it); usable on our turn. */
 function SummonButton({ info, ready, onSummon }: { readonly info: SummonsInfo; readonly ready: boolean; readonly onSummon: () => void }) {
   return (
-    <button type="button" className="hud-summon" onClick={onSummon} disabled={!ready || info.chance === null || info.chance === 0} title="Votre héraut somme la garnison de rendre la place. Plus elle a perdu d’hommes et de murs, plus elle est prête à traiter.">
+    <button type="button" className="hud-summon" onClick={onSummon} disabled={!ready || info.chance === null || info.chance === 0} title="Votre héraut somme la garnison de rendre le château. Plus elle a perdu d’hommes et de murs, plus elle est prête à traiter.">
       Sommer la garnison <small>{info.note}</small>
     </button>
   );
