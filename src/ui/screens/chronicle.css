@@ -1,0 +1,168 @@
+/* The illuminated chronicle (ADR-050): a book's page on the dark wood, printed as it reads. */
+.chronicle-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 24px 16px 48px;
+  background: var(--wood-dark);
+}
+
+.chronicle-tools {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  max-width: 760px;
+  margin: 0 auto 16px;
+}
+
+.chronicle-tools button {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--parchment);
+  background: var(--wood-mid);
+  border: 1px solid var(--iron-light);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.chronicle-tools button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.chronicle {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 56px 48px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.55;
+  background: linear-gradient(180deg, var(--parchment), var(--parchment-shade));
+  border: 2px solid var(--iron);
+  border-radius: 2px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 50%);
+}
+
+.chronicle h1 {
+  margin: 0 0 12px;
+  font-family: var(--font-title);
+  font-size: 28px;
+  text-align: center;
+  color: #7a2a14;
+}
+
+/* The rubrics: the incipit and the explicit, in red. */
+.chronicle__incipit,
+.chronicle__explicit {
+  margin: 0 0 16px;
+  font-style: italic;
+  text-align: center;
+  color: #8e1b12;
+}
+
+.chronicle__explicit {
+  margin-top: 28px;
+}
+
+.chronicle__preface {
+  margin: 0 0 24px;
+}
+
+.chronicle__chapter {
+  margin: 28px 0 0;
+  break-inside: avoid;
+}
+
+.chronicle__chapter h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-title);
+  font-size: 21px;
+  color: #8e1b12;
+}
+
+.chronicle__miniature {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 14px;
+}
+
+.chronicle__chapter p {
+  margin: 0 0 10px;
+}
+
+.chronicle__lettrine {
+  float: left;
+  width: 3.4em;
+  height: 3.4em;
+  margin: 4px 10px 0 0;
+}
+
+.chronicle__lettrine-letter {
+  font-family: var(--font-title);
+  font-size: 40px;
+  font-weight: 700;
+}
+
+/* The opening paragraph read whole by a screen reader, unseen. */
+.chronicle__spoken {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.chronicle__opening::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+@media (width <= 640px) {
+  .chronicle {
+    padding: 24px 18px 32px;
+    font-size: 17px;
+  }
+}
+
+/* On paper: the page alone, in its colours, a chapter never cut. */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .chronicle-screen {
+    position: static;
+    overflow: visible;
+    padding: 0;
+    background: none;
+  }
+
+  .chronicle-tools {
+    display: none;
+  }
+
+  .chronicle {
+    max-width: none;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: none;
+  }
+
+  .chronicle * {
+    print-color-adjust: exact;
+  }
+}

@@ -65,6 +65,8 @@ export interface Feat {
   readonly task: string;
   /** The siege it comes from, told for a player who knows the period. */
   readonly history: string;
+  /** What the chronicle adds when the feat is done (« Ainsi s’étaient rendus… »). */
+  readonly told: string;
 }
 
 /** The player's rank in a siege (ADR-045): how hard the castle holds, chosen at the council. */
@@ -139,14 +141,56 @@ export interface HeroCampaignLines {
   readonly resting: string;
 }
 
+/**
+ * A provision of the host's tents (ADR-049): bought with the marcs of silver the banners bring,
+ * it weighs on the next siege fought to its end, then it is spent.
+ */
+export interface Provision {
+  readonly id: string;
+  /** « L’ost payé ». */
+  readonly name: string;
+  /** Its price, in marcs of silver. */
+  readonly price: number;
+  /** What it brings, in a sentence. */
+  readonly summary: string;
+  /** What the chronicle says of it (« Les hommes avaient été payés… »). */
+  readonly told: string;
+  readonly effects: BattleEffects;
+}
+
+/** The chronicle's own words (ADR-050): its title, its opening, its end. */
+export interface ChronicleTexts {
+  readonly title: string;
+  /** « Ci commence… », in red. */
+  readonly incipit: string;
+  readonly preface: string;
+  /** For a castle taken before the chronicle was kept. */
+  readonly unwritten: string;
+  /** While castles remain to be taken. */
+  readonly unfinished: string;
+  /** « Ci finit… ». */
+  readonly explicit: string;
+}
+
+/** The tents between two sieges: what a banner is worth, the mire's fee, the provisions. */
+export interface CampRules {
+  /** Marcs of silver a banner brings, once (the ransoms and the castle's coffers). */
+  readonly perBanner: number;
+  /** The mire's fee, to heal a companion gravely wounded. */
+  readonly healPrice: number;
+  readonly provisions: readonly Provision[];
+}
+
 export interface CampaignData {
   readonly realm: string;
   readonly prologue: string;
   readonly epilogue: string;
   readonly tutorial: CampaignBattle;
   readonly levels: readonly CampaignLevel[];
-  /** The three banners of a victory: taken, swiftly (within this share of the turn limit), with few losses. */
+  /** The banners of a victory: taken, swiftly (within this share of the turn limit), with few losses (and its feat of arms). */
   readonly banners: { readonly swiftShare: number; readonly maxLosses: number };
+  readonly camp: CampRules;
+  readonly chronicle: ChronicleTexts;
   readonly ranks: Readonly<Record<Rank, RankRule>>;
   readonly heroLines: Readonly<Record<string, HeroCampaignLines>>;
 }

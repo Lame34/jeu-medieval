@@ -3,6 +3,7 @@
  * sealed at the council, the heroes resting) and its chronicle at the end (the castle's page, the
  * banners, a hero's words, the wounded); the tutorial's end; a skirmish's plain panel.
  */
+import { provisionsOf } from '../../core/campaign/camp.ts';
 import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
 import { Glossed } from '../components/Glossed.tsx';
 import type { BattleState } from '../../core/battle/types.ts';
@@ -10,7 +11,7 @@ import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import type { BriefingContent, EndAction, EndContent } from '../battle/BattleHud.tsx';
 import type { BattleMode } from './battle-setup.ts';
 import { EffectList } from './Council.tsx';
-import { rankLines, stratagemLines } from './effects-text.ts';
+import { namesInline, rankLines, stratagemLines } from './effects-text.ts';
 import { DEFAULT_RANK, type Feat, type Rank } from '../../core/campaign/types.ts';
 import { HeroEmblem } from './HeroEmblem.tsx';
 
@@ -18,6 +19,7 @@ export interface StoryActions {
   readonly replay: () => void;
   readonly toMap: () => void;
   readonly toTitle: () => void;
+  readonly toChronicle: () => void;
 }
 
 /** The rank's line in the briefing (nothing at the knight's). */
@@ -34,11 +36,12 @@ function RankNote({ rank }: { readonly rank: Rank }) {
   );
 }
 
-export function briefingFor(mode: BattleMode, resting: readonly string[], rank: Rank): BriefingContent | null {
+export function briefingFor(mode: BattleMode, resting: readonly string[], rank: Rank, provisions: readonly string[]): BriefingContent | null {
   if (mode.kind === 'tutorial') return null;
   if (mode.kind === 'skirmish') return { title: 'Prenez le château', ...(rank === DEFAULT_RANK ? {} : { lead: <RankNote rank={rank} /> }) };
   const { level, stratagem } = mode;
   const absent = resting.filter((h) => DEFAULT_RULES.heroes[h]);
+  const bought = provisionsOf(CAMPAIGN, provisions);
   return {
     title: `${level.name}, ${level.epithet}`,
     lead: (
@@ -58,6 +61,11 @@ export function briefingFor(mode: BattleMode, resting: readonly string[], rank: 
           <strong>Fait d’armes : {level.feat.name}.</strong> <Glossed>{level.feat.task}</Glossed>
         </p>
         <RankNote rank={rank} />
+        {bought.length > 0 && (
+          <p>
+            <strong>Apporté des tentes :</strong> {namesInline(bought.map((p) => p.name))}.
+          </p>
+        )}
         {absent.map((h) => (
           <p key={h} className="hud-detail">
             {CAMPAIGN.heroLines[h]?.resting}
@@ -137,11 +145,13 @@ export function endFor(mode: BattleMode, battle: BattleState, go: StoryActions):
         )}
         {wounded.map((h) => (
           <p key={h} className="hud-end-note">
-            {DEFAULT_RULES.heroes[h]?.name} est gravement {DEFAULT_RULES.heroes[h]?.feminine ? 'blessée' : 'blessé'} : {DEFAULT_RULES.heroes[h]?.feminine ? 'elle' : 'il'} manquera la prochaine bataille.
+            {DEFAULT_RULES.heroes[h]?.name} est gravement {DEFAULT_RULES.heroes[h]?.feminine ? 'blessée' : 'blessé'} : {DEFAULT_RULES.heroes[h]?.feminine ? 'elle' : 'il'} manquera la prochaine bataille, à moins que le mire ne {DEFAULT_RULES.heroes[h]?.feminine ? 'la' : 'le'} soigne aux tentes.
           </p>
         ))}
       </>
     ),
-    actions: won ? [{ label: 'Retour à la carte', onClick: go.toMap, primary: true }, replay] : [{ label: 'Reprendre l’assaut', onClick: go.replay, primary: true }, { label: 'Retour à la carte', onClick: go.toMap }],
+    actions: won
+      ? [...(last ? [{ label: 'Lire la chronique', onClick: go.toChronicle, primary: true }] : []), { label: 'Retour à la carte', onClick: go.toMap, primary: !last }, replay]
+      : [{ label: 'Reprendre l’assaut', onClick: go.replay, primary: true }, { label: 'Retour à la carte', onClick: go.toMap }],
   };
 }

@@ -4,7 +4,7 @@ import type { StructureKind } from '../battle/structures.ts';
 import { integer, num, obj, oneOf, RulesValidationError, str, strings, type Json } from '../rules/json.ts';
 import type { Faction, GameRules } from '../rules/types.ts';
 import { GARRISON_GROUPS, type GarrisonGroup } from '../worldgen/garrison.ts';
-import { FEAT_KINDS, RANKS, VIGNETTES, type BattleEffects, type Feat, type FeatKind, type Rank, type RankRule, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
+import { FEAT_KINDS, RANKS, VIGNETTES, type BattleEffects, type CampRules, type ChronicleTexts, type Provision, type Feat, type FeatKind, type Rank, type RankRule, type CampaignBattle, type CampaignData, type CampaignLevel, type CastleIndex, type GarrisonCut, type HeroCampaignLines, type Reinforcement, type Stratagem, type StructureEffect, type Vignette } from './types.ts';
 
 const STRUCTURE_KINDS: readonly StructureKind[] = ['wall', 'gate', 'portcullis', 'drawbridge'];
 const FACTION_KEYS: readonly Faction[] = ['attacker', 'defender'];
@@ -130,7 +130,7 @@ function readStratagem(raw: unknown, rules: GameRules, path: string): Stratagem 
 
 function readFeat(raw: unknown, path: string): Feat {
   const f = obj(raw, path);
-  return Object.freeze({ kind: oneOf<FeatKind>(f['kind'], FEAT_KINDS, `${path}.kind`), name: str(f['name'], `${path}.name`), task: str(f['task'], `${path}.task`), history: str(f['history'], `${path}.history`) });
+  return Object.freeze({ kind: oneOf<FeatKind>(f['kind'], FEAT_KINDS, `${path}.kind`), name: str(f['name'], `${path}.name`), task: str(f['task'], `${path}.task`), history: str(f['history'], `${path}.history`), told: str(f['told'], `${path}.told`) });
 }
 
 function readLevel(raw: unknown, rules: GameRules, path: string): CampaignLevel {
@@ -144,6 +144,37 @@ function readLevel(raw: unknown, rules: GameRules, path: string): CampaignLevel 
   }
   if (new Set(stratagems.map((s) => s.id)).size !== stratagems.length) throw new RulesValidationError(`${path}.stratagems`, 'duplicate stratagem id');
   return { ...battle, stratagems, feat };
+}
+
+/** Most marcs a thing can cost or bring: a figure beyond it is a mistake in the data. */
+const MAX_MARCS = 500;
+
+function readCamp(raw: unknown, rules: GameRules, path: string): CampRules {
+  const c = obj(raw, path);
+  const provisions = list(c['provisions'], `${path}.provisions`).map((p, i): Provision => {
+    const q = `${path}.provisions[${i}]`;
+    const o = obj(p, q);
+    return Object.freeze({
+      id: str(o['id'], `${q}.id`),
+      name: str(o['name'], `${q}.name`),
+      price: integer(o['price'], `${q}.price`, 1, MAX_MARCS),
+      summary: str(o['summary'], `${q}.summary`),
+      told: str(o['told'], `${q}.told`),
+      effects: readEffects(o['effects'], rules, `${q}.effects`),
+    });
+  });
+  if (new Set(provisions.map((p) => p.id)).size !== provisions.length) throw new RulesValidationError(`${path}.provisions`, 'duplicate provision id');
+  return Object.freeze({
+    perBanner: integer(c['perBanner'], `${path}.perBanner`, 1, MAX_MARCS),
+    healPrice: integer(c['healPrice'], `${path}.healPrice`, 1, MAX_MARCS),
+    provisions,
+  });
+}
+
+function readChronicle(raw: unknown, path: string): ChronicleTexts {
+  const c = obj(raw, path);
+  const keys = ['title', 'incipit', 'preface', 'unwritten', 'unfinished', 'explicit'] as const;
+  return Object.freeze(Object.fromEntries(keys.map((k) => [k, str(c[k], `${path}.${k}`)])) as Record<(typeof keys)[number], string>);
 }
 
 function readHeroLines(raw: unknown, rules: GameRules): Record<string, HeroCampaignLines> {
@@ -176,6 +207,8 @@ export function validateCampaign(raw: unknown, rules: GameRules): CampaignData {
     tutorial,
     levels,
     banners: { swiftShare: num(banners['swiftShare'], 'banners.swiftShare', 0.1, 1), maxLosses: integer(banners['maxLosses'], 'banners.maxLosses', 0) },
+    camp: readCamp(c['camp'], rules, 'camp'),
+    chronicle: readChronicle(c['chronicle'], 'chronicle'),
     ranks: readRanks(c['ranks'], rules, 'ranks'),
     heroLines: readHeroLines(c['heroLines'], rules),
   });

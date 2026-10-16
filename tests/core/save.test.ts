@@ -6,16 +6,41 @@
 import { describe, expect, it } from 'vitest';
 import { applyCommand, createBattle, createBattleContext, hashBattleState, type BattleState, type Command, type Scenario } from '@core/index.ts';
 import { BATTLE_SAVE_VERSION, parseBattleSave, replaySave } from '@core/save/battle-save.ts';
-import { EMPTY_PROGRESS, mergeProgress, parseProgress, PROGRESS_VERSION, serializeProgress, type SavedProgress } from '@core/save/progress.ts';
+import type { BattleDeeds } from '@core/campaign/deeds.ts';
+import { chronicledDeeds, EMPTY_PROGRESS, mergeProgress, parseDeeds, parseProgress, PROGRESS_VERSION, serializeProgress, type SavedProgress } from '@core/save/progress.ts';
 import { DEFAULT_RULES } from '@data/index.ts';
 import { centerOf, flatTerrain, rulesWithDamageOverrides } from './helpers.ts';
 
 const BANNERS = { taken: true, swift: false, spared: true, feat: false };
 const RECORD = { banners: BANNERS, stratagem: 'lettres', turns: 12 };
+/** The deeds of a battle won, as the chronicle keeps them (ADR-050). */
+const DEEDS: BattleDeeds = {
+  banners: BANNERS,
+  stratagem: 'lettres',
+  rank: 'knight',
+  provisions: ['paie'],
+  wounded: ['heroArcher'],
+  assault: 2,
+  ending: 'surrendered',
+  turns: 12,
+  turnLimit: 22,
+  lost: 3,
+  slain: 6,
+  garrison: 10,
+  breaches: 2,
+  mined: 1,
+  gate: true,
+  portcullis: false,
+  drawbridge: true,
+  burned: ['drawbridge'],
+  filled: 1,
+  climbed: 2,
+  captain: true,
+};
 
 describe('parseProgress: a strict reading of the saved campaign', () => {
   it('reads back what was written, with its version', () => {
-    const progress: SavedProgress = { conquered: { 'roche-grise': RECORD }, resting: ['heroArcher'], tutorialDone: true, prologueSeen: true };
+    const progress: SavedProgress = { conquered: { 'roche-grise': { ...RECORD, deeds: DEEDS }, moulins: RECORD }, resting: ['heroArcher'], tutorialDone: true, prologueSeen: true, spent: 30, pending: ['fagots'], failed: { brumefond: 2 } };
     const text = serializeProgress(progress);
     expect(JSON.parse(text)).toMatchObject({ version: PROGRESS_VERSION });
     expect(parseProgress(JSON.parse(text))).toEqual(progress);
@@ -32,6 +57,24 @@ describe('parseProgress: a strict reading of the saved campaign', () => {
   it('drops a format-2 castle record without its feat banner (damaged)', () => {
     const v2 = { version: 2, conquered: { 'roche-grise': { banners: { taken: true, swift: true, spared: false }, stratagem: 'aube', turns: 14 } } };
     expect(parseProgress(v2).conquered).toEqual({});
+  });
+
+  it('upgrades a format-2 save: nothing spent, no provision waiting, no failed assault, no deeds (ADR-049, ADR-050)', () => {
+    const v2 = { version: 2, conquered: { 'roche-grise': RECORD }, resting: [], tutorialDone: true, prologueSeen: true };
+    expect(parseProgress(v2)).toEqual({ ...EMPTY_PROGRESS, conquered: { 'roche-grise': RECORD }, tutorialDone: true, prologueSeen: true });
+  });
+
+  it('drops damaged deeds, but keeps the castle', () => {
+    for (const bad of [{ ...DEEDS, ending: 'treason' }, { ...DEEDS, rank: 'king' }, { ...DEEDS, lost: -1 }, { ...DEEDS, burned: ['tower'] }, { ...DEEDS, assault: 0 }, { ...DEEDS, provisions: [3] }, { ...DEEDS, captain: 'yes' }, 'deeds']) {
+      expect(parseProgress({ version: PROGRESS_VERSION, conquered: { 'roche-grise': { ...RECORD, deeds: bad } } }).conquered).toEqual({ 'roche-grise': RECORD });
+    }
+    expect(parseDeeds(JSON.parse(JSON.stringify(DEEDS)))).toEqual(DEEDS);
+  });
+
+  it('keeps only known provisions waiting, sound marcs spent and counted assaults', () => {
+    const known = { castles: new Set(['roche-grise', 'moulins']), provisions: new Set(['paie', 'fagots']) };
+    const read = parseProgress({ version: PROGRESS_VERSION, pending: ['paie', 'paie', 'trésor', 7], spent: -5, failed: { moulins: 2, inconnu: 1, 'roche-grise': 1.5 } }, known);
+    expect(read).toMatchObject({ pending: ['paie'], spent: 0, failed: { moulins: 2 } });
   });
 
   it('reads anything that is not an object as a new campaign', () => {
@@ -53,7 +96,7 @@ describe('parseProgress: a strict reading of the saved campaign', () => {
   });
 
   it('keeps only the campaign’s own castles when told which they are', () => {
-    expect(parseProgress({ conquered: { 'roche-grise': RECORD, inconnu: RECORD } }, new Set(['roche-grise'])).conquered).toEqual({ 'roche-grise': RECORD });
+    expect(parseProgress({ conquered: { 'roche-grise': RECORD, inconnu: RECORD } }, { castles: new Set(['roche-grise']) }).conquered).toEqual({ 'roche-grise': RECORD });
   });
 
   it('keeps each resting hero once, as a plain id', () => {
@@ -73,6 +116,23 @@ describe('mergeProgress: two tabs never undo each other’s castles', () => {
     expect(merged.conquered['roche-grise']).toEqual({ banners: { taken: true, swift: true, spared: true, feat: true }, stratagem: 'aube', turns: 11 });
     expect(merged.conquered['moulins']).toEqual(RECORD);
     expect(merged.resting).toEqual(['heroKnight']);
+  });
+
+  it('keeps the most marcs spent and failed assaults either counted, and the provisions waiting of the one written last', () => {
+    const latest: SavedProgress = { ...EMPTY_PROGRESS, spent: 10, pending: ['fagots'], failed: { moulins: 1 } };
+    const other: SavedProgress = { ...EMPTY_PROGRESS, spent: 40, pending: ['paie'], failed: { moulins: 3, brumefond: 1 } };
+    expect(mergeProgress(latest, other)).toMatchObject({ spent: 40, pending: ['fagots'], failed: { moulins: 3, brumefond: 1 } });
+  });
+
+  it('keeps the deeds of the battle with more banners, the later on a tie', () => {
+    const best: BattleDeeds = { ...DEEDS, banners: { taken: true, swift: true, spared: true, feat: true }, turns: 9 };
+    expect(chronicledDeeds(best, DEEDS)).toBe(best);
+    expect(chronicledDeeds(DEEDS, best)).toBe(best);
+    const tie: BattleDeeds = { ...DEEDS, turns: 15 };
+    expect(chronicledDeeds(DEEDS, tie)).toBe(tie);
+    expect(chronicledDeeds(undefined, DEEDS)).toBe(DEEDS);
+    const merged = mergeProgress({ ...EMPTY_PROGRESS, conquered: { moulins: { ...RECORD, deeds: DEEDS } } }, { ...EMPTY_PROGRESS, conquered: { moulins: { ...RECORD, deeds: best } } });
+    expect(merged.conquered['moulins']?.deeds).toBe(best);
   });
 
   it('keeps the lessons and the prologue done in either', () => {
@@ -98,7 +158,7 @@ function played(ctx: ReturnType<typeof smallBattle>['ctx'], initial: BattleState
   return orders.reduce((s, c) => applyCommand(ctx, s, c).state, initial);
 }
 
-const save = (commands: readonly Command[], hash: string) => ({ version: BATTLE_SAVE_VERSION, key: 'skirmish:siege-1:1', url: '/battle?seed=siege-1&castle=1', title: 'Escarmouche', turn: 2, savedAt: 1_791_700_000_000, absentHeroes: [], commands, hash });
+const save = (commands: readonly Command[], hash: string) => ({ version: BATTLE_SAVE_VERSION, key: 'skirmish:siege-1:1', url: '/battle?seed=siege-1&castle=1', title: 'Siège au hasard', turn: 2, savedAt: 1_791_700_000_000, absentHeroes: [], provisions: ['paie'], commands, hash });
 
 describe('battle saves: a battle taken up exactly', () => {
   it('replays the saved orders to the very state that was saved', () => {
@@ -128,11 +188,18 @@ describe('battle saves: a battle taken up exactly', () => {
     expect(parseBattleSave(JSON.parse(JSON.stringify(good)))).toEqual(good);
   });
 
+  it('upgrades a format-1 save: it began with no provision (ADR-049)', () => {
+    const { provisions: _p, ...v1 } = { ...save(ORDERS, 'abc'), version: 1 };
+    expect(parseBattleSave(v1)).toEqual({ ...save(ORDERS, 'abc'), provisions: [] });
+  });
+
   it('reads back a sound save, and nothing from a damaged one', () => {
     const good = save(ORDERS, 'abc');
     expect(parseBattleSave(JSON.parse(JSON.stringify(good)))).toEqual(good);
     const damaged: Record<string, unknown>[] = [
-      { ...good, version: 2 },
+      { ...good, version: 3 },
+      { ...good, provisions: 'paie' },
+      { ...good, provisions: [''] },
       { ...good, url: 'https://ailleurs.example/battle' },
       { ...good, turn: 0 },
       { ...good, commands: 'move' },

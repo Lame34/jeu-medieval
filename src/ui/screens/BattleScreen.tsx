@@ -31,6 +31,7 @@ import { previewSummons, summonsWait } from '../../core/battle/summons.ts';
 import { BattleSession, PLAYER_FACTION, type BattleShape } from '../battle/session.ts';
 import { requestEndTurn, unitsStillActing } from '../battle/end-turn.ts';
 import { navigate, ROUTES } from '../router.ts';
+import { deedsOf } from '../../core/campaign/deeds.ts';
 import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
 import { CAMPAIGN } from '../../data/index.ts';
 import { useCampaign } from '../../state/campaign.ts';
@@ -66,8 +67,8 @@ function testTurnLimit(): number | null {
 }
 
 /** The battle's shape, with a test's deadline last (it wins over the castle's). */
-function battleShape(setup: BattleSetup, resting: readonly string[]): BattleShape | undefined {
-  const shape = shapeOf(setup.mode, resting, setup.rank);
+function battleShape(setup: BattleSetup, resting: readonly string[], provisions: readonly string[]): BattleShape | undefined {
+  const shape = shapeOf(setup.mode, resting, setup.rank, provisions);
   const turns = testTurnLimit();
   if (turns === null) return shape;
   return { effects: [...(shape?.effects ?? []), { turnLimit: turns }], ...(shape?.absentHeroes ? { absentHeroes: shape.absentHeroes } : {}) };
@@ -191,8 +192,9 @@ export default function BattleScreen() {
   });
   const [choice, setChoice] = useState<ResumeChoice>(() => (!saved ? 'fresh' : new URLSearchParams(window.location.search).has('resume') ? 'resume' : 'ask'));
   const resuming = choice === 'resume' && saved !== null;
-  // The heroes resting when the battle began (the saved ones when it is taken up).
+  // The heroes resting and the provisions of the tents when the battle began (the saved ones when it is taken up).
   const resting = useMemo(() => (resuming ? saved.absentHeroes : setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []), [setup, resuming, saved]);
+  const provisions = useMemo(() => (resuming ? saved.provisions : setup.mode.kind === 'campaign' ? useCampaign.getState().pending : []), [setup, resuming, saved]);
   const { layout, error } = useBattleMap(setup);
   const views = useMemo(() => (layout ? battleViews(layout) : []), [layout]);
   const camera = useRef<CameraHandle | null>(null);
@@ -205,14 +207,15 @@ export default function BattleScreen() {
   const live = !bench || new URLSearchParams(window.location.search).has('live');
   const started = useMemo(() => {
     if (!layout || !live || choice === 'ask') return null;
-    const fresh = () => new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, setup.mode.kind === 'campaign' ? useCampaign.getState().resting : []));
+    const campaign = setup.mode.kind === 'campaign';
+    const fresh = () => new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, campaign ? useCampaign.getState().resting : [], campaign ? useCampaign.getState().pending : []));
     if (!resuming) return { session: fresh(), lost: false };
-    const session = new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, resting));
+    const session = new BattleSession(layout, setup.seed, conditionsParams(), battleShape(setup, resting, provisions));
     if (session.restore(saved)) return { session, lost: false };
     // Saved by another version of the game: it starts again, and the save is set aside.
     clearBattleSave();
     return { session: fresh(), lost: true };
-  }, [layout, live, setup, resting, choice, resuming, saved]);
+  }, [layout, live, setup, resting, provisions, choice, resuming, saved]);
   const session = started?.session ?? null;
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
@@ -255,9 +258,9 @@ export default function BattleScreen() {
         clearBattleSave();
         return;
       }
-      storeBattleSave({ key, url, title, turn: state.turn, savedAt: Date.now(), absentHeroes: [...resting], commands: session.commands, hash: hashBattleState(state) });
+      storeBattleSave({ key, url, title, turn: state.turn, savedAt: Date.now(), absentHeroes: [...resting], provisions: [...provisions], commands: session.commands, hash: hashBattleState(state) });
     });
-  }, [session, setup, testRun, resting]);
+  }, [session, setup, testRun, resting, provisions]);
 
   // A battle taken up skips its opening briefing; left during the garrison's turn, the garrison plays on.
   useEffect(() => {
@@ -267,8 +270,9 @@ export default function BattleScreen() {
     if (session.state.status === 'ongoing' && session.state.activeFaction !== PLAYER_FACTION) ui.setBusy(true);
   }, [session]);
 
-  // The campaign keeps the outcome: the castle taken and its banners, the heroes wounded (they rest
-  // through the next battle); the tutorial won is done.
+  // The campaign keeps the outcome: the castle taken and its banners, the deeds the chronicle tells,
+  // the heroes wounded (they rest through the next battle), the provisions used up; the tutorial
+  // won is done.
   useEffect(() => {
     if (!session || setup.mode.kind === 'skirmish') return undefined;
     const mode = setup.mode;
@@ -278,9 +282,15 @@ export default function BattleScreen() {
         if (state.status === 'attackerWon') useCampaign.getState().finishTutorial();
         return;
       }
-      useCampaign.getState().recordBattle(mode.level.id, mode.stratagem?.id ?? null, bannersOf(CAMPAIGN, session.ctx.rules, state, mode.level.feat), state.turn, woundedHeroes(session.ctx, state));
+      const campaign = useCampaign.getState();
+      const stratagem = mode.stratagem?.id ?? null;
+      const banners = bannersOf(CAMPAIGN, session.ctx.rules, state, mode.level.feat);
+      const wounded = woundedHeroes(session.ctx, state);
+      const assault = (campaign.failed[mode.level.id] ?? 0) + 1;
+      const deeds = deedsOf(session.ctx, state, { stratagem, rank: setup.rank, provisions, wounded, assault, banners });
+      campaign.recordBattle(mode.level.id, { stratagem, banners, turns: state.turn, wounded, deeds, provisions });
     });
-  }, [session, setup]);
+  }, [session, setup, provisions]);
   const toMap = useCallback(() => navigate(ROUTES.campaign), []);
   const finishTutorial = useCallback(() => useCampaign.getState().finishTutorial(), []);
 
@@ -396,8 +406,8 @@ export default function BattleScreen() {
         <BattleHud
           onEndTurn={() => requestEndTurn(session)}
           stillActing={() => unitsStillActing(session)}
-          briefing={briefingFor(setup.mode, resting, setup.rank)}
-          end={(battle) => endFor(setup.mode, battle, { replay: () => window.location.reload(), toMap, toTitle: () => navigate(ROUTES.title) })}
+          briefing={briefingFor(setup.mode, resting, setup.rank, provisions)}
+          end={(battle) => endFor(setup.mode, battle, { replay: () => window.location.reload(), toMap, toTitle: () => navigate(ROUTES.title), toChronicle: () => navigate(ROUTES.chronicle) })}
           actionsFor={(u) => actionsFor(session, u)}
           onAction={(id) => triggerAction(session, id)}
           summons={() => summonsInfo(session)}

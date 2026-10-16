@@ -12,6 +12,8 @@ import { heroSpawnCells } from '@core/battle/heroes.ts';
 import { fillCells, fillSites, moatsOf } from '@core/battle/moat.ts';
 import { planStructures } from '@core/battle/structures.ts';
 import { bannerCount, bannersOf, battleEffects, campaignBattle, featDone, shapeScenario, woundedHeroes } from '@core/campaign/scenario.ts';
+import { provisionsOf } from '@core/campaign/camp.ts';
+import { deedsOf, type DeedsContext } from '@core/campaign/deeds.ts';
 import { validateCampaign } from '@core/campaign/validate.ts';
 import { RulesValidationError } from '@core/rules/json.ts';
 import { TerrainLayer } from '@core/rules/types.ts';
@@ -324,9 +326,62 @@ describe('banners and wounds', () => {
     expect(woundedHeroes(ctx, kill(state, 2, 'defender'))).toEqual([]);
   });
 
+  it('adds the provisions bought at the tents last: two sergeants more, a stretch of moat filled (ADR-049)', () => {
+    const level = CAMPAIGN.levels[0]!;
+    const plain = shapeScenario(ctx, base, battleEffects(level, null, CAMPAIGN.ranks.knight));
+    const provided = shapeScenario(ctx, base, battleEffects(level, null, CAMPAIGN.ranks.knight, provisionsOf(CAMPAIGN, ['sergents', 'fagots', 'paie'])));
+    const soldiers = (s: Scenario) => s.units.filter((u) => u.typeKey === 'soldier').length;
+    expect(soldiers(provided)).toBe(soldiers(plain) + 2);
+    expect((provided.filled ?? []).length).toBe((plain.filled ?? []).length + 1);
+    expect(provided.morale?.attacker).toBe((plain.morale?.attacker ?? DEFAULT_MORALE) + 10);
+  });
+
   it('finds a battle by id, the tutorial included', () => {
     expect(campaignBattle(CAMPAIGN, 'fortin')).toBe(CAMPAIGN.tutorial);
     expect(campaignBattle(CAMPAIGN, 'haute-garde')?.name).toBe('Haute-Garde');
     expect(campaignBattle(CAMPAIGN, 'nowhere')).toBeNull();
+  });
+});
+
+describe('the deeds a chapter of the chronicle is told from (ADR-050)', () => {
+  let state: BattleState;
+  beforeAll(() => {
+    state = createBattle(ctx, SEED, base);
+  });
+  const known: DeedsContext = { stratagem: 'lettres', rank: 'knight', provisions: ['paie'], wounded: [], assault: 2, banners: { taken: true, swift: true, spared: true, feat: false } };
+  const idOf = (kind: string) => ctx.structures.find((d) => d.kind === kind)!.id;
+  const broken = (s: BattleState, ids: readonly string[]): BattleState => ({ ...s, structures: s.structures.map((x) => (ids.includes(x.id) ? { ...x, hp: 0, broken: true } : x)) });
+  const defenders = (s: BattleState, change: (u: BattleState['units'][number]) => BattleState['units'][number]): BattleState => ({ ...s, units: s.units.map((u) => (u.faction === 'defender' ? change(u) : u)) });
+
+  it('are none for a battle lost or still going on', () => {
+    expect(deedsOf(ctx, state, known)).toBeNull();
+    expect(deedsOf(ctx, { ...state, status: 'defenderWon' }, known)).toBeNull();
+  });
+
+  it('tell the moat, the walls, the bridge burned, the gate, the beffroi and the dead', () => {
+    const fallen = state.units.filter((u) => u.faction === 'defender' && DEFAULT_RULES.units[u.typeKey]?.tags.includes('command') !== true).slice(0, 3).map((u) => u.id);
+    const won: BattleState = {
+      ...broken(state, [idOf('wall'), idOf('gate'), idOf('drawbridge')]),
+      status: 'attackerWon',
+      turn: 9,
+      climbed: 2,
+      burned: [idOf('drawbridge')],
+      works: [
+        { id: 'fill:castle-moat:3', progress: 2, done: true },
+        { id: 'mine:wall:x', progress: 3, done: true },
+        { id: 'fill:castle-moat:4', progress: 1, done: false },
+      ],
+    };
+    const deeds = deedsOf(ctx, { ...won, units: won.units.map((u) => (fallen.includes(u.id) ? { ...u, alive: false, hp: 0 } : u)) }, known);
+    expect(deeds).toMatchObject({ ...known, ending: 'surrendered', turns: 9, turnLimit: state.turnLimit, breaches: 1, mined: 1, gate: true, portcullis: false, drawbridge: true, burned: ['drawbridge'], filled: 1, climbed: 2, captain: true, slain: 3, lost: 0 });
+    expect(deeds?.garrison).toBe(state.units.filter((u) => u.faction === 'defender').length);
+  });
+
+  it('tell how the garrison gave up: to the herald, fleeing, or fallen to the last', () => {
+    const won: BattleState = { ...state, status: 'attackerWon' };
+    expect(deedsOf(ctx, { ...won, summons: { lastTurn: 4, accepted: true } }, known)?.ending).toBe('summoned');
+    expect(deedsOf(ctx, defenders(won, (u) => ({ ...u, morale: 0 })), known)?.ending).toBe('routed');
+    const none = deedsOf(ctx, defenders(won, (u) => ({ ...u, alive: false, hp: 0 })), known);
+    expect(none).toMatchObject({ ending: 'eliminated', captain: false });
   });
 });

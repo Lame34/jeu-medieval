@@ -4,6 +4,7 @@
  * (`?seed=…&castle=1..4`, the benches' and tests' form); for a castle or a skirmish, the player's
  * rank (`&rank=squire|baron`, the knight's when absent: ADR-045).
  */
+import { provisionsOf } from '../../core/campaign/camp.ts';
 import { battleEffects } from '../../core/campaign/scenario.ts';
 import { DEFAULT_RANK, RANKS, type CampaignBattle, type CampaignLevel, type CastleIndex, type Rank, type Stratagem } from '../../core/campaign/types.ts';
 import { CAMPAIGN } from '../../data/index.ts';
@@ -78,9 +79,12 @@ export function battleTitle(setup: BattleSetup): string {
   return 'Siège au hasard';
 }
 
-/** The battle's shape: the castle's (and the plan's) effects, then the rank's; a knight's skirmish has none. */
-export function shapeOf(mode: BattleMode, resting: readonly string[], rank: Rank): BattleShape | undefined {
+/**
+ * The battle's shape: the castle's (and the plan's) effects, the rank's, then the provisions'
+ * bought at the tents (a campaign castle's only); a knight's skirmish has none.
+ */
+export function shapeOf(mode: BattleMode, resting: readonly string[], rank: Rank, provisions: readonly string[] = []): BattleShape | undefined {
   if (mode.kind === 'tutorial') return { effects: battleEffects(mode.battle, null) };
-  if (mode.kind === 'campaign') return { effects: battleEffects(mode.level, mode.stratagem, CAMPAIGN.ranks[rank]), absentHeroes: resting };
+  if (mode.kind === 'campaign') return { effects: battleEffects(mode.level, mode.stratagem, CAMPAIGN.ranks[rank], provisionsOf(CAMPAIGN, provisions)), absentHeroes: resting };
   return rank === DEFAULT_RANK ? undefined : { effects: [CAMPAIGN.ranks[rank].effects] };
 }

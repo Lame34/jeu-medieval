@@ -9,14 +9,13 @@ import { memo, useMemo, type ReactNode } from 'react';
 import type { Banners } from '../../core/campaign/scenario.ts';
 import type { CampaignBattle } from '../../core/campaign/types.ts';
 import { Rng } from '../../core/rng.ts';
-import { CastleVignette, VIGNETTE_H, VIGNETTE_W } from './CastleVignette.tsx';
+import { CastleVignette, OUR_FLAG, VIGNETTE_H, VIGNETTE_W } from './CastleVignette.tsx';
 
 export const MAP_W = 1600;
 export const MAP_H = 1000;
 const INK = '#3a2a1a';
 const RED_INK = '#8e1b12';
 const ENEMY_FLAG = '#b3141e';
-const OUR_FLAG = '#1f4fc4';
 const MAP_SEED = 'val-orle-map';
 /** A castle's name ribbon: at least this wide, else its name's length (px a letter) plus the folds. */
 const RIBBON_MIN_PX = 150;
@@ -30,6 +29,8 @@ const HIT_BOTTOM = 80;
 const EDGE_PX = 24;
 /** Where the host camps before the first battle. */
 const CAMP = { x: 70, y: 935 } as const;
+/** Half the side of the tents' click area (map units). */
+const TENTS_HIT_HALF = 40;
 
 type Point = { readonly x: number; readonly y: number };
 
@@ -406,7 +407,22 @@ const Land = memo(function Land({ stops }: { readonly stops: readonly Point[] })
   );
 });
 
-export function CampaignMap({ nodes, selected, fresh, onSelect }: { readonly nodes: readonly MapNode[]; readonly selected: string | null; readonly fresh: string | null; readonly onSelect: (id: string) => void }) {
+export function CampaignMap({
+  nodes,
+  selected,
+  fresh,
+  tents,
+  onSelect,
+  onTents,
+}: {
+  readonly nodes: readonly MapNode[];
+  readonly selected: string | null;
+  readonly fresh: string | null;
+  /** The tents' letter is open. */
+  readonly tents: boolean;
+  readonly onSelect: (id: string) => void;
+  readonly onTents: () => void;
+}) {
   const key = nodes.map((n) => `${n.battle.map.x},${n.battle.map.y}`).join(';');
   // The stops move only if the campaign's places do (never in a session).
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -422,15 +438,32 @@ export function CampaignMap({ nodes, selected, fresh, onSelect }: { readonly nod
     <div className="campaign-map">
       <Land stops={stops} />
       <svg className="campaign-map__marks" viewBox={`0 0 ${MAP_W} ${MAP_H}`} preserveAspectRatio="xMidYMid meet" role="group" aria-label="Carte du Val d’Orle">
-        {/* The host's road, then the camp. */}
+        {/* The host's road, then its tents: their letter, the purse and the provisions. */}
         {legs}
-        <g transform={`translate(${CAMP.x},${CAMP.y})`} className="map-camp">
+        <g
+          transform={`translate(${CAMP.x},${CAMP.y})`}
+          className="map-camp"
+          role="button"
+          tabIndex={0}
+          aria-label="Les tentes de l’ost"
+          aria-pressed={tents}
+          data-selected={tents || undefined}
+          onClick={onTents}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onTents();
+            }
+          }}
+        >
+          <rect x={-TENTS_HIT_HALF} y={-TENTS_HIT_HALF} width={TENTS_HIT_HALF * 2} height={TENTS_HIT_HALF * 2} fill="transparent" />
+          <ellipse className="map-castle__halo" cx={0} cy={-8} rx={TENTS_HIT_HALF} ry={TENTS_HIT_HALF * 0.8} />
           <path d="M-22,8 L0,-22 L22,8Z" fill="#d8c8a0" stroke={INK} strokeWidth={1.4} />
           <path d="M0,-22 L-6,8 M0,-22 L6,8" stroke={INK} strokeWidth={1} />
           <line x1={0} y1={-22} x2={0} y2={-38} stroke={INK} strokeWidth={1.4} />
           <path d="M0,-38 L14,-34 L0,-29Z" fill={OUR_FLAG} stroke={INK} strokeWidth={0.8} />
           <text y={30} className="map-lettering__small">
-            Camp de l’ost
+            Les tentes de l’ost
           </text>
         </g>
 

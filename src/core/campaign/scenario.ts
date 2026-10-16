@@ -8,17 +8,15 @@ import type { BattleContext } from '../battle/context.ts';
 import { DEFAULT_MORALE } from '../battle/create.ts';
 import { heroSpawnCells } from '../battle/heroes.ts';
 import { TOWER_TAG } from '../battle/siege-tower.ts';
+import { MINE_SITE_PREFIX } from '../battle/siege-works.ts';
 import { initialStructures, NO_WORKS, syncNav } from '../battle/structures.ts';
-import { HERO_TAG, SIEGE_ENGINE_TAG } from '../battle/tags.ts';
+import { COMMAND_TAG, HERO_TAG, SIEGE_ENGINE_TAG } from '../battle/tags.ts';
 import type { BattleState, Scenario, StructureStart, UnitSpawn } from '../battle/types.ts';
 import { distance, type Vec2 } from '../math/vec2.ts';
 import { isPassable } from '../nav-grid/nav-grid.ts';
-import type { Faction } from '../rules/types.ts';
+import type { Faction, GameRules } from '../rules/types.ts';
 import { garrisonGroupOf } from '../worldgen/garrison.ts';
-import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, Feat, RankRule, Stratagem } from './types.ts';
-import type { GameRules } from '../rules/types.ts';
-import { MINE_SITE_PREFIX } from '../battle/siege-works.ts';
-import { COMMAND_TAG } from '../battle/tags.ts';
+import type { BattleEffects, CampaignBattle, CampaignData, CampaignLevel, Feat, Provision, RankRule, Stratagem } from './types.ts';
 
 /** Reinforcements gather this far behind the army (or the siege park), away from the castle (m). */
 const REINFORCE_REAR_M = 10;
@@ -45,12 +43,13 @@ function behind(from: Vec2, castle: Vec2, m: number): Vec2 {
 }
 
 /**
- * The effects of a battle in order: the castle's, the stratagem's, then the player's rank (ADR-045).
- * A rank that brings the garrison to full strength takes back the castle's own absentees.
+ * The effects of a battle in order: the castle's, the stratagem's, the player's rank (ADR-045),
+ * then the provisions bought at the tents (ADR-049). A rank that brings the garrison to full
+ * strength takes back the castle's own absentees.
  */
-export function battleEffects(battle: CampaignBattle, stratagem: Stratagem | null, rank?: RankRule): readonly BattleEffects[] {
+export function battleEffects(battle: CampaignBattle, stratagem: Stratagem | null, rank?: RankRule, provisions: readonly Provision[] = []): readonly BattleEffects[] {
   const castle = rank?.fullGarrison ? withoutCut(battle.battle) : battle.battle;
-  return [castle, ...(stratagem ? [stratagem.effects] : []), ...(rank ? [rank.effects] : [])];
+  return [castle, ...(stratagem ? [stratagem.effects] : []), ...(rank ? [rank.effects] : []), ...provisions.map((p) => p.effects)];
 }
 
 function withoutCut(e: BattleEffects): BattleEffects {

@@ -1,7 +1,8 @@
 /**
  * Captures the campaign's screens (J6) in docs/captures/: the title menu, the campaign map (new
- * and with castles taken), a castle's letter, the council of war with a plan sealed, the options,
- * the trial battle with Guillaume’s lesson, and a campaign battle’s opening shot and briefing.
+ * and with castles taken), a castle's letter, the council of war with a plan sealed, the host's
+ * tents (ADR-049), the chronicle (ADR-050), the options, the trial battle with Guillaume’s lesson,
+ * and a campaign battle’s opening shot and briefing.
  * Usage: node scripts/capture-campaign.ts [tag]   (dev server on :5188, or SIEGE_URL)
  */
 import { mkdirSync } from 'node:fs';
@@ -12,15 +13,44 @@ const tag = process.argv[2] ?? 'j6';
 const OUT = 'docs/captures';
 mkdirSync(OUT, { recursive: true });
 
-/** A campaign with the first two castles taken (banners won), Aude resting. */
+/** The deeds of Moulins-sur-Orle's battle, as the chronicle tells it (core/campaign/deeds.ts). */
+const MOULINS_DEEDS = {
+  banners: { taken: true, swift: false, spared: true, feat: true },
+  stratagem: 'catapulte',
+  rank: 'knight',
+  provisions: ['paie', 'fagots'],
+  wounded: ['heroArcher'],
+  assault: 2,
+  ending: 'surrendered',
+  turns: 17,
+  turnLimit: 22,
+  lost: 3,
+  slain: 7,
+  garrison: 10,
+  breaches: 2,
+  mined: 1,
+  gate: true,
+  portcullis: true,
+  drawbridge: true,
+  burned: ['drawbridge'],
+  filled: 1,
+  climbed: 0,
+  captain: true,
+};
+
+/** A campaign with the first two castles taken (banners won, Moulins told in the chronicle), Aude resting, a provision bought. */
 const PROGRESS = {
+  version: 3,
   conquered: {
-    'roche-grise': { banners: { taken: true, swift: true, spared: false }, stratagem: 'lettres', turns: 12 },
-    moulins: { banners: { taken: true, swift: false, spared: true }, stratagem: 'catapulte', turns: 17 },
+    'roche-grise': { banners: { taken: true, swift: true, spared: false, feat: false }, stratagem: 'lettres', turns: 12 },
+    moulins: { banners: MOULINS_DEEDS.banners, stratagem: 'catapulte', turns: 17, deeds: MOULINS_DEEDS },
   },
   resting: ['heroArcher'],
   tutorialDone: true,
   prologueSeen: true,
+  spent: 10,
+  pending: ['armes'],
+  failed: {},
 };
 
 async function shot(page: Page, name: string): Promise<void> {
@@ -70,6 +100,17 @@ await page.locator('.scout-plan canvas').first().waitFor({ timeout: 60_000 });
 await page.locator('.plan-card').nth(2).click();
 await page.waitForTimeout(700);
 await shot(page, 'council-resting');
+await page.keyboard.press('Escape');
+await page.getByRole('button', { name: 'Les tentes de l’ost' }).click();
+await page.waitForTimeout(500);
+await shot(page, 'tents');
+await page.getByRole('button', { name: 'La chronique' }).click();
+await page.locator('.chronicle__chapter').first().waitFor();
+await page.waitForTimeout(500);
+await shot(page, 'chronicle');
+await page.locator('.chronicle__chapter').nth(1).scrollIntoViewIfNeeded();
+await page.waitForTimeout(300);
+await shot(page, 'chronicle-chapter');
 
 await page.goto(`${baseUrl()}/options`);
 await page.getByRole('heading', { name: 'Options' }).waitFor();

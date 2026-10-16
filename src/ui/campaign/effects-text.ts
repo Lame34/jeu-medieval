@@ -2,7 +2,7 @@
  * What a castle's conditions and a stratagem do, in a few French lines for the campaign's letters
  * and the council's cards: boons, costs, and plain conditions.
  */
-import type { BattleEffects, CampaignBattle, RankRule, Stratagem } from '../../core/campaign/types.ts';
+import type { BattleEffects, CampaignBattle, Provision, RankRule, Stratagem } from '../../core/campaign/types.ts';
 import type { GarrisonGroup } from '../../core/worldgen/garrison.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
 
@@ -13,7 +13,8 @@ export interface EffectLine {
   readonly text: string;
 }
 
-const pct = (x: number) => `${Math.round(x * 100)} %`;
+/** « 5 % », the sign bound to its figure by a no-break space (French typography). */
+const pct = (x: number) => `${Math.round(x * 100)}\u00a0%`;
 const w = DEFAULT_RULES.weather;
 
 /** French plural of a noun: as is after s, x or z; with an x after -au and -eu (mangonneaux); with an s otherwise. */
@@ -104,6 +105,17 @@ export function castleLines(battle: CampaignBattle): EffectLine[] {
 
 export function stratagemLines(s: Stratagem): EffectLine[] {
   return effectLines(s.effects);
+}
+
+/** What a provision of the tents brings (ADR-049). */
+export function provisionLines(p: Provision): EffectLine[] {
+  return effectLines(p.effects);
+}
+
+/** Names of things in a sentence: « l’ost payé, des fagots et deux sergents de plus ». */
+export function namesInline(names: readonly string[]): string {
+  const low = names.map((n) => n.charAt(0).toLowerCase() + n.slice(1));
+  return low.length <= 1 ? (low[0] ?? '') : `${low.slice(0, -1).join(', ')} et ${low[low.length - 1]}`;
 }
 
 /** What the player's rank changes (ADR-045). */

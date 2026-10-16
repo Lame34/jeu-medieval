@@ -178,7 +178,8 @@
 }
 
 /* Les châteaux. */
-.map-castle {
+.map-castle,
+.map-camp {
   cursor: pointer;
   outline: none;
 }
@@ -194,7 +195,10 @@
 
 .map-castle:hover .map-castle__halo,
 .map-castle:focus-visible .map-castle__halo,
-.map-castle[data-selected] .map-castle__halo {
+.map-castle[data-selected] .map-castle__halo,
+.map-camp:hover .map-castle__halo,
+.map-camp:focus-visible .map-castle__halo,
+.map-camp[data-selected] .map-castle__halo {
   fill: rgb(230 195 90 / 30%);
   animation: none;
 }
@@ -293,9 +297,11 @@
 /* La lettre du château. */
 .campaign-letter {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(390px, 34vw);
-  overflow-y: auto;
-  padding: 26px 26px 20px;
+  overflow: hidden;
+  padding: 26px 0 20px 26px;
   border-radius: var(--radius-plaque);
   font-size: 17px;
   animation: letter-in 380ms var(--ease-out) both;
@@ -467,6 +473,106 @@
   font-style: italic;
   line-height: 1.4;
   color: var(--ink-soft);
+}
+
+/* The host's tents (ADR-049). */
+.tents__purse {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.tents__hint {
+  margin: 0 0 8px;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.tents__list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.tents__list li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border: 1px solid rgb(90 70 48 / 30%);
+  border-radius: 4px;
+}
+
+.tents__list li[data-bought] {
+  background: rgb(201 154 59 / 16%);
+  border-color: #7a5c14;
+}
+
+.tents__item {
+  display: grid;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.tents__summary {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.tents__item .effect-list {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.tents__button,
+.letter__tents-go {
+  flex: none;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--parchment);
+  background: var(--wood-mid);
+  border: 1px solid var(--iron-light);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tents__button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.tents__away {
+  flex: none;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.tents__mire {
+  margin: 0 0 8px;
+  line-height: 1.6;
+}
+
+/* The letter's writing scrolls under the sheet, which stays whole (its torn edge, its grain). */
+.campaign-letter__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 26px;
+}
+
+.letter__tents {
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+.campaign-bar__left {
+  display: flex;
+  gap: 10px;
+  justify-self: start;
 }
 
 .letter__banners {

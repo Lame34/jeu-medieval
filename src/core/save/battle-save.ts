@@ -3,6 +3,9 @@
  * is `seed + scenario + commands`: the orders given so far are enough to rebuild it exactly. The
  * state's hash after them is kept too: a version of the game that would replay them otherwise (its
  * rules or its maps changed) is caught, and the save is set aside instead of a corrupt battle.
+ *
+ * Format 2 (ADR-049) keeps the provisions the battle began with, bought at the tents: taken up, it
+ * has them again whatever was bought since. A format-1 save reads with none (it had none).
  */
 import type { BattleContext } from '../battle/context.ts';
 import { hashBattleState } from '../battle/replay.ts';
@@ -10,7 +13,9 @@ import type { BattleState } from '../battle/types.ts';
 import { applyCommand } from '../commands/apply.ts';
 import type { Command } from '../commands/types.ts';
 
-export const BATTLE_SAVE_VERSION = 1;
+export const BATTLE_SAVE_VERSION = 2;
+/** The format before the provisions. */
+const BATTLE_SAVE_V1 = 1;
 
 export interface BattleSave {
   readonly version: typeof BATTLE_SAVE_VERSION;
@@ -26,6 +31,8 @@ export interface BattleSave {
   readonly savedAt: number;
   /** Heroes absent from this battle (resting), fixed when it began. */
   readonly absentHeroes: readonly string[];
+  /** Provisions bought at the tents that it began with (ids). */
+  readonly provisions: readonly string[];
   /** Every order given so far, the garrison's included. */
   readonly commands: readonly Command[];
   /** `hashBattleState` after the orders. */
@@ -61,15 +68,18 @@ const isText = (v: unknown): v is string => typeof v === 'string' && v.length > 
  * by field, each order's kind. The orders' own fields are checked by replaying them.
  */
 export function parseBattleSave(raw: unknown): BattleSave | null {
-  if (!isRecord(raw) || raw['version'] !== BATTLE_SAVE_VERSION) return null;
+  if (!isRecord(raw) || (raw['version'] !== BATTLE_SAVE_VERSION && raw['version'] !== BATTLE_SAVE_V1)) return null;
   const { key, url, title, turn, savedAt, absentHeroes, commands, hash } = raw;
+  // Format 1 had no provisions; from format 2 on, the list must be there.
+  const provisions = raw['version'] === BATTLE_SAVE_V1 ? [] : raw['provisions'];
+  if (!Array.isArray(provisions) || !provisions.every(isText)) return null;
   if (!isText(key) || !isText(url) || !url.startsWith('/') || !isText(title) || !isText(hash)) return null;
   if (typeof turn !== 'number' || !Number.isInteger(turn) || turn < 1) return null;
   if (typeof savedAt !== 'number' || !Number.isFinite(savedAt)) return null;
   if (!Array.isArray(absentHeroes) || !absentHeroes.every(isText)) return null;
   if (!Array.isArray(commands) || commands.length > MAX_COMMANDS) return null;
   if (!commands.every((c) => isRecord(c) && typeof c['type'] === 'string' && COMMAND_TYPES.has(c['type']))) return null;
-  return { version: BATTLE_SAVE_VERSION, key, url, title, turn, savedAt, absentHeroes: [...absentHeroes], commands: commands as unknown as Command[], hash };
+  return { version: BATTLE_SAVE_VERSION, key, url, title, turn, savedAt, absentHeroes: [...absentHeroes], provisions: [...provisions], commands: commands as unknown as Command[], hash };
 }
 
 /**

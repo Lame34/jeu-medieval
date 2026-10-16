@@ -15,6 +15,8 @@ const WOOD = '#8a6a44';
 const ROCK = '#a39a88';
 const HILL = '#a3ad78';
 const WATER = '#7d9aa0';
+/** The countess Isabeau's banner, azure: on a castle taken, on the host's tents. */
+export const OUR_FLAG = '#1f4fc4';
 
 /** Width × height of a vignette's drawing (its base line at y = 92). */
 export const VIGNETTE_W = 120;

@@ -1,19 +1,22 @@
 /**
  * The campaign (J6, brief §9.1 and §10): the Val d'Orle on a parchment map, and beside it the
  * letter of the castle picked — its lord, its story, what the scouts know, the banners won — from
- * which the council of war is called. The tutorial's fort waits at the start of the road.
+ * which the council of war is called. The tutorial's fort waits at the start of the road; the
+ * host's tents at its foot, where the marcs of the banners buy provisions for the next siege and
+ * the mire's care (ADR-049). The chronicle opens once a castle has fallen (ADR-050).
  */
 import { useEffect, useState } from 'react';
 import { Glossed } from '../components/Glossed.tsx';
 import { DEFAULT_RANK, type CampaignBattle, type CampaignLevel, type Feat } from '../../core/campaign/types.ts';
 import { BANNERS_PER_CASTLE } from '../../core/campaign/scenario.ts';
+import { canBuy, canHeal, earned, provisionsOf, purse, type Coffer } from '../../core/campaign/camp.ts';
 import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { isSaveOf, loadBattleSave, resumeParams } from '../../state/battle-save.ts';
 import { bannerTotal, isUnlocked, useCampaign, type CastleRecord } from '../../state/campaign.ts';
 import { CampaignMap, type MapNode } from '../campaign/CampaignMap.tsx';
 import { HeroEmblem } from '../campaign/HeroEmblem.tsx';
 import { Council, EffectList } from '../campaign/Council.tsx';
-import { castleLines } from '../campaign/effects-text.ts';
+import { castleLines, namesInline, provisionLines } from '../campaign/effects-text.ts';
 import { navigate, ROUTES } from '../router.ts';
 import '../campaign/campaign.css';
 
@@ -71,6 +74,115 @@ function FeatNote({ feat }: { readonly feat: Feat }) {
   );
 }
 
+/** « 30 marcs d’argent », « un marc d’argent », « pas un marc ». */
+function marcsLabel(n: number): string {
+  return n === 0 ? 'pas un marc' : n === 1 ? 'un marc d’argent' : `${n} marcs d’argent`;
+}
+
+/** The coffer, as the tents reckon it. */
+function useCoffer(): Coffer {
+  const conquered = useCampaign((s) => s.conquered);
+  const spent = useCampaign((s) => s.spent);
+  const pending = useCampaign((s) => s.pending);
+  return { conquered, spent, pending };
+}
+
+/** The selection that opens the tents' letter (no castle bears this id). */
+const TENTS = 'tents';
+
+/** The provisions the tents sell for the next siege, bought or given back. */
+function Provisions({ coffer }: { readonly coffer: Coffer }) {
+  const { buy, giveBack } = useCampaign.getState();
+  // What a battle left unfinished took with it stays with that battle.
+  const [save] = useState(loadBattleSave);
+  const away = save?.provisions ?? [];
+  return (
+    <ul className="tents__list">
+      {CAMPAIGN.camp.provisions.map((p) => {
+        const bought = coffer.pending.includes(p.id);
+        return (
+          <li key={p.id} data-bought={bought || undefined}>
+            <div className="tents__item">
+              <span>
+                <strong>{p.name}</strong> · {marcsLabel(p.price)}
+              </span>
+              <span className="tents__summary">{p.summary}</span>
+              <EffectList lines={provisionLines(p)} />
+            </div>
+            {bought && away.includes(p.id) ? (
+              <em className="tents__away">Parti avec l’ost</em>
+            ) : bought ? (
+              <button type="button" className="tents__button" onClick={() => giveBack(p.id)}>
+                Rendre
+              </button>
+            ) : (
+              <button type="button" className="tents__button" disabled={!canBuy(CAMPAIGN, coffer, p.id)} onClick={() => buy(p.id)}>
+                Acheter
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The host's tents (ADR-049): the coffer, the provisions it buys for the next siege, the mire. */
+function TentsLetter() {
+  const coffer = useCoffer();
+  const resting = useCampaign((s) => s.resting);
+  const heal = useCampaign((s) => s.heal);
+  const empty = earned(CAMPAIGN, coffer.conquered) === 0 && coffer.pending.length === 0;
+  const hurt = resting.filter((h) => DEFAULT_RULES.heroes[h]);
+  return (
+    <>
+      <h2 className="letter__title">Les tentes de l’ost</h2>
+      <p className="letter__epithet">au départ de la route du Val</p>
+      {empty ? (
+        <p className="tents__hint">Le coffre est encore vide : chaque étendard gagné y apportera {CAMPAIGN.camp.perBanner} marcs d’argent, de quoi préparer les sièges suivants.</p>
+      ) : (
+        <>
+          <p className="tents__purse">
+            Dans le coffre : <strong>{marcsLabel(purse(CAMPAIGN, coffer))}</strong>.
+          </p>
+          <p className="tents__hint">Chaque étendard gagné rapporte {CAMPAIGN.camp.perBanner} marcs, une fois : les rançons et les coffres des châteaux pris. Ce que vous achetez ici part avec l’ost au prochain siège, et s’y dépense.</p>
+          <h3 className="letter__heading">Pour le prochain siège</h3>
+          <Provisions coffer={coffer} />
+        </>
+      )}
+      {hurt.length > 0 && (
+        <>
+          <h3 className="letter__heading">Le mire</h3>
+          {hurt.map((h) => (
+            <p key={h} className="tents__mire">
+              {DEFAULT_RULES.heroes[h]?.name} se remet de ses blessures.{' '}
+              <button type="button" className="tents__button" disabled={!canHeal(CAMPAIGN, coffer)} onClick={() => heal(h)}>
+                Faire venir le mire ({marcsLabel(CAMPAIGN.camp.healPrice)})
+              </button>
+            </p>
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+
+/** In a letter: the coffer, what the host takes to the next siege, the way to the tents. */
+function TentsNote({ onTents }: { readonly onTents: () => void }) {
+  const coffer = useCoffer();
+  if (earned(CAMPAIGN, coffer.conquered) === 0 && coffer.pending.length === 0) return null;
+  const taken = provisionsOf(CAMPAIGN, coffer.pending);
+  return (
+    <p className="letter__tents">
+      Aux tentes : {marcsLabel(purse(CAMPAIGN, coffer))}
+      {taken.length > 0 ? ` ; l’ost emportera ${namesInline(taken.map((p) => p.name))}` : ''}.{' '}
+      <button type="button" className="letter__tents-go" onClick={onTents}>
+        Passer aux tentes
+      </button>
+    </p>
+  );
+}
+
 /** The army's companions, in the council's order. */
 const COMPANIONS = ['heroArcher', 'heroEngineer', 'heroKnight'] as const;
 
@@ -101,7 +213,7 @@ function Companions({ resting }: { readonly resting: readonly string[] }) {
   );
 }
 
-function Overview() {
+function Overview({ onTents }: { readonly onTents: () => void }) {
   const conquered = useCampaign((s) => s.conquered);
   const resting = useCampaign((s) => s.resting);
   const done = CAMPAIGN.levels.every((l) => conquered[l.id]);
@@ -121,12 +233,13 @@ function Overview() {
         </div>
       )}
       <p className="letter__hint">{taken === 0 ? 'Commencez par le Fortin du Gué pour apprendre le siège, ou marchez droit sur Roche-Grise.' : 'Choisissez un château sur la carte.'}</p>
+      <TentsNote onTents={onTents} />
       <Companions resting={resting} />
     </>
   );
 }
 
-function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignBattle | CampaignLevel; readonly index: number; readonly onCouncil: () => void }) {
+function CastleLetter({ battle, index, onCouncil, onTents }: { readonly battle: CampaignBattle | CampaignLevel; readonly index: number; readonly onCouncil: () => void; readonly onTents: () => void }) {
   const conquered = useCampaign((s) => s.conquered);
   const tutorialDone = useCampaign((s) => s.tutorialDone);
   const lesson = index < 0;
@@ -157,6 +270,7 @@ function CastleLetter({ battle, index, onCouncil }: { readonly battle: CampaignB
           <BannerRow record={record} level={battle} />
         </>
       )}
+      {!lesson && <TentsNote onTents={onTents} />}
       <div className="letter__actions">
         {saved && (
           <button type="button" className="letter__go" onClick={() => navigate(ROUTES.battle, resumeParams(saved))}>
@@ -206,14 +320,23 @@ export default function CampaignScreen() {
   const index = selected === CAMPAIGN.tutorial.id ? -1 : CAMPAIGN.levels.findIndex((l) => l.id === selected);
   const battle = index < 0 ? (selected === CAMPAIGN.tutorial.id ? CAMPAIGN.tutorial : null) : CAMPAIGN.levels[index];
   const level = index >= 0 ? CAMPAIGN.levels[index] : undefined;
+  const tents = selected === TENTS;
+  const toTents = () => setSelected(TENTS);
   const taken = CAMPAIGN.levels.filter((l) => conquered[l.id]).length;
 
   return (
     <main className="campaign-screen">
       <header className="campaign-bar">
-        <button type="button" className="campaign-bar__back" onClick={() => navigate(ROUTES.title)}>
-          ← Menu
-        </button>
+        <div className="campaign-bar__left">
+          <button type="button" className="campaign-bar__back" onClick={() => navigate(ROUTES.title)}>
+            ← Menu
+          </button>
+          {taken > 0 && (
+            <button type="button" className="campaign-bar__back" onClick={() => navigate(ROUTES.chronicle)}>
+              La chronique
+            </button>
+          )}
+        </div>
         <h1>Campagne du {CAMPAIGN.realm}</h1>
         <p className="campaign-bar__progress">
           Châteaux {taken} / {CAMPAIGN.levels.length} · Étendards {bannerTotal(conquered)} / {CAMPAIGN.levels.length * BANNERS_PER_CASTLE}
@@ -221,15 +344,18 @@ export default function CampaignScreen() {
       </header>
       <div className="campaign-body">
         <div className="campaign-map-frame">
-          <CampaignMap nodes={nodes} selected={selected} fresh={fresh} onSelect={(id) => setSelected((s) => (s === id ? null : id))} />
+          <CampaignMap nodes={nodes} selected={selected} fresh={fresh} tents={tents} onSelect={(id) => setSelected((s) => (s === id ? null : id))} onTents={toTents} />
         </div>
         <aside className="campaign-letter parchment-sheet" aria-live="polite">
-          {battle ? <CastleLetter key={battle.id} battle={battle} index={index} onCouncil={() => setCouncil(true)} /> : <Overview />}
-          {battle && (
-            <button type="button" className="letter__close" onClick={() => setSelected(null)}>
-              ← Le Val d’Orle
-            </button>
-          )}
+          {/* The sheet stays put; its writing scrolls within it. */}
+          <div className="campaign-letter__scroll">
+            {tents ? <TentsLetter /> : battle ? <CastleLetter key={battle.id} battle={battle} index={index} onCouncil={() => setCouncil(true)} onTents={toTents} /> : <Overview onTents={toTents} />}
+            {(battle || tents) && (
+              <button type="button" className="letter__close" onClick={() => setSelected(null)}>
+                ← Le Val d’Orle
+              </button>
+            )}
+          </div>
         </aside>
       </div>
       {council && level && <Council level={level} resting={resting} onClose={() => setCouncil(false)} onMarch={(plan, rank) => navigate(ROUTES.battle, { level: level.id, ...(plan ? { plan } : {}), ...(rank === DEFAULT_RANK ? {} : { rank }) })} />}

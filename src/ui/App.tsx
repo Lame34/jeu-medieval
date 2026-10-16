@@ -10,6 +10,7 @@ const BattleScreen = lazy(() => import('./screens/BattleScreen.tsx'));
 const CampaignScreen = lazy(() => import('./screens/CampaignScreen.tsx'));
 const OptionsScreen = lazy(() => import('./screens/OptionsScreen.tsx'));
 const LexiconScreen = lazy(() => import('./screens/LexiconScreen.tsx'));
+const ChronicleScreen = lazy(() => import('./screens/ChronicleScreen.tsx'));
 
 function CurrentScreen() {
   const path = useRoute();
@@ -24,6 +25,8 @@ function CurrentScreen() {
       return <OptionsScreen />;
     case ROUTES.lexicon:
       return <LexiconScreen />;
+    case ROUTES.chronicle:
+      return <ChronicleScreen />;
     default:
       return <TitleScreen />;
   }
