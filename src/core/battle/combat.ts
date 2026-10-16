@@ -13,7 +13,7 @@
  * at contact.
  */
 import type { CommandRejection } from '../commands/types.ts';
-import type { GameEvent } from '../events/types.ts';
+import type { BattleEndReason, GameEvent } from '../events/types.ts';
 import { distance, normalize, sub, type Vec2 } from '../math/vec2.ts';
 import { lineOfSight } from '../nav-grid/line-of-sight.ts';
 import { traverseSegment } from '../nav-grid/traverse.ts';
@@ -263,12 +263,14 @@ export function battleStatus(rules: Pick<GameRules, 'morale' | 'battle'>, units:
  */
 export function statusAfterBlows(rules: Pick<GameRules, 'morale' | 'battle'>, units: readonly UnitState[], events: GameEvent[]): BattleStatus {
   const status = battleStatus(rules, units);
-  if (status !== 'ongoing') {
-    const losers = units.filter((u) => u.alive && u.faction === (status === 'attackerWon' ? 'defender' : 'attacker'));
-    const reason = losers.length === 0 ? 'eliminated' : losers.every((u) => !standing(rules.morale, u)) ? 'routed' : 'surrendered';
-    events.push({ type: 'battleEnded', status, reason });
-  }
+  if (status !== 'ongoing') events.push({ type: 'battleEnded', status, reason: lossReason(rules, units, status) });
   return status;
+}
+
+/** How the losing side lost to blows: all fallen, the last of them broken and running, or laying down their arms. */
+export function lossReason(rules: Pick<GameRules, 'morale'>, units: readonly UnitState[], status: Exclude<BattleStatus, 'ongoing'>): Exclude<BattleEndReason, 'relieved'> {
+  const losers = units.filter((u) => u.alive && u.faction === (status === 'attackerWon' ? 'defender' : 'attacker'));
+  return losers.length === 0 ? 'eliminated' : losers.every((u) => !standing(rules.morale, u)) ? 'routed' : 'surrendered';
 }
 
 /** Rolls a previewed attack (and its riposte) against the battle's RNG stream. */
