@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045) et 3 (la justesse historique : ADR-046 à 048) sont faites ; vient l'étape 4, le camp entre deux sièges et la chronique enluminée.
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les étapes 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045), 3 (la justesse historique : ADR-046 à 048) et 4 (les tentes de l'ost et la chronique : ADR-049, 050) sont faites ; vient l'étape 5, la musique et les saisons.
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -45,7 +45,7 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 - Les identifiants internes restent en anglais et ne changent pas (`catapult`, `siegeTower`, `sapper`, l'id de plan `catapulte`) : les sauvegardes et les adresses existantes en dépendent. Seuls les noms affichés suivent le glossaire.
 
 ### Glossaire (nom affiché ← identifiant interne)
-**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, écartés** (l'utilisateur a choisi la langue d'époque stricte, ADR-046) : tir (1660 ; « trait »), volée (décharge, 1555), bélier (engin, 1548), fascines (1577), courtine (1587), sortie (militaire, 1570), milicien (1725), éclaireur (militaire, 1792), brigand (1350), chemin de ronde. Chaque mot du jeu peu courant est dans le lexique (`data/glossary.json`, écran « Lexique »), avec son sens et son attestation.
+**Vérification du 11/10 (CNRTL, AND).** D'époque : mangonneau (1155), beffroi (« berfroi », v. 1155), mineur (« mineor », 1194-1199), miner (v. 1200), sergent (v. 1130), arbalétrier (XIIᵉ s.), garnison, muraille, créneau, douve, pont-levis, donjon, poterne, ost, étendard, saillie (v. 1165), capitaine (1288). Fin du Moyen Âge : herse (grille, 1358), rempart (1370), treuil (1376), escarmouche (v. 1360), cavalier (v. 1470). **Vérification du 15/10 (héros).** D'époque : engin (machine de guerre, 1155), besogne (travail, 1268), assaut et preux (v. 1100), fermeté (v. 1200), ralliement (v. 1175), coup, juste. Écartés des titres et des noms de capacités : ingénieur (1537), vétéran (1520), réglage (1870), charge (militaire, 1540), inébranlable (1606), visée (XVᵉ s.). **Postérieurs, écartés** (l'utilisateur a choisi la langue d'époque stricte, ADR-046) : tir (1660 ; « trait »), volée (décharge, 1555), bélier (engin, 1548), fascines (1577), courtine (1587), sortie (militaire, 1570), milicien (1725), éclaireur (militaire, 1792), brigand (1350), chemin de ronde ; **vérification du 16/10** : camp (fin XVᵉ s. ; « les tentes de l'ost »), solde (1464), soudoyer (1465), butin (1350), médecin (1358 ; « mire », v. 1155), et « place » au sens militaire, non vérifiée (« le château »). Chaque mot du jeu peu courant est dans le lexique (`data/glossary.json`, écran « Lexique »), avec son sens et son attestation.
 
 | Affiché | Interne | Remarque |
 |---|---|---|
@@ -78,10 +78,10 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 
 ## Sauvegardes
 - **Progression de campagne** (`siege.campaign.v1`) :
-  - format versionné, lu strictement (`core/save/progress.ts`) ;
+  - format versionné, lu strictement (`core/save/progress.ts`, format 3) : les châteaux et leurs étendards, les faits de la bataille que raconte la chronique, les assauts manqués, les marcs dépensés et les provisions en attente (la bourse se recalcule, elle n'est pas enregistrée) ;
   - fusionnée avec un autre onglet ouvert : deux onglets ne s'effacent jamais leurs châteaux.
 - **Bataille en cours** (`siege.battle.v1`) :
-  - enregistrée après chaque ordre : la liste des ordres, les héros absents, et l'empreinte de l'état (`hashBattleState`) ;
+  - enregistrée après chaque ordre : la liste des ordres, les héros absents, les provisions des tentes (format 2), et l'empreinte de l'état (`hashBattleState`) ;
   - reprise depuis le menu, la lettre du château ou la bataille elle-même ;
   - si une autre version du jeu ne rejoue plus les ordres à l'identique, l'empreinte le détecte : la sauvegarde est écartée et le joueur en est prévenu ;
   - les parties de test (`?e2e`, `?bench`) ne sauvegardent pas.

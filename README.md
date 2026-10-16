@@ -14,6 +14,8 @@ Une garnison qui tombe à une poignée d’hommes debout se rend. Votre héraut 
 
 Chaque château donne quatre étendards : le château pris, pris vite, pris sans trop de pertes, et son **fait d’armes**, un exploit tiré d’un siège véritable (la mine de Château-Gaillard, le beffroi de Jérusalem…).
 
+Entre deux sièges, **les tentes de l’ost** : chaque étendard y apporte dix marcs d’argent, de quoi payer l’ost, lier des fagots, fourbir les armes, engager deux sergents ou dresser un second mangonneau pour le siège suivant, ou faire venir le mire auprès d’un compagnon blessé. Et **la chronique** raconte la guerre château après château, d’après ce qui s’est vraiment passé dans chaque bataille, avec miniatures et lettrines dessinées par le jeu ; elle s’imprime.
+
 ## Commandes
 | Touche | Effet |
 |---|---|

@@ -629,6 +629,53 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
 - **La progression passe au format 2** (`core/save/progress.ts`). Une sauvegarde au format 1, ou sans numéro, se lit avec chaque château gardé et son fait d'armes « pas encore accompli ». Un château au format 2 sans cet étendard est abîmé, donc écarté. La clé de stockage reste `siege.campaign.v1`.
 **Conséquences** : aucun château ni étendard d'un joueur n'est perdu, et un fait d'armes se gagne en reprenant l'assaut.
 
+## ADR-049 — Les tentes de l'ost entre deux sièges
+**Contexte** : l'utilisateur a choisi « le camp entre deux sièges » (ADR-041) : « payer la solde, faire réparer un engin, acheter des fagots avec les rançons : de petits choix qui pèsent sur la bataille suivante ». Il veut aussi un jeu plus simple et plus léger, et a écarté « l'ost qui se souvient » (une armée qui persiste d'un siège à l'autre).
+**Vérifications au TLF** : « camp » date de la fin du XVᵉ siècle (Commynes), « solde » (1464), « soudoyer » (1465), « butin » (1350) et « médecin » (1358) sont tardifs. Sont d'époque : « tente » (vers 1160), « marc » d'argent (vers 1130), « mire » (vers 1155), « payer » (« donner ce qui est dû », 1170), « fourbir » (vers 1100), « charpentier » (1174-1176). La carte disait « Camp de l'ost » : elle dit désormais « Les tentes de l'ost », et le récit de défaite de Haute-Garde « jusqu'aux tentes de l'ost ».
+**Décision** :
+- Chaque étendard gagné rapporte **10 marcs d'argent**, une fois : ce sont les rançons et les coffres des châteaux pris (`campaign.json` → `camp`). La bourse n'est jamais enregistrée telle quelle. On la recalcule : ce que valent les étendards, moins ce qui a été dépensé, moins les provisions qui attendent (`core/campaign/camp.ts`). Deux onglets ou un château repris ne fabriquent donc pas d'argent.
+- **Les tentes ont leur lettre**, ouverte depuis la carte. Cinq provisions s'y achètent pour le prochain siège :
+
+| Provision | Prix | Effet |
+|---|---|---|
+| L'ost payé | 10 | moral de l'ost +10 |
+| Des fagots | 10 | un tronçon de douve comblé dès le départ |
+| Des armes fourbies | 20 | +5 % aux coups et aux tirs de vos hommes |
+| Deux sergents de plus | 20 | deux sergents dans vos rangs |
+| Un second mangonneau | 30 | un mangonneau de plus |
+
+- **Le mire** soigne pour 10 marcs un compagnon gravement blessé, qui reprend sa place au siège suivant.
+- Une provision pèse sur le prochain siège **mené à son terme**, gagné ou perdu, puis elle est dépensée. Elle forme une couche d'effets de plus, après celles du château, du plan et du rang (`battleEffects`). Une bataille quittée en cours la garde : la sauvegarde de bataille, au **format 2**, retient les provisions avec lesquelles elle a commencé. Une sauvegarde au format 1 se lit sans provision. On peut rendre une provision achetée tant qu'aucune bataille ne l'a emportée ; la lettre indique alors « Parti avec l'ost ».
+- La lettre d'un château et la vue d'ensemble disent ce que contient le coffre et ce que l'ost emportera ; le briefing le rappelle (« Apporté des tentes : l'ost payé. »).
+- Les règles de la progression (`withOutcome`, `withPurchase`, `withoutPurchase`, `withHealing`, dans `core/campaign/outcome.ts`) sont pures et testées ; le magasin ne fait que garder ce qu'elles rendent.
+- Une lettre longue défile désormais **sous** sa feuille de parchemin. Jusqu'ici, le bas d'une lettre qui défilait sortait du parchemin et devenait illisible.
+**Conséquences** :
+- La progression passe au **format 3** : ce qui a été dépensé, les provisions en attente, les assauts manqués et les faits de chaque bataille (ADR-050). Une sauvegarde plus ancienne se lit sans rien dépensé : les marcs de tous ses étendards sont dans le coffre.
+- L'IA de `campaign-scout --sim` n'achète rien : la référence de l'ADR-045 reste celle d'un siège sans provision. Les provisions rendent la campagne un peu plus facile, et le rang Baron reste là pour qui veut l'inverse.
+
+## ADR-050 — La chronique enluminée
+**Contexte** : l'utilisateur a choisi « la chronique enluminée » (ADR-041) : « à la fin, la campagne devient un manuscrit : chaque bataille racontée d'après ce qui s'est vraiment passé, avec lettrines et miniatures rendues par le jeu, à imprimer ».
+**Décision** :
+- **Les faits d'une bataille.** À la fin d'une bataille gagnée, le cœur relève les faits de son dernier état (`core/campaign/deeds.ts`, `deedsOf`) :
+  - comment la garnison a rendu le château : au héraut, en posant les armes, en fuyant, ou jusqu'au dernier homme ;
+  - les murailles abattues, au mangonneau ou par la mine ; la porte et la coulisse ; le pont-levis ; ce que le feu a brûlé ; les tronçons de douve comblés ; les hommes passés par le beffroi ;
+  - les morts des deux camps, le capitaine vivant ou non.
+
+  La campagne y ajoute le plan, le rang, les provisions, les compagnons blessés et le numéro de l'assaut. Les assauts manqués avant la prise sont comptés.
+- La chronique raconte, pour chaque château, la bataille qui a gagné le plus d'étendards (la plus récente en cas d'égalité). Les faits relus du stockage sont vérifiés en entier : s'ils sont abîmés, ils sont écartés, mais le château reste.
+- **Le texte** (`ui/campaign/chronicle-text.ts`) est écrit au passé simple d'un chroniqueur, dans l'ordre d'un siège : la venue devant le château, le conseil suivi, les provisions, les ouvrages et les engins, la fin de la garnison, les pertes, les blessés. Un fait d'armes accompli rappelle le siège dont il vient (« Ainsi s'étaient rendus Falaise, Caen et Rouen à Philippe Auguste, en l'an 1204. »). Un château pris avant que la chronique ne soit tenue se raconte avec ce que l'on sait : « Le clerc qui suivait l'ost n'a pas laissé le récit de ce siège. » Les nombres jusqu'à douze s'écrivent en lettres ; les titres prennent une minuscule en milieu de phrase (« que tenait sire Aymon »).
+- **Le livre** (`/chronique`) s'ouvre depuis la carte dès qu'un château est tombé, et depuis la fin de la dernière bataille. Il comprend :
+  - un incipit en rouge (« Ci commence… ») et une préface ;
+  - un chapitre par château pris, avec sa **miniature** : le château de la carte sur un fond d'azur losangé d'or, dans un cadre doré, avec ce que montrent les faits (le mangonneau, le beffroi, le mouton ou les flammes à la porte, les fagots, la mine, les pennons de l'ost) ;
+  - une **lettrine** dorée pour ouvrir chaque chapitre ;
+  - l'explicit « Ci finit… » quand le Val est libre.
+
+  Le tout est dessiné par le jeu en SVG, sans image extérieure.
+- **L'impression.** « Imprimer la chronique » ouvre l'impression du navigateur : la page seule, ses couleurs gardées, aucun chapitre coupé entre deux pages.
+- Les textes du livre sont dans les données (`campaign.json` → `chronicle`, et `told` pour chaque fait d'armes et chaque provision), validés au chargement.
+- Vérifiés au TLF : « chronique » (1138), « clerc » (vers 1040), « enluminer » (1176-1181), « défunt » (1243), « enceinte » (1284), « crouler » (un mur, 1177-1180), « brûler » (vers 1120), « fuir », « périr », « rompre », « lier ». « Place », au sens militaire, n'a pas pu être vérifié : le jeu dit « rendre le château », et non plus « rendre la place ».
+**Conséquences** : la chronique ne raconte que ce que le cœur a relevé : elle ne peut pas contredire la bataille jouée.
+
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.
 - **Animations manquantes** (cheer, push, arbalète, lance) : clés authorées en Blender headless ou reciblage depuis l'Universal Animation Library (J3).
