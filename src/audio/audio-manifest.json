@@ -601,13 +601,23 @@
         }
       ]
     },
+    "music_map": {
+      "category": "music",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/music_map_0.ogg",
+          "durationS": 161.111
+        }
+      ]
+    },
     "music_calm": {
       "category": "music",
       "loop": true,
       "variants": [
         {
           "url": "/assets/audio/music_calm_0.ogg",
-          "durationS": 158.589
+          "durationS": 160.0
         }
       ]
     },
@@ -617,7 +627,7 @@
       "variants": [
         {
           "url": "/assets/audio/music_tension_0.ogg",
-          "durationS": 160.731
+          "durationS": 102.857
         }
       ]
     },
@@ -627,10 +637,40 @@
       "variants": [
         {
           "url": "/assets/audio/music_battle_0.ogg",
-          "durationS": 78.916
+          "durationS": 114.474
+        }
+      ]
+    },
+    "music_chronicle": {
+      "category": "music",
+      "loop": true,
+      "variants": [
+        {
+          "url": "/assets/audio/music_chronicle_0.ogg",
+          "durationS": 130.909
+        }
+      ]
+    },
+    "music_victory": {
+      "category": "music",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/music_victory_0.ogg",
+          "durationS": 16.417
+        }
+      ]
+    },
+    "music_defeat": {
+      "category": "music",
+      "loop": false,
+      "variants": [
+        {
+          "url": "/assets/audio/music_defeat_0.ogg",
+          "durationS": 14.078
         }
       ]
     }
   },
-  "totalBytes": 8083301
+  "totalBytes": 14395787
 }

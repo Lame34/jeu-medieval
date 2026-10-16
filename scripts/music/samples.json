@@ -1,0 +1,861 @@
+{
+  "$comment": "ADR-051 : échantillons de la Versilian Community Sample Library (VCSL, CC0 1.0), au commit figé ci-dessous ; téléchargés par scripts/fetch-music-samples.ts vers assets-src/raw/vcsl/, vérifiés par leur SHA-256.",
+  "repository": "https://github.com/sgossner/VCSL",
+  "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e",
+  "licence": "CC0-1.0",
+  "groups": {
+    "harp": [
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#1_v2_RR1.wav",
+        "size": 1418986,
+        "sha256": "0d5ccbfc71b85e5724106f711be54e24315298f79a104bef4d494f1737edc287"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#2_v2_RR1.wav",
+        "size": 1109786,
+        "sha256": "cd8f81c7991dd71dae19d701f9dc69bd52e33f497114ce95b61dbfbb63a8db29"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#3_v2_RR1.wav",
+        "size": 691094,
+        "sha256": "2f10237e6926a8b4726046020abe14c80969d705fb0db66e83c6d0ac22d978f8"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_A#4_v2_RR1.wav",
+        "size": 339042,
+        "sha256": "1a1e41eed114648f4950ff2638475aedc85dea31ea0c924f4d392658dee78ee4"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C1_v2_RR1.wav",
+        "size": 3515478,
+        "sha256": "c0a493380a5c12bff2e114882d90bd0844e14b9255ba2a4d1420475b75299fa8"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C2_v2_RR1.wav",
+        "size": 1807522,
+        "sha256": "086c0b5fcc3e41bee173e53620d38f21a7dee4f59dfd75d8c8bbdf409ecbc5ee"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C3_v2_RR1.wav",
+        "size": 1382798,
+        "sha256": "bfc5a2cae93793ac46bfe50c1b71d1e64e29eba34e71164c47c29e67488abd96"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C4_v2_RR1.wav",
+        "size": 775134,
+        "sha256": "79774644727f61bd535e4b49f7eae0c31b0cac4d2714d33d8f6cd84e5db081d3"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_C5_v2_RR1.wav",
+        "size": 366550,
+        "sha256": "75ce02fddc09d6c8c258a5c1ff79a901c5c60e434eaadc98b9dc67a741105c55"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D1_v2_RR1.wav",
+        "size": 3182430,
+        "sha256": "2ec64ce4e72ae5bdd9af11b4bb4dc01b93a451c5fc9d4236af747560a3bde5ec"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D2_v2_RR1.wav",
+        "size": 1177714,
+        "sha256": "e1c5d39e0b41430df0d277249be01f2a5d4ffc58ac70508a7a14097b8a39808d"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D3_v2_RR1.wav",
+        "size": 1008386,
+        "sha256": "362b3e4c876a6723501f7176ebce88e6eadcfad7471bd1cf2fdd0039bc789416"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D4_v2_RR1.wav",
+        "size": 955322,
+        "sha256": "9ee0b906221272c8a51389742048158306da5f69573e57962eb62ee3c1a6ae5a"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_D5_v2_RR1.wav",
+        "size": 460266,
+        "sha256": "42ecde4166669c643fb6939572e18ec3898af139c9966de3833bbd5e839454f1"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E1_v2_RR1.wav",
+        "size": 2516318,
+        "sha256": "6f31f10f306049ce09246d51217577161518a4d850e2a738032969c6b5ccb4e3"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E2_v2_RR1.wav",
+        "size": 1371190,
+        "sha256": "b5ec62efd11ef2d3c1dab1bc54f24ad57dc0c61e0113a7d5cff639c6a90728b5"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E3_v2_RR1.wav",
+        "size": 1177490,
+        "sha256": "ed514f90376b971b75d7ff605e6b97a1767599d312ef60bf18e91f2d6c9b43c3"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E4_v2_RR1.wav",
+        "size": 723350,
+        "sha256": "42cddd3ab551907e72893de8493b9a5aab1617dc43c3210bfed9335a5b1992e5"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_E5_v2_RR1.wav",
+        "size": 284994,
+        "sha256": "1d9c5aa6b2f15c14b2582591c3d7384f9352686a1fed44ab70ba655a31b702ce"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#1_v2_RR1.wav",
+        "size": 1473982,
+        "sha256": "4d1274e275ea90a367e446da44c73eee7df517430c03121f318d4a3e309d18d1"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#2_v2_RR1.wav",
+        "size": 1587074,
+        "sha256": "c872acf29a7863663a8bcdb6e4511fdfb53117e2793a5effcae2f5a264c33615"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#3_v2_RR1.wav",
+        "size": 1166902,
+        "sha256": "4a6ed3a36a0dcefb0ddd1b8b9543a7034d0bb9b6cc01fdebcda0f010cdd4733e"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#4_v2_RR1.wav",
+        "size": 517414,
+        "sha256": "fe09d1ff1d6da6a77904e84b2edc9e17c80bdbb46e3648ed19eb63b745adf14d"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_F#5_v2_RR1.wav",
+        "size": 276122,
+        "sha256": "d66634ede6b512a90457f2b0b15585772af3768c22a776f55f3862f540c8e948"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#1_v2_RR1.wav",
+        "size": 3231918,
+        "sha256": "a4695f91324e87e41929503f76f1d70aedaf2fd200dba7a66ad3b0bb7c74ea42"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#2_v2_RR1.wav",
+        "size": 1327638,
+        "sha256": "46efdad2a05dcfa4226ad8d8b5438979f6778d20d14647e732faf369eb6d17e3"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#3_v2_RR1.wav",
+        "size": 718130,
+        "sha256": "48b5d5e32c5504ed0c47d0645c01e6722773d0af6360bcdfd94f3d9250d690ef"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#4_v2_RR1.wav",
+        "size": 348666,
+        "sha256": "bd48c4e67fc45ca92f3a29b7ac8727f8e2f53bf079dac553c6fce0768e19ce11"
+      },
+      {
+        "path": "Chordophones/Composite Chordophones/Folk Harp/EWHarp_Normal_G#5_v2_RR1.wav",
+        "size": 222890,
+        "sha256": "b5ef446bef963ccf197162fcf40a940dfb84619005845061d6eefc91c0c5833e"
+      }
+    ],
+    "psalteryPluck": [
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_A#3_Main_Pluck_rr1.wav",
+        "size": 1295120,
+        "sha256": "7787947ce936636260ad05ed55465e8299359b7f5c376769a93607d161274eb6"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_A#4_Main_Pluck_rr1.wav",
+        "size": 1310642,
+        "sha256": "196517ca0961232e8264623ee3786cfa104695f063425c034d4cca61c6dd276e"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_C4_Main_Pluck_rr1.wav",
+        "size": 1558100,
+        "sha256": "752e4863fd3a0dad6a9ee78099d2aed57e3bee7842fe67b4b360072886b6e200"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_C5_Main_Pluck_rr1.wav",
+        "size": 1245590,
+        "sha256": "d3edff4b6808e1f1319356cd5115c5740861b3435514abe32c46a5d98320ff14"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_D4_Main_Pluck_rr1.wav",
+        "size": 1189394,
+        "sha256": "dde20bc47d52e8bff451b3060b27f40e4568697402dc8bab5f63cca964f3d6b0"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_D5_Main_Pluck_rr1.wav",
+        "size": 954200,
+        "sha256": "7ff1e40a19ad16a5a23ada877af8113aeaf7939e25d5bcae7e801b69ad47bf9f"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_E4_Main_Pluck_rr2.wav",
+        "size": 1149704,
+        "sha256": "0bd9565310d851ca1eeea794961b9ff701a839b5064fe425775f17a3bbd204aa"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_E5_Main_Pluck_rr1.wav",
+        "size": 1218518,
+        "sha256": "18443cd4031d1ddaf9c7f69c8aa821f931daeb675e1b7a59432cab349b594511"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_F#4_Main_Pluck_rr1.wav",
+        "size": 1298180,
+        "sha256": "747b40dbd3a5ef04ea9d629e32564bdb84d15d86cc0d9b786e61fe48e76850d3"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_F#5_Main_Pluck_rr3.wav",
+        "size": 956006,
+        "sha256": "ec9e29ccbadb1cca6e2b4803a4e50083a084dcd8e8fc9434938160742bc5c52b"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/Pluck/BowedPsaltery_G#4_Main_Pluck_rr3.wav",
+        "size": 1157630,
+        "sha256": "acf738595cbb824d2da027abb698cf768c2fdcbfaf6376e8b2a199e8b4a2be23"
+      }
+    ],
+    "psalteryBow": [
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_A#3_Main_LongBow_rr2.wav",
+        "size": 2029394,
+        "sha256": "e3538b10f32200b70e4fdeb60eea57d395109b5a080181c2cb7cfde6c0b772bb"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_A#4_Main_LongBow_rr2.wav",
+        "size": 1540940,
+        "sha256": "7ff17a523bb91a683f7247848e15b8ca98e8fa958e75c9f5977b5c53e9425fcb"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_C4_Main_LongBow_rr1.wav",
+        "size": 2226584,
+        "sha256": "57f455c9412f2d642e8d423207aa7a12f48dde77293283d058636b08cd8fdfb0"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_C5_Main_LongBow_rr1.wav",
+        "size": 1727012,
+        "sha256": "f1123b88bc2e5e88d75087f61f1bbf3708fc2b99c96fbe4ef5f70d5b5dd19695"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_D4_Main_LongBow_rr1.wav",
+        "size": 1672514,
+        "sha256": "4c64bc3bddc10651c780eddc0e8438d76c4e93128158ed345daeacb7702244b4"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_D5_Main_LongBow_rr2.wav",
+        "size": 1502318,
+        "sha256": "3eeb910716fdfe81cc6b44d2ebbe77dd4bc33ff16397b7b51058d3f811f84d65"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_E4_Main_LongBow_rr2.wav",
+        "size": 2036780,
+        "sha256": "c5a4b89ad35ad4e36979dd0facc2c75b13cb6d6f974c746981f2055cfdfbc859"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_E5_Main_LongBow_rr2.wav",
+        "size": 1424648,
+        "sha256": "6a25c73fe9f60187677b1a31b91018f551cb9c1e3cc0478995c6018ab50bbd93"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_F#4_Main_LongBow_rr1.wav",
+        "size": 1990082,
+        "sha256": "267f96c92e22650c10823d2f7ed7566271a49d42e8cab0fcf8c959056e2f50cb"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_F#5_Main_LongBow_rr2.wav",
+        "size": 1257752,
+        "sha256": "df98b67116639d68983bdd086332ee9c625a8f28231cf7f2673dd762d371fba4"
+      },
+      {
+        "path": "Chordophones/Zithers/Psaltery, Bowed and Plucked/LongBow/BowedPsaltery_G#4_Main_LongBow_rr1.wav",
+        "size": 1785356,
+        "sha256": "e4c218392289a921bc3400790bdf9609f68b21d0f0d407e5230b38f190c1a91f"
+      }
+    ],
+    "recorder": [
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_A#3_rr1_Main.wav",
+        "size": 3003932,
+        "sha256": "3ef10396bb7e921891ce1a3e72c33ff2115a1357aa89fd407385bd571041ebd3"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_A#4_rr1_Main.wav",
+        "size": 2279160,
+        "sha256": "a95ce4629a1415eb82a0e207df50e75f7f2a5a8aa6f4abf105b36371d99a2418"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_C4_rr1_Main.wav",
+        "size": 1574224,
+        "sha256": "aaa4f42f850758a034db08cd42641f85adcb30a99db2fe790db03325c7f78b29"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_C5_rr1_Main.wav",
+        "size": 2530036,
+        "sha256": "cfc9e251d2ad1f2febf20f7d08e732a8ffa596122840f172f5ffd1fc72b4c81b"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_D4_rr1_Main.wav",
+        "size": 1756616,
+        "sha256": "a6e2944f433b427574a3c7078ebae2a39991a74f5906f2dead3a35b11262f0a4"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_D5_rr1_Main.wav",
+        "size": 2345620,
+        "sha256": "8f01762923e63e44a11aeccf2dc15692eadae7e3f57d40f4deecb65bc6341c81"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_E4_rr1_Main.wav",
+        "size": 2312324,
+        "sha256": "e38f3bf2dc571796fecc8b525c303513c93d6d42f6a224acd5a52e613f555be8"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_E5_rr1_Main.wav",
+        "size": 2401644,
+        "sha256": "8018db6c7cdbd7d85511d9d3a010a9ed8b9b06f4aa69f747c516cd288d6f9152"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_F#4_rr1_Main.wav",
+        "size": 3121816,
+        "sha256": "c06e6de1961371bdaec39bf63c32eff13e4405872e25f6ee60fdbb7a9592d7ad"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_F3_rr1_Main.wav",
+        "size": 3254828,
+        "sha256": "9cbe89054b204a78d353b3c05495d79ab5e0273a023abe005aad49b38133b085"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_G#3_rr1_Main.wav",
+        "size": 2466568,
+        "sha256": "9132b4c5b8bc6d8ce8cdc85b93f4a8bbf5e8a27676b4ecea7028a91751ba0310"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Sustain/AltRecorder_Sus_G#4_rr1_Main.wav",
+        "size": 2394072,
+        "sha256": "e602ff3de3cfabe6c23edc23eb93378bb34f7ff2eaabd13ffdb55db2ace8b888"
+      }
+    ],
+    "recorderStaccato": [
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_A#3_rr1_Main.wav",
+        "size": 80520,
+        "sha256": "38854f7c8325d80cb8215fcc45543970e7970a26a40b239a6f22f6f1fae43b81"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_A#4_rr1_Main.wav",
+        "size": 96356,
+        "sha256": "2cdfc1081099ed95b815318c61b15adb4788f7941b83139829127f5fffc7a005"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_C4_rr1_Main.wav",
+        "size": 82104,
+        "sha256": "34c08414dc6f02eb37f97fbbaf9be1a92c27643ccf51ba20c8eabe8cd1357625"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_C5_rr1_Main.wav",
+        "size": 94044,
+        "sha256": "7f52cfd817d81285539eed7b1cb25121373dd2794707f987cecb8cef90bda0df"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_D4_rr1_Main.wav",
+        "size": 79108,
+        "sha256": "dd05bbd42645ee8b7ee298227a7778f5446b8de76614fdb6e05032f021c7d83d"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_D5_rr1_Main.wav",
+        "size": 90988,
+        "sha256": "063ed58c96146aa9e51895be39cdcea6f38cadeb46989331cf04bd861a96deff"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_E4_rr1_Main.wav",
+        "size": 76016,
+        "sha256": "fc39e0f2e5af60139193b514f5cb5b8c1aa6850f613d5dd764f7bdd46df6e9a9"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_E5_rr1_Main.wav",
+        "size": 83776,
+        "sha256": "1c85378d25bd14c454e2eb8f06d34d4b0a41afd5294ad9f6bdd6a0d4952d5ccb"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_F#3_rr1_Main.wav",
+        "size": 76612,
+        "sha256": "f531d860feaeacb5313ffbdd9a2dca2fc653065d303c88cd1b8bcf2acd0d9ff2"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_F#4_rr1_Main.wav",
+        "size": 81528,
+        "sha256": "1cf25b3328878d3b2dfb14ce975dd914af9438ea96158fd88746543f88efa527"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_G#3_rr1_Main.wav",
+        "size": 81068,
+        "sha256": "2c3a9e9eeeb70cdf27dbb37bd24b1cdab0a08249f6a5222bd49d76c8cadac26d"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Baroque Alto Recorder/Staccato/AltRecorder_Stac_G#4_rr1_Main.wav",
+        "size": 94520,
+        "sha256": "e955ad3e0a7cda0cc8bf5ccc3c0c545c94cadc02a6e26bbc8bf22291f94abc42"
+      }
+    ],
+    "organ": [
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_A#2_rr1.wav",
+        "size": 2300354,
+        "sha256": "20375eaac927ca11437b921f68f81981c016d62b23041b7da3efe5d7fe44f415"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_A#3_rr1.wav",
+        "size": 2026382,
+        "sha256": "5f61197bd5faabc93a1bc1b980d68831e7fbf556c1383b102a19d5c4c3070ac4"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_A#4_rr1.wav",
+        "size": 1683086,
+        "sha256": "a8c3e9b4c5b132ac2612daa5c4e60a434278118f5d0ea78f04dab77ffcfe32e8"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_C2_rr1.wav",
+        "size": 2318732,
+        "sha256": "c70dd11e9ad2a61868fa456c9ddc0795ac82ebb83a851ef2730e99f8eb0b0b1f"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_C3_rr1.wav",
+        "size": 2284700,
+        "sha256": "90e36226d3448f39800afd68aad68f1902cb280899430789cb77d1ab93bdbb34"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_C4_rr1.wav",
+        "size": 1900370,
+        "sha256": "7681f5c04c3c1e04c0bf089582a6e91b5aa40cfdcb020c568c6bffe4249ef7dc"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_D2_rr1.wav",
+        "size": 2025878,
+        "sha256": "a2fd24fa6a5b6c4cc4e6d8213f8dc85391b6ce93c2f9b493c603c553d37f40c6"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_D3_rr1.wav",
+        "size": 2208434,
+        "sha256": "cc56e4ebb6dbd15ff774b049d277b1537a832dc54bbff818dd1508c792189f95"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_D4_rr1.wav",
+        "size": 1753766,
+        "sha256": "564d80b824a680e8378826f1f4f892c8e7361fd2cf58fc0180402466e364e49b"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_E2_rr1.wav",
+        "size": 2706194,
+        "sha256": "0e32b2de65d08a1d847be3c1d87ff43aaa4e43abf9f047d3c612d131e2255919"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_E3_rr1.wav",
+        "size": 2350532,
+        "sha256": "6c47300483421155fc3216b4116c56d702872c0fd9516c1e136bf40ec3d09854"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_E4_rr1.wav",
+        "size": 2144870,
+        "sha256": "c1b86855ff9d4efd410443cd3ea6629de1456e65871704c3365dba245ebb114f"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_F#2_rr1.wav",
+        "size": 2246510,
+        "sha256": "4dbf39e2af28b1c23a1f9e359e842853fbb5f16054d863f519e5a0b40223ea0a"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_F#3_rr1.wav",
+        "size": 2338970,
+        "sha256": "8ccd5c0dedd57cea3487c260062faf835512f5f1bb7c09040444bbd9a8931c94"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_F#4_rr1.wav",
+        "size": 1718336,
+        "sha256": "ace6ddc280df1badc7709fb81b474d56f5e634d649689f350cf321541f27513c"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_G#2_rr1.wav",
+        "size": 2297822,
+        "sha256": "ebf0190603ab851c7dacb3d017351f15eb78ff8cb6d76be59d0b401414be7caa"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_G#3_rr1.wav",
+        "size": 2255252,
+        "sha256": "faafc6b653401a31f96e6e4c7564c852c660840d85a04a2956d5ff1126f37c81"
+      },
+      {
+        "path": "Aerophones/Edge-blown Aerophones/Renaissance Organ/8'/RenOrgan_8foot_Room_G#4_rr1.wav",
+        "size": 1749554,
+        "sha256": "fad359f7b62955081dff5467e9c4219660c7fc56fdd3134cc527abda7cd3912d"
+      }
+    ],
+    "frameDrum": [
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hand_rr1_Sum.wav",
+        "size": 205484,
+        "sha256": "b3dc4f4b2a0051d5ede32efe973fce7bb346220b223bd8e8078d61fdae586ab9"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_HitMuted_v2_rr1_Sum.wav",
+        "size": 305388,
+        "sha256": "fb08d2a29537fb6da0852ad8318709b8cbc312633237ca969e6e8f95ab5ca075"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_HitMuted_v3_rr1_Sum.wav",
+        "size": 301668,
+        "sha256": "3ebcbac4dbb1ecf73af211f07f3adcbf0100f40150f4043caf574d760a7bb1d7"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v2_rr1_Sum.wav",
+        "size": 659856,
+        "sha256": "ebef530c488aa67df18dc2449eaa0311fa4ebec170a1182e35737fc84a70e7b6"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v2_rr2_Sum.wav",
+        "size": 607780,
+        "sha256": "24155a8b4cbfb69f6d7b1bfef9b331b09c0695a033e8e8e1b518eb18fbdead55"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr1_Sum.wav",
+        "size": 637712,
+        "sha256": "e0fa5a60d459df12fa2e79080fc2db514e58a70a47d3300c5363d6ad113dfd0c"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr2_Sum.wav",
+        "size": 575896,
+        "sha256": "908e4e5bb6bc83dc1ae8dac86a869974eb6398578d131e278eb3d025cf736ca2"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hand_v1_rr1_Sum.wav",
+        "size": 148516,
+        "sha256": "5d8d963ee3487725097c82cb0f4f485ade3423e75541cedc32de2ed6ec6f61ce"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_HitMuted_v2_rr1_Sum.wav",
+        "size": 180420,
+        "sha256": "e13d6fb8f9bd089f134957c8532aafaa789fba8fbfe8bf829d224e0fa3c9d29e"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_HitMuted_v3_rr1_Sum.wav",
+        "size": 173168,
+        "sha256": "9ac5fae877b90f0f354766efe8dc813be87eeb31e6b52fe8750fa0528c2c16c4"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v2_rr1_Sum.wav",
+        "size": 456272,
+        "sha256": "ee6c1a45edae6466ae806084a8f7502f8e47bc6b8540baafe55716049a70a67f"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v2_rr2_Sum.wav",
+        "size": 377260,
+        "sha256": "fa0a802cbed2646b569a9f05a3cb7f6dd96a3a439ad90970a4fd5dff1afea695"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr1_Sum.wav",
+        "size": 370992,
+        "sha256": "09721cec12ab8d2336cddd60953a2505ea1c8c8324d0b4ed245b9c5ea4561c33"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr2_Sum.wav",
+        "size": 491912,
+        "sha256": "fb7dc925c96079cd14c3b88374dad46b4b31648db6799ac8ec685a983b9e7182"
+      }
+    ],
+    "darbuka": [
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_1_hit_vl1_rr1.wav",
+        "size": 188300,
+        "sha256": "8cebede6dbb3927a740e14e4a1eb76f6731892acc51dcda56308736372abb3fe"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_1_hit_vl1_rr2.wav",
+        "size": 211692,
+        "sha256": "c0884077c0e6e588b54514307d0ed220fcf606a08bca8cb89f3b7f5a800eb7b7"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_1_hit_vl2_rr1.wav",
+        "size": 221192,
+        "sha256": "9775c01e17a2713c239c552b63c3b6e9068f782c70128737390f8508f14cffb0"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_1_hit_vl2_rr2.wav",
+        "size": 215640,
+        "sha256": "1044ea2a44041d10c319c93a476232d86129b62e325ca544f93a50ebad8fd863"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_2_hit_vl1_rr1.wav",
+        "size": 113988,
+        "sha256": "34071020cd809365b706e121f5fd6b29e1c3208dd5a995b39c5f540c19693538"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_2_hit_vl1_rr2.wav",
+        "size": 114964,
+        "sha256": "f7aba2fb1ee750152b91b440348e52b0920210b603a60eca52183538462b2d93"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_2_hit_vl2_rr1.wav",
+        "size": 103708,
+        "sha256": "86aab33549dc1225ab3d2158675b0abfa76279274e453602bb80c3b88640558b"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_2_hit_vl2_rr2.wav",
+        "size": 109480,
+        "sha256": "e5311a8560dea027a3fdb1719fa6f257aaf3969fd5b7980c22700bccdfa7461e"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_3_hit_vl1_rr1.wav",
+        "size": 90756,
+        "sha256": "bf17760d121507998b70b7ad49f77740ca981faf0821d7003771224690e0efcb"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_3_hit_vl1_rr2.wav",
+        "size": 88580,
+        "sha256": "e84226f80f3618b16135fe027c3ca646f233eae85c3be3b5c71218c6131cd33b"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_3_hit_vl2_rr1.wav",
+        "size": 91936,
+        "sha256": "ba755558fc30e112808a57543c8ae5d25bc09b1db3244d789fa898ff1eda0cb5"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_3_hit_vl2_rr2.wav",
+        "size": 90244,
+        "sha256": "e896e57f35f497b6d00438f78343bdab2d7a655c7c179d24563edeebede6b6e3"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_4_hit_vl1_rr1.wav",
+        "size": 108392,
+        "sha256": "782dbf065d6689dfe7820f8eade6c9ccde6bcc15a8baef473206462e600db011"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_4_hit_vl1_rr2.wav",
+        "size": 106952,
+        "sha256": "c420c680045ad6ecd3df5d01679ed280cbd0938b63b5c8c3cd740a7b6566bad5"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_4_hit_vl2_rr1.wav",
+        "size": 128996,
+        "sha256": "6d6c6cb0898490532dadba6ec4a7f2440f8de6c94192f77af53a86878f0c562c"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_4_hit_vl2_rr2.wav",
+        "size": 114672,
+        "sha256": "e0545bd20823bfcbf45a4fcf2a0973bb88a5a6897908f04942267cc6b3fe2826"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_5_hit_vl1_rr1.wav",
+        "size": 95288,
+        "sha256": "d06ff1c19c18909147d872e108dc82847f7dce3aa30db60537475d5e0b37ca88"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_5_hit_vl1_rr2.wav",
+        "size": 112332,
+        "sha256": "9bb1b75fcbee2fc7cd61e0e462f20e21fee182d1086f90a650b571f21a938ad5"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_5_hit_vl2_rr1.wav",
+        "size": 98860,
+        "sha256": "ab61a720980c838d84909626ad4aa5216ef80d76e3a29f38df9fb03ea8e2b142"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Darbuka/Darbuka_5_hit_vl2_rr2.wav",
+        "size": 106304,
+        "sha256": "93687d27113db3bd3aed93dd71d8a7e4e57385d8e420bd40d5eb24cac6a770fa"
+      }
+    ],
+    "tabor": [
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Hi/RopeSnare_hi_sn_Main_vl1_rr1.wav",
+        "size": 552596,
+        "sha256": "74b2671dc63b7e545c8a04d0c1e6b0dfe2b976ccc6dd7da51709a9ec4bb1449b"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Hi/RopeSnare_hi_sn_Main_vl2_rr1.wav",
+        "size": 511514,
+        "sha256": "08c3f8ceeef6b85f0c5c719e16d4500851367afc1ddfef7479a429b10e63fe8a"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Hi/RopeSnare_hi_sn_Main_vl3_rr1.wav",
+        "size": 659012,
+        "sha256": "d586d6c74ae7a755a6379f9bdee22253caada99f9054aefeda0b9672e5b5e938"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Hi/RopeSnare_hi_sn_Main_vl4_rr1.wav",
+        "size": 625808,
+        "sha256": "7d6c8c57c830fe98fcc4cd8b5f87e55fdba65533689c434d7a3a28f3c814e627"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Low/RopeSnare_low_ns_Main_vl2_rr1.wav",
+        "size": 578396,
+        "sha256": "21d8021a29e166ddfc891ab9ff410017cd4dc272eceacc8d23f9ded6aede8680"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Low/RopeSnare_low_sn_Main_vl1_rr1.wav",
+        "size": 694652,
+        "sha256": "87d7b875c6fb26dce92c1a28dad27dee8a37a083c00d5982cc87d1ce0f982d83"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Low/RopeSnare_low_sn_Main_vl2_rr1.wav",
+        "size": 719612,
+        "sha256": "d903d5b70ff72b4619044a85d2334dc63fa92512dcdeaf56f7db3dcc88028b70"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/Low/RopeSnare_low_sn_Main_vl3_rr1.wav",
+        "size": 588662,
+        "sha256": "6131e8634efe5c66b3c383bd794004f395669ab2863ba5cb5941e8eb2f5e05e2"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/RopeSnare_stick_Main_vl1_rr1.wav",
+        "size": 285098,
+        "sha256": "5a13cdfc2c72bf43595b439d23a6d43396564410a399310b9eb2e321a7b4d1ab"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Snare Drum, Rope Tension/RopeSnare_stick_Main_vl1_rr2.wav",
+        "size": 269432,
+        "sha256": "0da74ab0661ae8876931241dc2b42debaef6de9a7ccfaaf0b9389e34a4f575d8"
+      }
+    ],
+    "bassDrum": [
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr1_Sum.wav",
+        "size": 281616,
+        "sha256": "56827fe9b55f282a0db851e242bc24660d339a0e358b182966aea047240c1136"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v2_rr2_Sum.wav",
+        "size": 302396,
+        "sha256": "f1f8979de26f8efe278fe778da7bdce2a39fbfb9f2cbf345e38ce8c66f171b59"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v3_rr1_Sum.wav",
+        "size": 367124,
+        "sha256": "a2d8829e8b2b59e8afb12fa396b01758827059339c2a84ad066d17b36c82d1ff"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v3_rr2_Sum.wav",
+        "size": 354580,
+        "sha256": "036c6c5fcfbcca845d92dbcdcef075ee6e0ae01636374a2f7dd1a696a7ba33f8"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr1_Sum.wav",
+        "size": 588092,
+        "sha256": "642aaf3375eaff1307973f7de3ccbf74d18e71fb3cf9412e021b08fc3bf1981c"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr2_Sum.wav",
+        "size": 614388,
+        "sha256": "a83943f8125ae39469ef5dab1d0be2fe3145c6842c0621b27be5d86aa44b325d"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v7_rr1_Sum.wav",
+        "size": 1105152,
+        "sha256": "7024054e68261d2cca0ee58fdf9d6f23b54370792d04aa2c1ccf41acc090bd2b"
+      },
+      {
+        "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v7_rr2_Sum.wav",
+        "size": 993988,
+        "sha256": "fa4374b9ffdc3b9a3c85331ce96c447cf13e46d956cce9cfd9ba02801f71276f"
+      }
+    ],
+    "tambourine": [
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Hit_v1_rr1_Mid.wav",
+        "size": 338496,
+        "sha256": "6fd5af9ec2d94c3b66fa871aecbc2e2844eea155a668fd0f15f07d59ae67dd40"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Hit_v2_rr1_Mid.wav",
+        "size": 293256,
+        "sha256": "885ebf1d70f8e888f576682e4e4112b92b69649162f392c83b3379c91a09cf41"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Roll_v1_rr1_Mid.wav",
+        "size": 1849956,
+        "sha256": "d212ec670effbb89ff345c2872c774aa6bdc8781fa5a8a6a5c7392446903bd81"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Roll_v2_rr1_Mid.wav",
+        "size": 1857924,
+        "sha256": "debe57e09b79fb808092b1c6f818b457ca8a9832d25584006bf2ae64ee6d510d"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Roll_v3_rr1_Mid.wav",
+        "size": 1711720,
+        "sha256": "23dfe482f0b24b7ade9e8a9a19761b6ef3cff0dca59e353b4b5ede84c0b2bf61"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Shake_rr1_Mid.wav",
+        "size": 258948,
+        "sha256": "5876b66d1e8009b3ee884ff3bf52fbc420b44f9ddffffe830b4074d3dfc09924"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tambourine 1/Tamb1_Shake_rr2_Mid.wav",
+        "size": 237792,
+        "sha256": "5ab51f8cd9fba10ae7a7125b96a520c69e049687409532b745fddd5356c6d6f3"
+      }
+    ],
+    "bells": [
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_A#3_ff_rr1.wav",
+        "size": 3331184,
+        "sha256": "55fcfdb825026629670e3486f47762e6a3c4a89e138990fbd0e65c3f0a1d6a79"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_C3_f_rr1.wav",
+        "size": 3010736,
+        "sha256": "76d51955e61e70e7a6b46a05865cd0f06f4948aaab97b1925f0f06f193f717f5"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_C4_ff_rr2.wav",
+        "size": 4882730,
+        "sha256": "50d2c2bff54396a684ce9b29346bb8d43bb55d5d9adb9d736bdd5a713adc424a"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_D3_ff_rr1.wav",
+        "size": 5195162,
+        "sha256": "ca1c64961ce8e96f6ea3ed3bf67bde09c0beb723b0fe346881b317695b1ce84f"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_D4_ff_rr2.wav",
+        "size": 3639584,
+        "sha256": "2657add471fc1804a29c1261df45af13c700803cfa29bd11c134400a3fbc8700"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_E3_ff_rr2.wav",
+        "size": 4721192,
+        "sha256": "086a46cb560dae926014c0494965034aeecdffade7a1d6f54feda13274775a11"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_E4_ff_rr2.wav",
+        "size": 3407718,
+        "sha256": "1bec82ee61186bf12863842251b1ec726322a649bc90f50f7bca423d30b345ac"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_F#3_fff_rr1.wav",
+        "size": 3494870,
+        "sha256": "4664366c705496c3dc5ba9de75ffcd6739610dc669391cadda34a63cbcfa1251"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Tubular Bells 1/chimes_G#3_ff_rr1.wav",
+        "size": 3895904,
+        "sha256": "ec7743ccc27b4546f51852965e7d96e97cc14270f6051040c2890fd4d34c24c2"
+      }
+    ],
+    "fingerCymbals": [
+      {
+        "path": "Idiophones/Struck Idiophones/Finger Cymbals/Fing_Cymb.wav",
+        "size": 1678354,
+        "sha256": "6d39abaeff2a09fc8dcd366664ebad47f570c95b0e0440fde1bb6b7dbd33be32"
+      }
+    ],
+    "handBells": [
+      {
+        "path": "Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_1.wav",
+        "size": 793402,
+        "sha256": "46e19962db5cb9b339f22609f1c529cd187249c36f3bcd05d4002179c403c222"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_2.wav",
+        "size": 335938,
+        "sha256": "e201ef095eac406a1bd5a9ec774229b57f40407d633e6dbeed53c67ebb973d56"
+      },
+      {
+        "path": "Idiophones/Struck Idiophones/Hand Bells, Nepalese/HB_3.wav",
+        "size": 593506,
+        "sha256": "9824e5aafb07085913231fe4f574561e92b02ba44bcd4a105783b857c1ca2f71"
+      }
+    ]
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "$comment": "ADR-051 : les arrangements de la musique du jeu, joués par scripts/render-music.ts avec les échantillons de la VCSL (scripts/music/samples.json). Langue musicale de l'époque : bourdons sur la finale et la quinte, hétérophonie (un second instrument suit la mélodie en la simplifiant), quintes, percussions de danse (estampie). Temps en noires ; transpose en demi-tons.",
+  "instruments": {
+    "harp": { "group": "harp", "attack": 0.002, "release": 1.8, "sustain": false },
+    "psaltery": { "group": "psalteryPluck", "attack": 0.002, "release": 1.5, "sustain": false },
+    "bowed": { "group": "psalteryBow", "attack": 0.16, "release": 0.45, "sustain": true },
+    "recorder": { "group": "recorder", "attack": 0.04, "release": 0.16, "sustain": true },
+    "recorderShort": { "group": "recorderStaccato", "attack": 0.004, "release": 0.07, "sustain": false },
+    "organ": { "group": "organ", "attack": 0.45, "release": 1.4, "sustain": true },
+    "bells": { "group": "bells", "attack": 0.002, "release": 5, "sustain": false }
+  },
+  "hits": {
+    "frameLow": { "files": ["HDrumL_Hit_v2_rr1_Sum", "HDrumL_Hit_v2_rr2_Sum", "HDrumL_Hit_v3_rr1_Sum", "HDrumL_Hit_v3_rr2_Sum"], "gain": 0.8 },
+    "frameHigh": { "files": ["HDrumS_Hit_v2_rr1_Sum", "HDrumS_Hit_v2_rr2_Sum", "HDrumS_Hit_v3_rr1_Sum", "HDrumS_Hit_v3_rr2_Sum"], "gain": 0.55 },
+    "frameMuted": { "files": ["HDrumL_HitMuted_v2_rr1_Sum", "HDrumL_HitMuted_v3_rr1_Sum"], "gain": 0.7 },
+    "dum": { "files": ["Darbuka_1_hit_vl2_rr1", "Darbuka_1_hit_vl2_rr2"], "gain": 0.65 },
+    "tek": { "files": ["Darbuka_3_hit_vl1_rr1", "Darbuka_3_hit_vl1_rr2", "Darbuka_4_hit_vl1_rr1", "Darbuka_4_hit_vl1_rr2"], "gain": 0.4 },
+    "tabor": { "files": ["RopeSnare_hi_sn_Main_vl2_rr1", "RopeSnare_hi_sn_Main_vl3_rr1"], "gain": 0.3 },
+    "taborSoft": { "files": ["RopeSnare_hi_sn_Main_vl1_rr1"], "gain": 0.25 },
+    "bass": { "files": ["BDrumNew_hit_v5_rr1_Sum", "BDrumNew_hit_v5_rr2_Sum"], "gain": 0.6 },
+    "bassBig": { "files": ["BDrumNew_hit_v7_rr1_Sum", "BDrumNew_hit_v7_rr2_Sum"], "gain": 0.75 },
+    "jingle": { "files": ["Tamb1_Shake_rr1_Mid", "Tamb1_Shake_rr2_Mid"], "gain": 0.25 },
+    "cymbal": { "files": ["Fing_Cymb"], "gain": 0.25 }
+  },
+  "patterns": {
+    "frame3": [[0, "frameLow", 1], [1, "frameHigh", 0.45], [2, "frameHigh", 0.55]],
+    "dance3": [[0, "dum", 1], [1, "tek", 0.6], [1.5, "tek", 0.35], [2, "tek", 0.75], [2.5, "tek", 0.45]],
+    "battle3": [[0, "bass", 0.9], [0, "dum", 1], [0.5, "tek", 0.4], [1, "tek", 0.7], [1.5, "tabor", 0.55], [2, "dum", 0.8], [2.5, "tek", 0.6]],
+    "jingle3": [[0, "jingle", 0.7], [1, "jingle", 0.4], [2, "jingle", 0.55]],
+    "slow4": [[0, "frameMuted", 0.8], [2, "frameMuted", 0.45]],
+    "heart6": [[0, "frameMuted", 1], [0.5, "frameMuted", 0.5], [3, "frameMuted", 0.75]],
+    "march6": [[0, "frameLow", 0.9], [2, "frameHigh", 0.45], [3, "frameLow", 0.75], [4, "tabor", 0.4], [5, "tabor", 0.5], [5.5, "taborSoft", 0.45]]
+  },
+  "tracks": [
+    {
+      "id": "music_map",
+      "title": "Kalenda maya — la carte du Val et les menus",
+      "tune": "kalenda",
+      "bpm": 108,
+      "loop": true,
+      "reverb": { "room": 0.72, "damp": 0.5, "wet": 0.3, "dry": 0.85 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "harp", "pan": -0.1 },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 4, "level": -16 },
+          { "type": "drums", "pattern": "frame3", "level": -8, "sections": ["A", "B"] }
+        ],
+        [
+          { "type": "melody", "instrument": "recorder", "transpose": 12, "pan": 0.18, "legato": 0.9 },
+          { "type": "melody", "instrument": "psaltery", "transpose": 12, "simplify": true, "level": -7, "pan": -0.35 },
+          { "type": "pluck", "instrument": "harp", "notes": ["C3", "G3", "C4"], "pattern": [[0, 0, 0.9], [1, 1, 0.55], [2, 2, 0.6]], "level": -10, "pan": -0.15 },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 4, "level": -16 },
+          { "type": "drums", "pattern": "dance3", "level": -8 },
+          { "type": "drums", "pattern": "jingle3", "level": -14, "sections": ["B"] }
+        ]
+      ]
+    },
+    {
+      "id": "music_calm",
+      "title": "Palästinalied — le siège, avant les coups",
+      "tune": "palastina",
+      "bpm": 63,
+      "loop": true,
+      "reverb": { "room": 0.85, "damp": 0.45, "wet": 0.34, "dry": 0.8 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "harp", "transpose": 12, "pan": -0.1 },
+          { "type": "drone", "instrument": "organ", "notes": ["D3", "A3"], "bars": 4, "level": -14 }
+        ],
+        [
+          { "type": "melody", "instrument": "recorder", "transpose": 12, "pan": 0.15, "legato": 0.95 },
+          { "type": "pluck", "instrument": "harp", "notes": ["D3", "A3", "D4"], "pattern": [[0, 0, 0.85], [2, 1, 0.5], [3, 2, 0.4]], "level": -10, "pan": -0.2 },
+          { "type": "drone", "instrument": "organ", "notes": ["D3", "A3"], "bars": 4, "level": -16 },
+          { "type": "drums", "pattern": "slow4", "level": -14 }
+        ],
+        [
+          { "type": "melody", "instrument": "bowed", "transpose": 24, "pan": 0.12, "legato": 1 },
+          { "type": "melody", "instrument": "harp", "transpose": 12, "simplify": true, "level": -6, "pan": -0.15 },
+          { "type": "drone", "instrument": "organ", "notes": ["D3", "A3"], "bars": 4, "level": -16 }
+        ]
+      ]
+    },
+    {
+      "id": "music_tension",
+      "title": "Reis glorios — l'ennemi est proche",
+      "tune": "reis",
+      "bpm": 84,
+      "loop": true,
+      "reverb": { "room": 0.8, "damp": 0.55, "wet": 0.3, "dry": 0.85 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "bowed", "transpose": 12, "pan": 0.12, "legato": 1 },
+          { "type": "melody", "instrument": "recorder", "transpose": 12, "level": -8, "pan": 0.3, "legato": 0.92, "sections": ["C", "R"] },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 2, "level": -12 },
+          { "type": "pluck", "instrument": "harp", "notes": ["C2", "G2"], "pattern": [[0, 0, 0.95], [3, 1, 0.7]], "level": -6, "pan": -0.2 },
+          { "type": "drums", "pattern": "heart6", "level": -6 },
+          { "type": "drums", "pattern": "march6", "level": -10, "sections": ["C", "R"] }
+        ]
+      ]
+    },
+    {
+      "id": "music_battle",
+      "title": "Kalenda maya, vive — la mêlée",
+      "tune": "kalenda",
+      "bpm": 152,
+      "loop": true,
+      "reverb": { "room": 0.6, "damp": 0.5, "wet": 0.22, "dry": 0.9 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "recorderShort", "transpose": 12, "pan": 0.15 },
+          { "type": "melody", "instrument": "psaltery", "transpose": 12, "simplify": true, "level": -5, "pan": -0.3 },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 2, "level": -16 },
+          { "type": "pluck", "instrument": "harp", "notes": ["C2", "G2"], "pattern": [[0, 0, 1], [2, 1, 0.7]], "level": -8, "pan": -0.1 },
+          { "type": "drums", "pattern": "battle3", "level": -3 }
+        ],
+        [
+          { "type": "melody", "instrument": "recorderShort", "transpose": 12, "pan": 0.15 },
+          { "type": "melody", "instrument": "bowed", "transpose": 12, "simplify": true, "level": -10, "pan": -0.35, "sections": ["B"] },
+          { "type": "melody", "instrument": "psaltery", "transpose": 12, "simplify": true, "level": -5, "pan": -0.3 },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 2, "level": -16 },
+          { "type": "pluck", "instrument": "harp", "notes": ["C2", "G2"], "pattern": [[0, 0, 1], [2, 1, 0.7]], "level": -8, "pan": -0.1 },
+          { "type": "drums", "pattern": "battle3", "level": -3 },
+          { "type": "drums", "pattern": "jingle3", "level": -12 }
+        ]
+      ]
+    },
+    {
+      "id": "music_chronicle",
+      "title": "Reis glorios, à la harpe — la chronique",
+      "tune": "reis",
+      "bpm": 66,
+      "loop": true,
+      "reverb": { "room": 0.88, "damp": 0.4, "wet": 0.36, "dry": 0.8 },
+      "passes": [
+        [
+          { "type": "bells", "hits": [[0, "C5", 0.7], [0, "G4", 0.45], [3, "C4", 0.6]], "level": -4 },
+          { "type": "melody", "instrument": "harp", "pan": -0.08 },
+          { "type": "melody", "instrument": "recorder", "transpose": 12, "level": -8, "pan": 0.25, "legato": 0.95, "sections": ["R"] },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3"], "bars": 2, "level": -18 }
+        ]
+      ]
+    },
+    {
+      "id": "music_victory",
+      "title": "Kalenda maya, la fin — le château est pris",
+      "tune": "kalenda",
+      "bpm": 112,
+      "loop": false,
+      "excerpt": [127, 145],
+      "slowLast": [6, 1.3],
+      "tailS": 6,
+      "reverb": { "room": 0.8, "damp": 0.45, "wet": 0.32, "dry": 0.85 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "recorder", "transpose": 12, "pan": 0.15, "legato": 0.95 },
+          { "type": "melody", "instrument": "harp", "level": -5, "pan": -0.2 },
+          { "type": "drone", "instrument": "organ", "notes": ["C3", "G3", "C4"], "bars": 6, "level": -12 },
+          { "type": "drums", "hits": [[0, "bassBig", 0.9], [3, "frameLow", 0.7], [6, "frameLow", 0.7], [9, "frameLow", 0.7], [12, "bass", 0.8], [15, "frameLow", 0.7], [18, "bassBig", 1]], "level": -4 },
+          { "type": "bells", "hits": [[15, "C5", 0.8], [15, "G4", 0.6], [18, "C4", 0.9], [18, "E5", 0.5]], "level": -3 }
+        ]
+      ]
+    },
+    {
+      "id": "music_defeat",
+      "title": "Palästinalied, la fin — l'assaut a échoué",
+      "tune": "palastina",
+      "bpm": 54,
+      "loop": false,
+      "excerpt": [46, 56],
+      "slowLast": [2, 1.4],
+      "tailS": 6,
+      "reverb": { "room": 0.88, "damp": 0.5, "wet": 0.36, "dry": 0.8 },
+      "passes": [
+        [
+          { "type": "melody", "instrument": "bowed", "transpose": 24, "pan": 0.1, "legato": 1 },
+          { "type": "melody", "instrument": "harp", "transpose": 12, "level": -6, "pan": -0.15 },
+          { "type": "drone", "instrument": "organ", "notes": ["D3", "A3"], "bars": 4, "level": -10 },
+          { "type": "drums", "hits": [[0, "frameMuted", 0.8], [4, "frameMuted", 0.6], [8, "frameMuted", 0.5]], "level": -10 }
+        ]
+      ]
+    }
+  ]
+}

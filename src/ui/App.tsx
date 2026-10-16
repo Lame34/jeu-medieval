@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { PaperFilters } from './components/PaperFilters.tsx';
+import { ScreenMusic } from './ScreenMusic.tsx';
 import { LoadingScreen } from './screens/LoadingScreen.tsx';
 import { TitleScreen } from './screens/TitleScreen.tsx';
 import { ROUTES, useRoute } from './router.ts';
@@ -36,6 +37,7 @@ export function App() {
   return (
     <>
       <PaperFilters />
+      <ScreenMusic />
       <Suspense fallback={<LoadingScreen label="Préparation du champ de bataille" />}>
         <CurrentScreen />
       </Suspense>

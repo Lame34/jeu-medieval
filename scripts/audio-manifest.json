@@ -1,5 +1,5 @@
 {
-  "$comment": "Pipeline audio (J5, brief §11) : chaque son du jeu, ses variantes (fichiers de assets-src/raw/audio/) et leur traitement par scripts/blender/process_audio.py (npm run assets:audio). Catégories : sfx, ui, ambience (boucles), music (copiée telle quelle). maxS : durée gardée (silence de fin coupé, fondu de sortie fadeS) ; startS : début ; rate : vitesse de lecture (hauteur) ; gainDb : correction après normalisation. Cibles de niveau (RMS) par catégorie dans 'targets'.",
+  "$comment": "Pipeline audio (J5, brief §11) : chaque son du jeu, ses variantes (fichiers de assets-src/raw/audio/) et leur traitement par scripts/blender/process_audio.py (npm run assets:audio). Catégories : sfx, ui, ambience (boucles), music (copiée telle quelle ; rendue par scripts/render-music.ts dans assets-src/work/music, ADR-051). maxS : durée gardée (silence de fin coupé, fondu de sortie fadeS) ; startS : début ; rate : vitesse de lecture (hauteur) ; gainDb : correction après normalisation. Cibles de niveau (RMS) par catégorie dans 'targets'.",
   "targets": { "sfx": -16, "ui": -20, "ambience": -24, "music": -18 },
   "peakDb": -1,
   "sounds": {
@@ -47,8 +47,12 @@
     "amb_fire": { "category": "ambience", "loop": true, "sources": ["fireplace-loop/fire_loop_16bit_mono.wav"] },
     "amb_water": { "category": "ambience", "loop": true, "sources": ["rubberduck-40-cc0-water-splash-slime/x/loop_water_02.ogg"] },
 
-    "music_calm": { "category": "music", "loop": true, "sources": ["randommind-music/The_Bards_Tale.mp3"] },
-    "music_tension": { "category": "music", "loop": true, "sources": ["randommind-music/Lament_for_a_Warriors_Soul.mp3"] },
-    "music_battle": { "category": "music", "loop": true, "sources": ["randommind-music/Medieval_Battle.mp3"] }
+    "music_map": { "category": "music", "loop": true, "sources": ["../../work/music/music_map.wav"] },
+    "music_calm": { "category": "music", "loop": true, "sources": ["../../work/music/music_calm.wav"] },
+    "music_tension": { "category": "music", "loop": true, "sources": ["../../work/music/music_tension.wav"] },
+    "music_battle": { "category": "music", "loop": true, "sources": ["../../work/music/music_battle.wav"] },
+    "music_chronicle": { "category": "music", "loop": true, "sources": ["../../work/music/music_chronicle.wav"] },
+    "music_victory": { "category": "music", "loop": false, "sources": ["../../work/music/music_victory.wav"] },
+    "music_defeat": { "category": "music", "loop": false, "sources": ["../../work/music/music_defeat.wav"] }
   }
 }

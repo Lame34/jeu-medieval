@@ -16,3 +16,4 @@ Règle : **aucun cube gris à l'écran**. Tout asset manquant est remplacé par 
 | Château | ✅ Kit procédural (`src/render/castle/`) : courtines, tours, donjon, porterie, pont-levis, pont de pierre | — | Tours carrées de porte, double enceinte (château 4) | J4 |
 | Abords des maisons (brief §5.4) | ✅ Charrette, caisses et clôture derrière chaque maison, issues du kit (`src/render/buildings/houses.ts`) | — | Puits, tas de bois | J3 |
 | Audio | ✅ Sons CC0 traités par Blender headless (ADR-033), crédités dans `assets/CREDITS.md` | — | — | J5 |
+| Musique | ✅ Trois airs d'époque du domaine public, joués sur les échantillons CC0 de la VCSL et rendus par le jeu (ADR-051), crédités dans `assets/CREDITS.md` | — | — | Étape 5 |

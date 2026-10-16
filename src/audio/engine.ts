@@ -56,6 +56,8 @@ interface Listener {
 class AudioEngine {
   private readonly howls = new Map<SoundId, Howl[]>();
   private readonly loops = new Map<SoundId, { howl: Howl; id: number; target: number; level: number }>();
+  /** Loops asked for before the player's first input (nothing plays before one): started once Howler is in. */
+  private readonly wanted = new Map<SoundId, number>();
   private readonly bus: Record<Category, number> = { ...BUS };
   private readonly listener: Listener = { x: 0, z: 0, rightX: 1, rightZ: 0, distance: 40 };
   private loaded = false;
@@ -80,6 +82,8 @@ class AudioEngine {
       lib.Howler.mute(this.muted);
       lib.Howler.volume(this.master);
       this.loadAll();
+      for (const [id, level] of this.wanted) this.loop(id, level);
+      this.wanted.clear();
     });
   }
 
@@ -178,12 +182,17 @@ class AudioEngine {
     const sid = howl.play();
     howl.volume(gain, sid);
     howl.stereo(pan, sid);
-    howl.rate((opts.rate ?? 1) * (1 + (Math.random() * 2 - 1) * PITCH_JITTER), sid);
+    // Noises vary a little at each play; music keeps its pitch.
+    howl.rate((opts.rate ?? 1) * (e.category === 'music' ? 1 : 1 + (Math.random() * 2 - 1) * PITCH_JITTER), sid);
   }
 
   /** A loop towards `volume` (0 stops it after the fade). */
   loop(id: SoundId, volume: number, fadeMs = 2000): void {
-    if (!this.lib) return;
+    if (!this.lib) {
+      if (volume > 0) this.wanted.set(id, volume);
+      else this.wanted.delete(id);
+      return;
+    }
     const e = this.entry(id);
     const level = Math.max(0, Math.min(1, volume));
     const target = this.bus[e.category] * level;
@@ -215,7 +224,13 @@ class AudioEngine {
 
   /** Every loop fades out (leaving a battle). */
   stopLoops(fadeMs = 800): void {
+    this.wanted.clear();
     for (const id of [...this.loops.keys()]) this.loop(id, 0, fadeMs);
+  }
+
+  /** A sound's length (s), from the manifest. */
+  durationS(id: SoundId): number {
+    return this.entry(id).variants[0]?.durationS ?? 0;
   }
 }
 

@@ -670,6 +670,8 @@ Sourcé le 2026-10-03 par l'asset-scout. **107 fichiers retenus, 36.8 Mo** (budg
 | `randommind-music/Medieval_Battle.mp3` | mp3 44.1 kHz stéréo | 78.9 s | 3.0 Mo | Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle (RandomMind) | Musique couche BATAILLE (79 s). |
 | `randommind-music/The_Bards_Tale.mp3` | mp3 44.1 kHz stéréo | 158.6 s | 3.6 Mo | Musique RandomMind : Medieval - The Bard's Tale ; Fantasy - Lament for a Warrior's Soul ; Medieval - Battle (RandomMind) | Musique couche CALME (mode majeur). Version mp3 « complète » : pas de boucle sans couture (la version Loop .wav fait 10 Mo, non retenue). |
 
+Ces trois morceaux ne sont plus livrés depuis l'ADR-051 : ils sont gardés dans `raw/` pour mémoire.
+
 ### Licences et sources (résumé)
 
 - **Birds and Wind - Ambient, Birds, Wind and Synth** - Spring Spring - CC0 (page OGA) - https://opengameart.org/content/birds-and-wind-ambient-birds-wind-and-synth
@@ -719,6 +721,6 @@ Sourcé le 2026-10-03 par l'asset-scout. **107 fichiers retenus, 36.8 Mo** (budg
 | Pas herbe / terre / pierre / bois | OK sauf terre | herbe 3, pierre 3, bois 3 ; terre = 2 seulement (boue, gravier) |
 | UI : clic, sélection, validation, fin de tour | OK | clic 3, sélection 2, validation 2, cor 2 (5 s et 14 s) + cloche |
 | Ambiances jour / nuit / pluie / blés / rivière | OK (approx.) | jour 2, nuit 1, pluie 2, vent 1, rivière 3 ; boucles courtes, points de bouclage non vérifiés ; pas de « vent dans les blés » dédié (vent générique) |
-| Musique 3 couches | Partiel | calme / tension / bataille, tous CC0 (RandomMind), mais tonalité NON vérifiée (calme = Majeur d'après les tags, tension = mineur) : crossfade tonal non garanti ; mp3 non bouclables sans couture |
+| Musique | OK (ADR-051) | sept morceaux rendus par `scripts/render-music.ts` à partir de trois airs du domaine public (Kalenda maya, Reis glorios, Palästinalied) joués sur les échantillons CC0 de la VCSL (165 fichiers, `scripts/music/samples.json`), bouclés sans couture ; la musique RandomMind n'est plus livrée |
 | Non trouvé en CC0 scriptable | Manque | vrais sons de catapulte/trébuchet/bélier/herse (les packs CC0 ne couvrent pas, Freesound exige une connexion, Sonniss et FuseHive sont à licence maison) |
 

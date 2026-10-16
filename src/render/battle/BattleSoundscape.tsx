@@ -2,8 +2,9 @@
  * The battle's soundscape (J5, brief §11): the listener follows the camera; ambiences follow the
  * hour (birds by day, crickets at night), the rain, the wind, the fires and the water near the
  * camera's focus; the music moves between its layers (calm, tension, battle) as the fighting
- * comes closer, with crossfades. Re-evaluated a few times a second and on battle events, never
- * through React state.
+ * comes closer, with crossfades, and closes the battle with a short piece of victory or defeat
+ * (ADR-051). Re-evaluated a few times a second and on battle events, never through React state.
+ * The sounds' loading and the player's volumes are the screen's (ui/ScreenMusic.tsx).
  */
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
@@ -13,7 +14,6 @@ import type { BattleState } from '../../core/battle/types.ts';
 import { TerrainLayer } from '../../core/rules/types.ts';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { PLAYER_FACTION, type BattleSession } from '../../ui/battle/session.ts';
-import { useSettings } from '../../state/settings.ts';
 import { nightness } from '../atmosphere/time-of-day.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 
@@ -29,6 +29,10 @@ const WATER_SAMPLE_M = 3;
 const BATTLE_ROUNDS = 1;
 const TENSION_M = 60;
 const MUSIC_FADE_MS = 3500;
+/** At the battle's end: the layers fade this fast, then the calm returns this softly after the closing piece. */
+const END_FADE_MS = 1200;
+const AFTER_END_LEVEL = 0.5;
+const MS_PER_S = 1000;
 
 type Layer = 'music_calm' | 'music_tension' | 'music_battle';
 
@@ -44,33 +48,12 @@ function waterCells(terrain: TerrainData): Float32Array {
 }
 
 export function BattleSoundscape({ session, terrain }: { readonly session: BattleSession; readonly terrain: TerrainData }) {
-  const muted = useSettings((s) => s.muted);
-  const volumes = useSettings((s) => s.volumes);
   const water = useMemo(() => waterCells(terrain), [terrain]);
   const clock = useRef(AMBIENCE_EVERY_S);
   const lastBlowRound = useRef(Number.NEGATIVE_INFINITY);
 
-  // The sounds load at the player's first input: browsers play nothing before one anyway, and
-  // decoding them while the battle first shows stole frames.
-  useEffect(() => {
-    const start = () => {
-      window.removeEventListener('pointerdown', start);
-      window.removeEventListener('keydown', start);
-      audio.load();
-    };
-    window.addEventListener('pointerdown', start);
-    window.addEventListener('keydown', start);
-    return () => {
-      window.removeEventListener('pointerdown', start);
-      window.removeEventListener('keydown', start);
-      audio.stopLoops();
-    };
-  }, []);
-  useEffect(() => audio.setMuted(muted), [muted]);
-  useEffect(() => {
-    audio.setMasterVolume(volumes.master);
-    audio.setBusVolumes(volumes);
-  }, [volumes]);
+  // Leaving the battle, its loops fade.
+  useEffect(() => () => audio.stopLoops(), []);
 
   // Music: the layer for the state of the battle.
   useEffect(() => {
@@ -85,11 +68,24 @@ export function BattleSoundscape({ session, terrain }: { readonly session: Battl
       const layer = pick(state);
       for (const l of ['music_calm', 'music_tension', 'music_battle'] as const) audio.loop(l, l === layer ? 1 : 0, MUSIC_FADE_MS);
     };
-    apply(session.state);
-    return session.subscribe((events, state) => {
+    let after: number | undefined;
+    if (session.state.status === 'ongoing') apply(session.state);
+    const stop = session.subscribe((events, state) => {
       if (events.some((e) => e.type === 'unitAttacked' || e.type === 'structureDamaged' || e.type === 'structureBroken')) lastBlowRound.current = state.turn;
-      apply(state);
+      if (events.some((e) => e.type === 'battleEnded')) {
+        // The battle closes on its own piece; the calm comes back after it, softly.
+        for (const l of ['music_calm', 'music_tension', 'music_battle'] as const) audio.loop(l, 0, END_FADE_MS);
+        const closing = state.status === 'attackerWon' ? 'music_victory' : 'music_defeat';
+        audio.play(closing);
+        after = window.setTimeout(() => audio.loop('music_calm', AFTER_END_LEVEL, MUSIC_FADE_MS), audio.durationS(closing) * MS_PER_S);
+        return;
+      }
+      if (state.status === 'ongoing') apply(state);
     });
+    return () => {
+      stop();
+      window.clearTimeout(after);
+    };
   }, [session]);
 
   useFrame(({ camera }, delta) => {

@@ -1,0 +1,41 @@
+{
+  "$comment": "ADR-051 : les airs d'époque du jeu, transcrits note à note d'éditions du domaine public (voir « source »). Notation : HAUTEUR:DURÉE en noires (1/3 = croche de triolet), r = silence, ~HAUTEUR = petite note d'ornement, | = barre de mesure (chaque mesure fait la mesure du chant), ^ en tête d'une mesure incomplète (anacrouse, fin de reprise).",
+  "tunes": {
+    "kalenda": {
+      "title": "Kalenda maya",
+      "author": "Raimbaut de Vaqueiras, vers 1200 (estampida)",
+      "source": "P. Aubry, Trouvères et troubadours, Paris, F. Alcan, 1909, p. 56, d'après le chansonnier BnF fr. 22543",
+      "meter": [3, 4],
+      "sections": {
+        "pick": "^E4:1",
+        "A": "G4:2 G4:1 | A4:2 G4:1 | F4:2 G4:1 | A4:2 Bb4:1 | A4:3 | G4:2 A4:1 | B4:2 C5:1 | B4:1 A4:1 G4:1 | E4:2 F4:1 | E4:2 D4:1 | C4:2 E4:1",
+        "B": "G4:2 G4:1 | A4:2 Bb4:1 | G4:2 F4:1 | E4:2 C4:1 | D4:2 E4:1 | G4:2 A4:1 | Bb4:2 Bb4:1 | G4:2 F4:1 | E4:2 D4:1 | C4:2 E4:1 | D4:3 | C4:2 E4:1 | D4:3 | C4:2 E4:1 | G4:2 G4:1 | E4:2 E4:1 | D4:2 C4:1 | C4:2 E4:1 | D4:3 | C4:2 E4:1 | D4:3 | C4:2 E4:1 | G4:2 G4:1 | E4:2 F4:1 | ~E4 ~F4 D4:3 | ~D4 C4:3"
+      },
+      "form": ["pick", "A", "A", "B"]
+    },
+    "palastina": {
+      "title": "Palästinalied (« Nû alrêrst lebe ich mir werde »)",
+      "author": "Walther von der Vogelweide, vers 1224 (chanson de croisade)",
+      "source": "F. Jostes, 1912, d'après le fragment de Münster ; Wikimedia Commons, « Kreuzlied Jostes1912 357.jpg » (domaine public)",
+      "meter": [4, 4],
+      "sections": {
+        "A": "^D3:1 D3:1 | F3:1 F3:1 D3:1 D3:1/3 E3:1/3 F3:1/3 | D3:1 D3:1 E3:1 F3:1 | A3:1 A3:1/3 G3:1/3 F3:1/3 F3:1 D3:1 | ^E3:1/2 F3:1/2 E3:1/2 D3:1/2",
+        "B": "^A3:1 A3:1 | C4:1 A3:1 B3:1 C4:1 | A3:2 A3:1 C4:1/3 B3:1/3 A3:1/3 | G3:1 G3:1/4 F3:1/4 E3:1/4 D3:1/4 E3:1 F3:1/3 E3:1/3 D3:1/3 | C3:2 E3:1 G3:1 | A3:1 A3:1/4 G3:1/4 F3:1/4 E3:1/4 D3:1 D3:1 | ^E3:1/2 F3:1/2 E3:1/2 D3:1/2"
+      },
+      "form": ["A", "A", "B"]
+    },
+    "reis": {
+      "title": "Reis glorios",
+      "author": "Guiraut de Bornelh, vers 1180 (aube)",
+      "source": "P. Aubry, Trouvères et troubadours, Paris, F. Alcan, 1909, p. 87-88, d'après le chansonnier BnF fr. 22543, fol. 8",
+      "meter": [6, 4],
+      "sections": {
+        "A": "D4:3 D4:1 A4:2 | A4:3 A4:1/3 B4:1/3 A4:1/3 C5:2 | ~B4 A4:1 B4:1 A4:1 G4:1 ~A4 B4:1 C5:1 | B4:3 A4:2 G4:1",
+        "B": "~A4 G4:1 A4:1 Bb4:1 A4:1 G4:1 F4:1 | E4:3 E4:1 G4:2 | A4:3 D4:1 E4:2 | ~F4 D4:3 ~D4 C4:2 r:1",
+        "C": "C4:3 D4:1 E4:2 | F4:1 E4:1 D4:2/3 C4:1/3 ~G4 ~A4 Bb4:2/3 A4:1/3 A4:2 | G4:2 F4:1 E4:1 F4:2 | ~G4 F4:1 E4:1 D4:1 E4:2 r:1",
+        "R": "C4:3 D4:1 E4:2 | F4:3 G4:1 A4:1 G4:1 | ~E4 D4:3 ~F4 E4:3 | ~D4 C4:6"
+      },
+      "form": ["A", "A", "B", "C", "C", "R"]
+    }
+  }
+}
