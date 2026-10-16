@@ -63,6 +63,8 @@ test('the chronicle tells each castle taken from its deeds, under a miniature, a
   await expect(roche.locator('h2')).toHaveText('Roche-Grise, la sentinelle du nord');
   await expect(roche.getByRole('img', { name: 'Miniature : le siège de Roche-Grise' })).toBeVisible();
   await expect(roche.locator('.chronicle__lettrine')).toBeVisible();
+  // The siege dated by its month (ADR-052).
+  await expect(roche).toContainText('En avril, l’ost de la comtesse');
   await expect(roche).toContainText('que tenait sire Aymon le Prudent');
   await expect(roche).toContainText('Les hommes avaient été payés de ce qui leur était dû.');
   await expect(roche).toContainText('Le mangonneau ouvrit une brèche dans la muraille.');

@@ -361,6 +361,14 @@
   line-height: 1.45;
 }
 
+/* The siege's month (ADR-052): a line of the clerk's, before the story. */
+.letter__season {
+  margin: 0 0 10px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
 .letter__heading {
   margin: 14px 0 6px;
   font-family: var(--font-title);

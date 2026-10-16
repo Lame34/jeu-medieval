@@ -1,5 +1,7 @@
 /* HUD de bataille (J3) : plaques de parchemin cerclées de fer, sur le thème bois, parchemin et fer. */
 .battle-hud {
+  /* The mini-map's and « Fin du tour »'s corners, which the banner keeps clear of. */
+  --hud-corner-width: 240px;
   position: absolute;
   inset: 0;
   z-index: 4;
@@ -31,6 +33,9 @@
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
+  /* Centred, it would shrink to half the screen and wrap: its own width, clear of the corners. */
+  width: max-content;
+  max-width: calc(100% - 2 * var(--hud-corner-width));
   display: flex;
   gap: 12px;
   align-items: baseline;

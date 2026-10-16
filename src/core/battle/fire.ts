@@ -59,7 +59,7 @@ function dryFuelOf(ctx: BattleContext, state: BattleState, cell: number, burnt: 
 /** Rounds `cell` would burn (0: it does not burn); the rain shortens it, to one round at least. */
 export function fuelOf(ctx: BattleContext, state: BattleState, cell: number, burnt: ReadonlySet<number> = new Set(state.burnt)): number {
   const dry = dryFuelOf(ctx, state, cell, burnt);
-  return dry <= 0 ? 0 : Math.max(1, Math.round(dry * fireFactors(ctx.rules, state.weather).fuel));
+  return dry <= 0 ? 0 : Math.max(1, Math.round(dry * fireFactors(ctx.rules, state).fuel));
 }
 
 function isBurning(state: BattleState, cell: number): boolean {
@@ -119,7 +119,8 @@ export function previewFireArrow(ctx: BattleContext, state: BattleState, unitId:
   if (!sight.visible) return { ok: false, reason: 'noLineOfSight' };
   // Rain: the shot is worse and the arrow sputters out more often.
   const hit = Math.min(d.hitChanceMax, Math.max(d.hitChanceMin, attack.accuracy + steps * d.accuracyPerHeightStep - sight.obscurance * d.obscurancePenalty + conditions.accuracy));
-  const chance = hit * fireFactors(ctx.rules, state.weather).ignite;
+  // A dry season helps the arrow catch, never to a certainty.
+  const chance = Math.min(d.hitChanceMax, hit * fireFactors(ctx.rules, state).ignite);
   return { ok: true, preview: { unitId, cell, at: centre, chance, apCost, conditions: conditions.modifiers } };
 }
 
@@ -220,7 +221,7 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
   const burnt = new Set(state.burnt);
   const lit: number[] = [];
   const wind = state.wind;
-  const rain = fireFactors(ctx.rules, state.weather);
+  const factors = fireFactors(ctx.rules, state);
   for (const fire of state.fires) {
     const cx = fire.cell % w;
     const cz = Math.floor(fire.cell / w);
@@ -233,7 +234,8 @@ export function fireRound(ctx: BattleContext, state: BattleState, events: GameEv
       if (fuelOf(ctx, state, n, burnt) <= 0) continue;
       const len = Math.hypot(dx, dz);
       const downwind = (dx * wind.x + dz * wind.z) / len;
-      const chance = (Math.min(f.spreadMax, Math.max(0, f.spreadChance + downwind * wind.strength * f.windSpread)) / (len > 1 ? Math.SQRT2 : 1)) * rain.spread;
+      // The weather and the season scale the chance, within the cap.
+      const chance = Math.min(f.spreadMax, Math.max(0, f.spreadChance + downwind * wind.strength * f.windSpread) * factors.spread) / (len > 1 ? Math.SQRT2 : 1);
       if (rng.next() < chance) lit.push(n);
     }
   }

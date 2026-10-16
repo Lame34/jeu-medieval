@@ -76,6 +76,7 @@ function readEffects(raw: unknown, rules: GameRules, path: string): BattleEffect
   const out: BattleEffects = {
     ...(e['weather'] !== undefined ? { weather: oneOf<Weather>(e['weather'], WEATHERS, `${path}.weather`) } : {}),
     ...(e['startHour'] !== undefined ? { startHour: num(e['startHour'], `${path}.startHour`, 0, 24) } : {}),
+    ...(e['season'] !== undefined ? { season: oneOf(e['season'], Object.keys(rules.weather.seasons), `${path}.season`) } : {}),
     ...(e['turnLimit'] !== undefined ? { turnLimit: integer(e['turnLimit'], `${path}.turnLimit`, 6, 60) } : {}),
     ...(e['turnDelta'] !== undefined ? { turnDelta: integer(e['turnDelta'], `${path}.turnDelta`, -MAX_TURN_DELTA, MAX_TURN_DELTA) } : {}),
     ...(morale ? { morale } : {}),
@@ -171,6 +172,21 @@ function readCamp(raw: unknown, rules: GameRules, path: string): CampRules {
   });
 }
 
+/** The months' lines: one for each month a castle names, none for a month the rules lack. Keys starting with $ are comments. */
+function readSeasonLines(raw: unknown, rules: GameRules, levels: readonly CampaignLevel[]): Record<string, string> {
+  const o = obj(raw, 'seasons');
+  const out: Record<string, string> = {};
+  for (const [id, line] of Object.entries(o)) {
+    if (id.startsWith('$')) continue;
+    if (!Object.hasOwn(rules.weather.seasons, id)) throw new RulesValidationError(`seasons.${id}`, 'unknown season');
+    out[id] = str(line, `seasons.${id}`);
+  }
+  levels.forEach((l, i) => {
+    if (l.battle.season !== undefined && out[l.battle.season] === undefined) throw new RulesValidationError(`levels[${i}].battle.season`, `no line for "${l.battle.season}" in seasons`);
+  });
+  return out;
+}
+
 function readChronicle(raw: unknown, path: string): ChronicleTexts {
   const c = obj(raw, path);
   const keys = ['title', 'incipit', 'preface', 'unwritten', 'unfinished', 'explicit'] as const;
@@ -208,6 +224,7 @@ export function validateCampaign(raw: unknown, rules: GameRules): CampaignData {
     levels,
     banners: { swiftShare: num(banners['swiftShare'], 'banners.swiftShare', 0.1, 1), maxLosses: integer(banners['maxLosses'], 'banners.maxLosses', 0) },
     camp: readCamp(c['camp'], rules, 'camp'),
+    seasons: Object.freeze(readSeasonLines(c['seasons'] ?? {}, rules, levels)),
     chronicle: readChronicle(c['chronicle'], 'chronicle'),
     ranks: readRanks(c['ranks'], rules, 'ranks'),
     heroLines: readHeroLines(c['heroLines'], rules),

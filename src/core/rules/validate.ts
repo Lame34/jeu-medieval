@@ -9,6 +9,7 @@ import {
   FACTIONS,
   MATERIALS,
   MOVEMENT_PROFILES,
+  SEASON_LOOKS,
   TERRAIN_LAYER_KEYS,
   TerrainLayer,
   type ArmorClass,
@@ -24,6 +25,8 @@ import {
   type FireRules,
   type TerrainLayerKey,
   type WeatherRules,
+  type FireFactors,
+  type SeasonRule,
   type HeroRule,
   type HeroAbilityRule,
   type HeroAbilityId,
@@ -239,6 +242,37 @@ function readFire(raw: unknown): FireRules {
   });
 }
 
+/** A season's fire factors: dry crops catch better, so up to MAX_SEASON_FIRE times as well. */
+const MAX_SEASON_FIRE = 3;
+
+function readFireFactors(raw: unknown, path: string, max: number): FireFactors {
+  const f = obj(raw, path);
+  return Object.freeze({ ignite: num(f['ignite'], `${path}.ignite`, 0, max), fuel: num(f['fuel'], `${path}.fuel`, 0, max), spread: num(f['spread'], `${path}.spread`, 0, max) });
+}
+
+const NO_FIRE_CHANGE: FireFactors = Object.freeze({ ignite: 1, fuel: 1, spread: 1 });
+
+/** The campaign's months (ADR-052): what is left out changes nothing. Keys starting with $ are comments. */
+function readSeasons(raw: unknown): Record<string, SeasonRule> {
+  const seasons = obj(raw, 'damage.weather.seasons');
+  const out: Record<string, SeasonRule> = {};
+  for (const [id, value] of Object.entries(seasons)) {
+    if (id.startsWith('$')) continue;
+    const path = `damage.weather.seasons.${id}`;
+    const s = obj(value, path);
+    const mist = s['mist'] === undefined ? null : obj(s['mist'], `${path}.mist`);
+    out[id] = Object.freeze({
+      name: str(s['name'], `${path}.name`),
+      look: oneOf(s['look'], SEASON_LOOKS, `${path}.look`),
+      mud: s['mud'] === undefined ? false : bool(s['mud'], `${path}.mud`),
+      fire: s['fire'] === undefined ? NO_FIRE_CHANGE : readFireFactors(s['fire'], `${path}.fire`, MAX_SEASON_FIRE),
+      stubble: s['stubble'] === undefined ? false : bool(s['stubble'], `${path}.stubble`),
+      mist: mist ? Object.freeze({ sightM: num(mist['sightM'], `${path}.mist.sightM`, 1), untilHour: num(mist['untilHour'], `${path}.mist.untilHour`, 0, 24) }) : null,
+    });
+  }
+  return out;
+}
+
 function readWeather(raw: unknown): WeatherRules {
   const w = obj(raw, 'damage.weather');
   const n = (k: string, min?: number, max?: number) => num(w[k], `damage.weather.${k}`, min, max);
@@ -248,7 +282,6 @@ function readWeather(raw: unknown): WeatherRules {
   const hours = w['startHour'];
   if (!Array.isArray(hours) || hours.length !== 2) throw new RulesValidationError('damage.weather.startHour', 'expected [from, to]');
   const startHour: [number, number] = [num(hours[0], 'damage.weather.startHour[0]', 0, 24), num(hours[1], 'damage.weather.startHour[1]', 0, 24)];
-  const rf = obj(w['rainFire'], 'damage.weather.rainFire');
   const layers = w['muddyLayers'];
   if (!Array.isArray(layers)) throw new RulesValidationError('damage.weather.muddyLayers', 'expected an array');
   const muddyLayers = layers.map((k, i) => {
@@ -263,7 +296,7 @@ function readWeather(raw: unknown): WeatherRules {
     nightFrom: n('nightFrom', 0, 24),
     nightTo: n('nightTo', 0, 24),
     rainAccuracyPenalty: n('rainAccuracyPenalty', 0, 1),
-    rainFire: Object.freeze({ ignite: num(rf['ignite'], 'damage.weather.rainFire.ignite', 0, 1), fuel: num(rf['fuel'], 'damage.weather.rainFire.fuel', 0, 1), spread: num(rf['spread'], 'damage.weather.rainFire.spread', 0, 1) }),
+    rainFire: readFireFactors(w['rainFire'], 'damage.weather.rainFire', 1),
     muddyLayers: Object.freeze(muddyLayers),
     mudCost: Object.freeze(record(w['mudCost'], MOVEMENT_PROFILES, 'damage.weather.mudCost', (v, p) => num(v, p, 1))),
     fogSightM: n('fogSightM', 1),
@@ -271,6 +304,7 @@ function readWeather(raw: unknown): WeatherRules {
     nightAccuracyPenalty: n('nightAccuracyPenalty', 0, 1),
     lightRadiusM: n('lightRadiusM', 0),
     windArtilleryPenalty: n('windArtilleryPenalty', 0, 1),
+    seasons: Object.freeze(readSeasons(w['seasons'] ?? {})),
   });
 }
 

@@ -1,9 +1,17 @@
 {
   "$comment": "J6 (ADR-036) : la campagne du Val d'Orle. Une bataille d'essai, toujours la même, puis cinq châteaux faciles ; à chaque château, un conseil de guerre où chaque héros propose un stratagème. Les effets façonnent le scénario (src/core/campaign/scenario.ts) : garnison réduite (cut), renforts (reinforce), ouvrages entamés (structures), douve déjà comblée (fillMoat), heure, météo, délai (turnLimit, turnDelta) et moral de départ (morale, en points ajoutés). Graines choisies et validées par scripts/campaign-scout.ts.",
   "realm": "Val d’Orle",
-  "prologue": "L’hiver dernier, le vieux comte Raoul est mort sans fils. Son cousin Thibaut de Morneval, que tout le Val appelle déjà le Félon, a fait fermer les portes de cinq châteaux et s’est proclamé seigneur du Val d’Orle. La comtesse Isabeau, nièce du défunt, vous confie son ost : trois compagnons, quelques engins, et le printemps pour reprendre ce qui lui revient.",
+  "prologue": "L’hiver dernier, le vieux comte Raoul est mort sans fils. Son cousin Thibaut de Morneval, que tout le Val appelle déjà le Félon, a fait fermer les portes de cinq châteaux et s’est proclamé seigneur du Val d’Orle. La comtesse Isabeau, nièce du défunt, vous confie son ost : trois compagnons, quelques engins, et jusqu’à l’automne pour reprendre ce qui lui revient.",
   "epilogue": "Les cinq châteaux sont tombés. Isabeau entre à Haute-Garde au son des cloches, et le Val d’Orle a de nouveau une comtesse. Aude compte ses flèches, Bertrand répare ses engins, Guillaume dort enfin.",
   "banners": { "swiftShare": 0.67, "maxLosses": 3 },
+  "seasons": {
+    "$comment": "ADR-052 : le mois de chaque siège, dit dans sa lettre et son briefing. Mots vérifiés au TLF : avril (v. 1100), mai (v. 1100), juin (1119), juillet (v. 1213), octobre (1213), printemps (v. 1200), automne (1231), détremper (1155), embourber (v. 1223), pré (v. 1100), sécher, blé, moisson (v. 1170), rassembler (1155), brouillas (« bruillat », v. 1210). Écartés : « brume » au sens de brouillard (1562), « brouillard » (XVᵉ s.), « tenace » (1501).",
+    "april": "Avril. Les pluies du printemps ont détrempé la terre : les engins et les chevaux s’y embourbent.",
+    "may": "Mai. Les prés sont en fleur au bord de l’Orle, et les chemins ont séché.",
+    "june": "Juin. Les blés montent dans le Val ; au fond des marais, les brouillas demeurent.",
+    "july": "Juillet. Les blés sont hauts et secs, avant la moisson : le feu y prend mieux, et court plus loin.",
+    "october": "Octobre. Après la moisson, l’ost s’est rassemblé de nouveau. Au matin, les brouillas d’automne couvrent le Val jusque vers neuf heures."
+  },
   "chronicle": {
     "$comment": "ADR-050 : la chronique enluminée, racontée d'après les faits de chaque bataille. Mots vérifiés au TLF : chronique (1138), clerc (v. 1040), enluminer (1176-81), défunt (1243), crouler (un mur, 1177-80), brûler (v. 1120), fuir, périr, rompre, lier.",
     "title": "La chronique de la guerre du Félon",
@@ -88,6 +96,7 @@
       "map": { "x": 0.3, "y": 0.57 },
       "difficulty": 1,
       "battle": {
+        "season": "april",
         "weather": "clear",
         "startHour": 9,
         "cut": [
@@ -136,6 +145,7 @@
       "map": { "x": 0.46, "y": 0.75 },
       "difficulty": 2,
       "battle": {
+        "season": "may",
         "weather": "clear",
         "startHour": 14,
         "cut": [
@@ -170,12 +180,12 @@
     {
       "id": "brumefond",
       "name": "Brumefond",
-      "epithet": "le château des brumes",
+      "epithet": "le château des brouillas",
       "lord": "Messire Foulques, dit le Loup",
-      "lordLine": "Dans ma brume, c’est moi qui vois.",
-      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans un brouillard tenace, que seul le vent dissipe. On n’y voit pas à quarante pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
-      "victory": "La brume s’est levée sur la bannière de la comtesse. Foulques s’est enfui par les marais, ses bottes à la main.",
-      "defeat": "Le brouillard a avalé vos hommes un à un. Du haut de sa muraille, Foulques hurle comme le loup qu’il prétend être.",
+      "lordLine": "Dans mes brouillas, c’est moi qui vois.",
+      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans des brouillas que seul le vent dissipe. On n’y voit pas à quarante pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
+      "victory": "Les brouillas se sont levés sur la bannière de la comtesse. Foulques s’est enfui par les marais, ses bottes à la main.",
+      "defeat": "Les brouillas ont avalé vos hommes un à un. Du haut de sa muraille, Foulques hurle comme le loup qu’il prétend être.",
       "seed": "orle-brume",
       "feat": { "kind": "tower", "name": "Le beffroi de Jérusalem", "task": "Faites monter un homme sur les murs par le beffroi.", "history": "Le 15 juillet 1099, les hommes de Godefroy de Bouillon passèrent du pont de son beffroi sur les murs de Jérusalem.", "told": "Ainsi les hommes de Godefroy de Bouillon étaient passés sur les murs de Jérusalem." },
       "castleIndex": 2,
@@ -183,6 +193,7 @@
       "map": { "x": 0.57, "y": 0.45 },
       "difficulty": 3,
       "battle": {
+        "season": "june",
         "weather": "fog",
         "startHour": 7,
         "cut": [{ "group": "outpost", "typeKey": "sallyKnight", "count": 1 }]
@@ -192,7 +203,7 @@
           "id": "sentinelles",
           "hero": "heroArcher",
           "name": "Les sentinelles muettes",
-          "pitch": "Dans la brume, une flèche ne fait pas de bruit. Mes archers passeront par les roseaux et feront taire les guetteurs avant que la garnison ne s’éveille.",
+          "pitch": "Dans les brouillas, une flèche ne fait pas de bruit. Mes archers passeront par les roseaux et feront taire les guetteurs avant que la garnison ne s’éveille.",
           "effects": { "cut": [{ "group": "wall", "typeKey": "crossbowman", "count": 2 }] }
         },
         {
@@ -227,6 +238,7 @@
       "map": { "x": 0.73, "y": 0.66 },
       "difficulty": 4,
       "battle": {
+        "season": "july",
         "weather": "clear",
         "startHour": 18,
         "turnLimit": 24,
@@ -275,7 +287,7 @@
       "vignette": "citadel",
       "map": { "x": 0.85, "y": 0.27 },
       "difficulty": 5,
-      "battle": { "weather": "clear", "startHour": 15, "turnLimit": 24 },
+      "battle": { "season": "october", "weather": "clear", "startHour": 8, "turnLimit": 24 },
       "stratagems": [
         {
           "id": "guetteur",

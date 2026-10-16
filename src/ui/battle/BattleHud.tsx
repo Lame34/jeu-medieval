@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { Glossed } from '../components/Glossed.tsx';
 import { garrisonStrength, INDIRECT_FIRE_TAG } from '../../core/battle/combat.ts';
-import { hourOf, isNight, type ShotModifier } from '../../core/battle/conditions.ts';
+import { hourOf, isNight, mistSightM, seasonOf, type ShotModifier } from '../../core/battle/conditions.ts';
 import { moraleStanding } from '../../core/battle/morale.ts';
 import type { BattleState, UnitState } from '../../core/battle/types.ts';
 import { DEFAULT_RULES } from '../../data/index.ts';
@@ -31,7 +31,10 @@ const exposed = (unitId: string, units: readonly UnitState[]) => {
   return unit && DEFAULT_RULES.heroes[unit.typeKey]?.feminine ? 'exposée' : 'exposé';
 };
 const capitalized = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
-const WEATHER_LABEL = { clear: 'Ciel clair', rain: 'Pluie', fog: 'Brouillard' } as const;
+/** « Brouillas », the fog of the period (« brouillard » is of the 15th century, ADR-052). */
+const WEATHER_LABEL = { clear: 'Ciel clair', rain: 'Pluie', fog: 'Brouillas' } as const;
+/** The weather of the round: an autumn morning's mist over a clear sky is « Brouillas » too (the hour says the morning). */
+const weatherLabel = (battle: BattleState) => (battle.weather === 'clear' && mistSightM(DEFAULT_RULES, battle) !== null ? WEATHER_LABEL.fog : WEATHER_LABEL[battle.weather]);
 /** Wind strength (0.3–1) in words. */
 const windLabel = (s: number) => (s < 0.5 ? 'Vent faible' : s < 0.8 ? 'Vent modéré' : 'Vent fort');
 /** "22 h 40". */
@@ -43,7 +46,6 @@ const clock = (h: number) => {
 /** The weather, night and wind modifiers of a shot, in a line. */
 function ConditionsLine({ modifiers }: { readonly modifiers: readonly ShotModifier[] }): ReactNode {
   if (modifiers.length === 0) return null;
-  const fogRange = DEFAULT_RULES.weather.fogSightM;
   const parts = modifiers.map((m) => {
     switch (m.kind) {
       case 'rain':
@@ -51,7 +53,9 @@ function ConditionsLine({ modifiers }: { readonly modifiers: readonly ShotModifi
       case 'night':
         return `nuit ${pct(m.accuracy)}, portée ×${m.rangeFactor.toLocaleString('fr-FR')}`;
       case 'fog':
-        return `brouillard : ${fogRange} m au plus`;
+        return `brouillas : ${m.limitM ?? 0} m au plus`;
+      case 'mist':
+        return `brouillas du matin : ${m.limitM ?? 0} m au plus`;
       case 'wind':
         return `vent de travers ${pct(m.accuracy)}`;
       case 'hero':
@@ -525,6 +529,7 @@ export function BattleHud({
   if (!battle) return null;
   const selected = selectedId ? battle.units.find((u) => u.id === selectedId && u.alive) : undefined;
   const playerTurn = battle.activeFaction === PLAYER_FACTION && battle.status === 'ongoing';
+  const month = seasonOf(DEFAULT_RULES, battle)?.name;
   return (
     <div className="battle-hud">
       <header className="hud-banner" data-faction={battle.activeFaction}>
@@ -532,7 +537,8 @@ export function BattleHud({
           Tour {battle.turn} / {battle.turnLimit} · {FACTION_LABEL[battle.activeFaction]}
         </span>
         <span className="hud-conditions-chip" data-night={isNight(DEFAULT_RULES, hourOf(DEFAULT_RULES, battle)) || undefined}>
-          {clock(hourOf(DEFAULT_RULES, battle))} · {WEATHER_LABEL[battle.weather]} · {windLabel(battle.wind.strength)}
+          {month && `${capitalized(month)} · `}
+          {clock(hourOf(DEFAULT_RULES, battle))} · <Glossed>{weatherLabel(battle)}</Glossed> · {windLabel(battle.wind.strength)}
         </span>
         <GarrisonChip battle={battle} />
         {!playerTurn && battle.status === 'ongoing' && <em>la garnison joue…</em>}

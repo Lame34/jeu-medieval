@@ -233,6 +233,32 @@ export interface StructureRules {
   readonly towerCapacity: number;
 }
 
+/** Factors on a fire arrow's chance, a cell's fuel and the spread chance (1: unchanged). */
+export interface FireFactors {
+  readonly ignite: number;
+  readonly fuel: number;
+  readonly spread: number;
+}
+
+/** How a season paints the land (ADR-052): the renderer has a palette for each. */
+export const SEASON_LOOKS = ['spring', 'earlySummer', 'harvest', 'autumn'] as const;
+export type SeasonLook = (typeof SEASON_LOOKS)[number];
+
+/** A month of the campaign (ADR-052): how the land looks, and what it changes in a battle. */
+export interface SeasonRule {
+  /** The month, as the letters name it (« avril »). */
+  readonly name: string;
+  readonly look: SeasonLook;
+  /** The ground still soaked (the thaw, the showers): the open ground is mud, as in the rain. */
+  readonly mud: boolean;
+  /** Dry crops and timbers catch better (factors above 1). */
+  readonly fire: FireFactors;
+  /** The fields are harvested: their stubble gives no cover and blocks no sight. */
+  readonly stubble: boolean;
+  /** Morning mist: sight and shots reach no farther than sightM until untilHour; none when null. */
+  readonly mist: { readonly sightM: number; readonly untilHour: number } | null;
+}
+
 /** Weather and time of day (J5, brief §9.11). */
 export interface WeatherRules {
   /** Odds of each weather (they sum to 1). */
@@ -247,7 +273,7 @@ export interface WeatherRules {
   readonly nightTo: number;
   readonly rainAccuracyPenalty: number;
   /** Rain on fire: factors on a fire arrow's chance, a cell's fuel and the spread chance. */
-  readonly rainFire: { readonly ignite: number; readonly fuel: number; readonly spread: number };
+  readonly rainFire: FireFactors;
   /** Rain turns these layers to mud: their AP per metre × mudCost (per movement profile). */
   readonly muddyLayers: readonly TerrainLayerKey[];
   readonly mudCost: Readonly<Record<MovementProfile, number>>;
@@ -259,6 +285,8 @@ export interface WeatherRules {
   readonly lightRadiusM: number;
   /** Artillery's hit penalty in a full crosswind of strength 1. */
   readonly windArtilleryPenalty: number;
+  /** The campaign's months, by id (a scenario names one; a skirmish has none). */
+  readonly seasons: Readonly<Record<string, SeasonRule>>;
 }
 
 /** Heroes (J5, brief §9.5): what their abilities do is fixed by id, the figures are data. */

@@ -7,10 +7,13 @@
  *   men can see (the AI does not cheat, brief §9.6);
  * - night: ranges −30 % and a penalty to hit, except at targets standing in the light of the
  *   castle's torches and the village's braziers;
- * - wind: artillery (indirect fire) loses accuracy in a crosswind.
+ * - wind: artillery (indirect fire) loses accuracy in a crosswind;
+ * - the season of a campaign siege (ADR-052): April's soaked ground is mud, July's dry crops
+ *   catch fire better, October's morning mist limits sight and shots until it lifts, and its
+ *   harvested fields are stubble, which hides no one.
  * Every modifier of a shot is listed (the HUD shows them in the preview).
  */
-import type { MovementProfile, TerrainLayerRule, GameRules } from '../rules/types.ts';
+import type { FireFactors, MovementProfile, SeasonRule, TerrainLayerKey, TerrainLayerRule, GameRules } from '../rules/types.ts';
 import { Rng, type Seed } from '../rng.ts';
 import { distance, type Vec2 } from '../math/vec2.ts';
 import type { BattleContext } from './context.ts';
@@ -21,18 +24,23 @@ import type { WorldLayout } from '../worldgen/types.ts';
 export type Weather = 'clear' | 'rain' | 'fog';
 export const WEATHERS: readonly Weather[] = ['clear', 'rain', 'fog'];
 
-/** The ground under the weather: open ground turns to mud in the rain. */
-export type GroundCondition = 'dry' | 'mud';
+/**
+ * The ground under the weather and the season: open ground turns to mud in the rain and in a
+ * soaked month; the harvested fields are stubble (ADR-052); both in an autumn rain.
+ */
+export type GroundCondition = 'dry' | 'mud' | 'stubble' | 'mudStubble';
 
 /** One modifier of a shot, for the preview's tooltip. */
 export interface ShotModifier {
-  readonly kind: 'rain' | 'fog' | 'night' | 'wind' | 'hero' | 'aim';
+  readonly kind: 'rain' | 'fog' | 'mist' | 'night' | 'wind' | 'hero' | 'aim';
   /** For a hero's: the ability or passive behind it. */
   readonly source?: string;
   /** Added to the hit chance (negative: a penalty). */
   readonly accuracy: number;
   /** Multiplies the range (1: none). */
   readonly rangeFactor: number;
+  /** Fog and mist: shots reach no farther than this (m). */
+  readonly limitM?: number;
 }
 
 export interface ShotConditions {
@@ -48,6 +56,8 @@ export const NO_CONDITIONS: ShotConditions = { accuracy: 0, rangeFactor: 1, maxR
 export interface BattleConditions {
   readonly weather: Weather;
   readonly startHour: number;
+  /** A campaign siege's month (ADR-052): an id of rules.weather.seasons; none in a skirmish. */
+  readonly season?: string;
 }
 
 const WEATHER_RNG_LABEL = 'weather';
@@ -75,9 +85,28 @@ export function drawConditions(rules: GameRules, seed: Seed): BattleConditions {
   return { weather, startHour };
 }
 
-/** A scenario's conditions: clear at the default hour unless it sets them. */
+/** A scenario's conditions: clear at the default hour, in no season, unless it sets them. */
 export function conditionsOf(rules: GameRules, scenario: Scenario): BattleConditions {
-  return { weather: scenario.weather ?? 'clear', startHour: scenario.startHour ?? rules.weather.defaultStartHour };
+  if (scenario.season !== undefined && !Object.hasOwn(rules.weather.seasons, scenario.season)) throw new Error(`unknown season "${scenario.season}"`);
+  return { weather: scenario.weather ?? 'clear', startHour: scenario.startHour ?? rules.weather.defaultStartHour, ...(scenario.season !== undefined ? { season: scenario.season } : {}) };
+}
+
+/** The battle's month (ADR-052), or null outside the campaign. */
+export function seasonOf(rules: GameRules, state: Pick<BattleState, 'season'>): SeasonRule | null {
+  return state.season === undefined ? null : (rules.weather.seasons[state.season] ?? null);
+}
+
+/**
+ * A round's hour is a sum of fractions of an hour (0.3333 a round), a little short of the true
+ * figure: the mist that lifts "at 10 h" is gone in the round the clock shows 10 h.
+ */
+const HOUR_EPSILON = 0.01;
+
+/** How far one sees in the season's morning mist during this round; null without one, or once it lifted. */
+export function mistSightM(rules: GameRules, state: Pick<BattleState, 'season' | 'startHour' | 'turn'>): number | null {
+  const mist = seasonOf(rules, state)?.mist;
+  if (!mist) return null;
+  return hourOf(rules, state) < mist.untilHour - HOUR_EPSILON ? mist.sightM : null;
 }
 
 /** The hour (0–24) during round `turn`. */
@@ -125,7 +154,12 @@ export function shotConditions(ctx: BattleContext, state: BattleState, from: Vec
   if (state.weather === 'rain') modifiers.push({ kind: 'rain', accuracy: -w.rainAccuracyPenalty, rangeFactor: 1 });
   if (state.weather === 'fog') {
     maxRangeM = w.fogSightM;
-    modifiers.push({ kind: 'fog', accuracy: 0, rangeFactor: 1 });
+    modifiers.push({ kind: 'fog', accuracy: 0, rangeFactor: 1, limitM: w.fogSightM });
+  }
+  const mist = mistSightM(ctx.rules, state);
+  if (mist !== null && mist < maxRangeM) {
+    maxRangeM = mist;
+    modifiers.push({ kind: 'mist', accuracy: 0, rangeFactor: 1, limitM: mist });
   }
   if (isNight(ctx.rules, hourOf(ctx.rules, state)) && !isLit(ctx, to)) modifiers.push({ kind: 'night', accuracy: -w.nightAccuracyPenalty, rangeFactor: w.nightRangeFactor });
   if (artillery && !windImmune && state.wind.strength > 0) {
@@ -153,9 +187,10 @@ export function conditionedRange(rangeM: number, c: ShotConditions): number {
   return Math.min(rangeM * c.rangeFactor, c.maxRangeM);
 }
 
-/** How far a unit sees (fog of war under fog; no limit otherwise). */
+/** How far a unit sees (fog of war under fog or a morning mist; no limit otherwise). */
 export function sightRangeM(ctx: BattleContext, state: BattleState): number {
-  return state.weather === 'fog' ? ctx.rules.weather.fogSightM : Number.POSITIVE_INFINITY;
+  const fog = state.weather === 'fog' ? ctx.rules.weather.fogSightM : Number.POSITIVE_INFINITY;
+  return Math.min(fog, mistSightM(ctx.rules, state) ?? Number.POSITIVE_INFINITY);
 }
 
 /**
@@ -177,33 +212,60 @@ export function isSeenBy(ctx: BattleContext, state: BattleState, faction: Battle
   return state.units.some((u) => u.alive && u.faction === faction && distance(u.position, p) <= sight);
 }
 
-/** Fire under the weather: factors on a fire arrow's chance, a cell's fuel and the spread. */
-export function fireFactors(rules: GameRules, weather: Weather): { ignite: number; fuel: number; spread: number } {
-  if (weather !== 'rain') return { ignite: 1, fuel: 1, spread: 1 };
-  return rules.weather.rainFire;
+const NO_FIRE_CHANGE: FireFactors = { ignite: 1, fuel: 1, spread: 1 };
+
+/** Fire under the weather and the season: factors on a fire arrow's chance, a cell's fuel and the spread. */
+export function fireFactors(rules: GameRules, state: Pick<BattleState, 'weather' | 'season'>): FireFactors {
+  const rain = state.weather === 'rain' ? rules.weather.rainFire : null;
+  const season = seasonOf(rules, state)?.fire ?? null;
+  if (!season) return rain ?? NO_FIRE_CHANGE;
+  if (!rain) return season;
+  return { ignite: rain.ignite * season.ignite, fuel: rain.fuel * season.fuel, spread: rain.spread * season.spread };
 }
 
-export function groundOf(weather: Weather): GroundCondition {
-  return weather === 'rain' ? 'mud' : 'dry';
+/** The ground under the weather and the season: mud in the rain and in a soaked month; stubble once the fields are harvested. */
+export function groundOf(rules: GameRules, state: Pick<BattleState, 'weather' | 'season'>): GroundCondition {
+  const season = seasonOf(rules, state);
+  const mud = state.weather === 'rain' || season?.mud === true;
+  const stubble = season?.stubble === true;
+  return mud ? (stubble ? 'mudStubble' : 'mud') : stubble ? 'stubble' : 'dry';
 }
 
-const muddyRulesCache = new WeakMap<GameRules, GameRules>();
+/** The crops' layer: harvested, its fields are stubble. */
+const CROP_LAYER: TerrainLayerKey = 'Field';
+/** Stubble stands a hand high: it blocks no sight. */
+const STUBBLE_SIGHT: TerrainLayerRule['sight'] = { heightM: 0, densityPerM: 0 };
 
-/** The rules the nav grid is built with on `ground`: in mud, the open ground costs more AP a metre. */
+const groundRulesCache = new WeakMap<GameRules, Map<GroundCondition, GameRules>>();
+
+/**
+ * The rules the nav grid is built with on `ground`: in mud, the open ground costs more AP a
+ * metre; on stubble, a field gives no cover and blocks no sight (it still burns).
+ */
 export function rulesOnGround(rules: GameRules, ground: GroundCondition): GameRules {
   if (ground === 'dry') return rules;
-  const cached = muddyRulesCache.get(rules);
+  let byGround = groundRulesCache.get(rules);
+  if (!byGround) {
+    byGround = new Map();
+    groundRulesCache.set(rules, byGround);
+  }
+  const cached = byGround.get(ground);
   if (cached) return cached;
   const w = rules.weather;
-  const muddy = new Set(w.muddyLayers);
+  const muddy = new Set(ground === 'mud' || ground === 'mudStubble' ? w.muddyLayers : []);
+  const stubble = ground === 'stubble' || ground === 'mudStubble';
   const terrainLayers = rules.terrainLayers.map((l): TerrainLayerRule => {
-    if (!muddy.has(l.key)) return l;
-    const metersPerAp = {} as Record<MovementProfile, number>;
-    for (const [profile, m] of Object.entries(l.metersPerAp) as [MovementProfile, number][]) metersPerAp[profile] = m / w.mudCost[profile];
-    return { ...l, metersPerAp };
+    let out = l;
+    if (muddy.has(l.key)) {
+      const metersPerAp = {} as Record<MovementProfile, number>;
+      for (const [profile, m] of Object.entries(l.metersPerAp) as [MovementProfile, number][]) metersPerAp[profile] = m / w.mudCost[profile];
+      out = { ...out, metersPerAp };
+    }
+    if (stubble && l.key === CROP_LAYER) out = { ...out, cover: 'none', sight: STUBBLE_SIGHT };
+    return out;
   });
   const out = { ...rules, terrainLayers };
-  muddyRulesCache.set(rules, out);
+  byGround.set(ground, out);
   return out;
 }
 

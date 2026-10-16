@@ -49,6 +49,11 @@ export function briefingFor(mode: BattleMode, resting: readonly string[], rank: 
         <p className="hud-briefing-lead">
           « {level.lordLine} » — {level.lord}
         </p>
+        {level.battle.season !== undefined && (
+          <p>
+            <Glossed>{CAMPAIGN.seasons[level.battle.season]}</Glossed>
+          </p>
+        )}
         {stratagem && (
           <>
             <p>

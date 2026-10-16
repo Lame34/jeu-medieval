@@ -193,10 +193,10 @@ describe('shotConditions', () => {
   it('small helpers: sightRangeM, groundOf, fireFactors', () => {
     expect(sightRangeM(ctx, state({ weather: 'fog' }))).toBe(W.fogSightM);
     expect(sightRangeM(ctx, state({ weather: 'rain' }))).toBe(Infinity);
-    expect(groundOf('rain')).toBe('mud');
-    expect(groundOf('fog')).toBe('dry');
-    expect(fireFactors(RULES, 'fog')).toEqual({ ignite: 1, fuel: 1, spread: 1 });
-    expect(fireFactors(RULES, 'rain')).toEqual(W.rainFire);
+    expect(groundOf(RULES, { weather: 'rain' })).toBe('mud');
+    expect(groundOf(RULES, { weather: 'fog' })).toBe('dry');
+    expect(fireFactors(RULES, { weather: 'fog' })).toEqual({ ignite: 1, fuel: 1, spread: 1 });
+    expect(fireFactors(RULES, { weather: 'rain' })).toEqual(W.rainFire);
   });
 });
 

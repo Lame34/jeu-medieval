@@ -35,6 +35,8 @@ export interface BattleEffects {
   /** Fixed weather and start hour (later effects win). */
   readonly weather?: Weather;
   readonly startHour?: number;
+  /** The siege's month (ADR-052), an id of rules.weather.seasons: the campaign runs from April to October. */
+  readonly season?: string;
   /** Rounds the garrison must hold (the rules' limit when absent). */
   readonly turnLimit?: number;
   /** Rounds won or lost (the time a stratagem takes, added up). */
@@ -190,6 +192,8 @@ export interface CampaignData {
   /** The banners of a victory: taken, swiftly (within this share of the turn limit), with few losses (and its feat of arms). */
   readonly banners: { readonly swiftShare: number; readonly maxLosses: number };
   readonly camp: CampRules;
+  /** Each month's line in a castle's letter and briefing (ADR-052), by season id. */
+  readonly seasons: Readonly<Record<string, string>>;
   readonly chronicle: ChronicleTexts;
   readonly ranks: Readonly<Record<Rank, RankRule>>;
   readonly heroLines: Readonly<Record<string, HeroCampaignLines>>;

@@ -58,7 +58,15 @@
     "nightRangeFactor": 0.7,
     "nightAccuracyPenalty": 0.1,
     "lightRadiusM": 9,
-    "windArtilleryPenalty": 0.15
+    "windArtilleryPenalty": 0.15,
+    "seasons": {
+      "$comment": "ADR-052 : les mois de la campagne, d'avril à octobre. Avril : la terre encore détrempée, la boue de la pluie sans la pluie. Juillet : les blés secs à la veille de la moisson, le feu prend mieux et court plus loin. Octobre : les brouillas du matin, qui se lèvent à 9 h 15 (simulé : jusqu'à 10 h, l'IA assaillante ne prend Haute-Garde qu'une fois sur trois), et les champs moissonnés, dont le chaume ne cache personne. Mai et juin ne changent que l'aspect du pays.",
+      "april":   { "name": "avril",   "look": "spring", "mud": true },
+      "may":     { "name": "mai",     "look": "earlySummer" },
+      "june":    { "name": "juin",    "look": "earlySummer" },
+      "july":    { "name": "juillet", "look": "harvest", "fire": { "ignite": 1.3, "fuel": 1, "spread": 1.5 } },
+      "october": { "name": "octobre", "look": "autumn", "stubble": true, "mist": { "sightM": 50, "untilHour": 9.25 } }
+    }
   },
   "battle": {
     "$comment": "J5 : les assaillants gagnent en anéantissant ou en mettant en fuite la garnison ; les défenseurs, en faisant de même, ou en tenant jusqu'à l'arrivée des renforts (limite de tours). J7 : la garnison capitule quand moins de garrisonSurrenderShare de ses hommes tiennent encore debout (ni morts ni en fuite) : plus de chasse au dernier défenseur. ADR-045 : 22 tours et 40 % pour des sièges d'une demi-heure (simulés : l'IA assaillante prend 11 châteaux sur 16).",

@@ -96,6 +96,8 @@ export interface BattleState {
   /** Weather of the battle, and the hour of its first round (it advances each round). */
   readonly weather: Weather;
   readonly startHour: number;
+  /** A campaign siege's month (ADR-052), an id of rules.weather.seasons; absent in a skirmish. */
+  readonly season?: string;
   /** Sorted by cell. */
   readonly fires: readonly FireState[];
   /** Cells that burnt out (they never catch again), sorted. */
@@ -144,6 +146,8 @@ export interface Scenario {
   /** Fixed weather and start hour (drawn from the seed when absent). */
   readonly weather?: Weather;
   readonly startHour?: number;
+  /** The month of a campaign siege (ADR-052): its mud, its fire, its mist. */
+  readonly season?: string;
   /** A side's skill at arms (the player's rank, ADR-045): added to the hit chance of its men's blows and shots. */
   readonly aim?: Readonly<Partial<Record<Faction, number>>>;
   /** The garrison's captain swore never to yield to a summons. */

@@ -37,8 +37,8 @@ scope.onmessage = (event) => {
   try {
     if (!ctx) throw new Error('AI worker: plan before init');
     const start = performance.now();
-    // The ground under the battle's weather (mud in the rain), as createBattle set it in the session.
-    setGround(ctx, groundOf(request.state.weather));
+    // The ground under the battle's weather and season (mud), as createBattle set it in the session.
+    setGround(ctx, groundOf(DEFAULT_RULES, request.state));
     const turn = playTurn(ctx, request.state, request.faction);
     scope.postMessage({ id: request.id, ok: true, commands: turn.commands, ms: performance.now() - start });
   } catch (error) {

@@ -102,8 +102,8 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
   const windRng = root.fork(WIND_RNG_LABEL);
   const windAngle = windRng.next() * 2 * Math.PI;
   const wind = { x: Math.sin(windAngle), z: Math.cos(windAngle), strength: WIND_STRENGTH[0] + windRng.next() * (WIND_STRENGTH[1] - WIND_STRENGTH[0]) };
-  const { weather, startHour } = conditionsOf(ctx.rules, scenario);
-  setGround(ctx, groundOf(weather));
+  const { weather, startHour, season } = conditionsOf(ctx.rules, scenario);
+  setGround(ctx, groundOf(ctx.rules, { weather, ...(season !== undefined ? { season } : {}) }));
   syncNav(ctx, structures, works);
   return {
     version: BATTLE_STATE_VERSION,
@@ -119,6 +119,7 @@ export function createBattle(ctx: BattleContext, seed: Seed, scenario: Scenario)
     wind,
     weather,
     startHour,
+    ...(season !== undefined ? { season } : {}),
     fires: [],
     burnt: [],
     ...(scenario.aim ? { aim: scenario.aim } : {}),

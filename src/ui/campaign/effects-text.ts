@@ -44,11 +44,11 @@ export function unitCount(typeKey: string, n: number): string {
   return `${n} ${plural(first)}${space < 0 ? '' : name.slice(space)}`;
 }
 
-/** "6 h", "22 h 30". */
+/** "6 h", "22 h 30", bound by no-break spaces (French typography: an hour never breaks). */
 export function hourLabel(h: number): string {
   const hours = Math.floor(h);
   const minutes = Math.round((h - hours) * 60);
-  return minutes === 0 ? `${hours} h` : `${hours} h ${String(minutes).padStart(2, '0')}`;
+  return minutes === 0 ? `${hours}\u00a0h` : `${hours}\u00a0h\u00a0${String(minutes).padStart(2, '0')}`;
 }
 
 function isNightHour(h: number): boolean {
@@ -58,9 +58,22 @@ function isNightHour(h: number): boolean {
 /** The deadline: past its last turn, an army comes to the garrison's relief (the Félon's, or the brigands' friends). */
 const reliefLine = (turns: number) => `${turns} tours avant l’armée de secours`;
 
+/** What a month changes in a battle (ADR-052): nothing in May and June. */
+function seasonLines(id: string): EffectLine[] {
+  const season = w.seasons[id];
+  if (!season) return [];
+  const out: EffectLine[] = [];
+  if (season.mud) out.push({ tone: 'plain', text: 'Terre détrempée : on y avance moins vite, les engins et les chevaux surtout' });
+  if (season.fire.ignite > 1 || season.fire.spread > 1) out.push({ tone: 'plain', text: 'Blés secs : les flèches enflammées prennent mieux, et le feu court plus loin' });
+  if (season.mist) out.push({ tone: 'plain', text: `Brouillas du matin : on ne voit qu’à ${season.mist.sightM}\u00a0m jusqu’à ${hourLabel(season.mist.untilHour)}` });
+  if (season.stubble) out.push({ tone: 'plain', text: 'Champs moissonnés : le chaume ne cache plus personne' });
+  return out;
+}
+
 /** The lines of one set of effects (`base`: the castle's own, read as conditions, not changes). */
 export function effectLines(e: BattleEffects, base = false): EffectLine[] {
   const out: EffectLine[] = [];
+  if (e.season !== undefined) out.push(...seasonLines(e.season));
   // A castle's own absentees are told as the garrison's strength (castleLines).
   for (const c of base ? [] : (e.cut ?? [])) {
     const who = c.typeKey ? unitCount(c.typeKey, c.count) : `${c.count} défenseur${c.count > 1 ? 's' : ''}`;
@@ -79,7 +92,7 @@ export function effectLines(e: BattleEffects, base = false): EffectLine[] {
   if (aim.defender) out.push({ tone: aim.defender < 0 ? 'boon' : 'cost', text: `La garnison frappe ${aim.defender < 0 ? 'moins' : 'plus'} juste : ${aim.defender > 0 ? '+' : '−'}${pct(Math.abs(aim.defender))} à ses coups` });
   if (aim.attacker) out.push({ tone: aim.attacker > 0 ? 'boon' : 'cost', text: `Vos hommes frappent ${aim.attacker > 0 ? 'plus' : 'moins'} juste : ${aim.attacker > 0 ? '+' : '−'}${pct(Math.abs(aim.attacker))} à leurs coups` });
   if (e.sworn) out.push({ tone: 'plain', text: 'Son capitaine a juré de ne jamais se rendre : aucune sommation tant qu’il tient' });
-  if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillard : on ne voit qu’à ${w.fogSightM} m` });
+  if (e.weather === 'fog') out.push({ tone: 'plain', text: `Brouillas : on ne voit qu’à ${w.fogSightM}\u00a0m` });
   if (e.weather === 'rain') out.push({ tone: 'plain', text: `Pluie : −${pct(w.rainAccuracyPenalty)} de précision, le feu prend mal` });
   if (e.weather === 'clear' && !base) out.push({ tone: 'plain', text: 'Ciel dégagé' });
   if (e.startHour !== undefined) {

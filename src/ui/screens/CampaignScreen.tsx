@@ -258,6 +258,11 @@ function CastleLetter({ battle, index, onCouncil, onTents }: { readonly battle: 
       <blockquote className="letter__lord">
         « {battle.lordLine} »<cite>{battle.lord}</cite>
       </blockquote>
+      {battle.battle.season !== undefined && (
+        <p className="letter__season">
+          <Glossed>{CAMPAIGN.seasons[battle.battle.season]}</Glossed>
+        </p>
+      )}
       <p className="letter__story">
         <Glossed>{battle.intro}</Glossed>
       </p>

@@ -55,15 +55,20 @@ function of(name: string): string {
 /** Who led the host, by the player's rank. */
 const LEADER: Readonly<Record<Rank, string>> = { squire: 'un écuyer de sa maison', knight: 'un chevalier de sa maison', baron: 'un de ses barons' };
 
+const lowerFirst = (s: string) => `${s.charAt(0).toLowerCase()}${s.slice(1)}`;
+
 /** The coming before the castle, the assaults it took, the plan, the provisions. */
 function approach(level: CampaignLevel, deeds: BattleDeeds, first: boolean, rankBefore: Rank | null): string {
   const out: string[] = [];
   const lord = lordOf(level);
-  if (first) out.push(`L’ost de la comtesse, que menait ${LEADER[deeds.rank]}, vint devant ${level.name}, que tenait ${lord}.`);
+  // The siege's month opens its chapter (« En avril, l’ost… », ADR-052); without one, « De là » ties it to the last.
+  const month = level.battle.season === undefined ? undefined : DEFAULT_RULES.weather.seasons[level.battle.season]?.name;
+  const opening = (sentence: string, linked: boolean) => (month ? `En ${month}, ${lowerFirst(sentence)}` : linked ? `De là, ${lowerFirst(sentence)}` : sentence);
+  if (first) out.push(opening(`L’ost de la comtesse, que menait ${LEADER[deeds.rank]}, vint devant ${level.name}, que tenait ${lord}.`, false));
   // After sieges told without their deeds, the leader is named again.
-  else if (rankBefore === null) out.push(`De là, l’ost, que menait ${LEADER[deeds.rank]}, marcha sur ${level.name}, que tenait ${lord}.`);
-  else if (rankBefore !== deeds.rank) out.push(`L’ost, que menait désormais ${LEADER[deeds.rank]}, marcha sur ${level.name}, que tenait ${lord}.`);
-  else out.push(`De là, l’ost marcha sur ${level.name}, que tenait ${lord}.`);
+  else if (rankBefore === null) out.push(opening(`L’ost, que menait ${LEADER[deeds.rank]}, marcha sur ${level.name}, que tenait ${lord}.`, true));
+  else if (rankBefore !== deeds.rank) out.push(opening(`L’ost, que menait désormais ${LEADER[deeds.rank]}, marcha sur ${level.name}, que tenait ${lord}.`, false));
+  else out.push(opening(`L’ost marcha sur ${level.name}, que tenait ${lord}.`, true));
   if (deeds.assault > 1) out.push(`Il fallut ${count(deeds.assault, 'assaut', 'assauts')} pour le prendre.`);
   const plan = level.stratagems.find((s) => s.id === deeds.stratagem);
   const hero = plan ? DEFAULT_RULES.heroes[plan.hero] : undefined;

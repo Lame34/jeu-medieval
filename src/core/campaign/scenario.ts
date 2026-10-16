@@ -146,6 +146,7 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
   // Conditions and time: the last effect that sets them wins; deltas add up.
   let weather = base.weather;
   let startHour = base.startHour;
+  let season = base.season;
   let turnLimit = base.turnLimit ?? rules.battle.turnLimit;
   let turnDelta = 0;
   const moraleDelta: Partial<Record<Faction, number>> = {};
@@ -153,6 +154,7 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
   for (const e of effects) {
     if (e.weather !== undefined) weather = e.weather;
     if (e.startHour !== undefined) startHour = e.startHour;
+    if (e.season !== undefined) season = e.season;
     if (e.turnLimit !== undefined) turnLimit = e.turnLimit;
     turnDelta += e.turnDelta ?? 0;
     for (const [f, d] of Object.entries(e.morale ?? {}) as [Faction, number][]) moraleDelta[f] = (moraleDelta[f] ?? 0) + d;
@@ -171,6 +173,7 @@ export function shapeScenario(ctx: BattleContext, base: Scenario, effects: reado
     turnLimit: Math.max(Math.min(MIN_TURN_LIMIT, turnLimit), turnLimit + turnDelta),
     ...(weather !== undefined ? { weather } : {}),
     ...(startHour !== undefined ? { startHour } : {}),
+    ...(season !== undefined ? { season } : {}),
     ...(Object.keys(morale).length > 0 ? { morale } : {}),
     ...(Object.values(aim).some((a) => a !== 0) ? { aim } : {}),
     ...(effects.some((e) => e.sworn) || base.sworn ? { sworn: true } : {}),

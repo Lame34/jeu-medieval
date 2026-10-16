@@ -49,6 +49,8 @@ interface TestBattleState {
   readonly units: readonly TestUnitState[];
   readonly weather: 'clear' | 'rain' | 'fog';
   readonly startHour: number;
+  /** A campaign siege's month (ADR-052); absent in a skirmish. */
+  readonly season?: string;
   /** Sappers' works: moat fill sites and mines, with the turns of work done. */
   readonly works: readonly { readonly id: string; readonly progress: number; readonly done: boolean }[];
 }

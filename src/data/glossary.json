@@ -6,6 +6,7 @@
     { "id": "beffroi", "word": "Beffroi", "forms": ["beffroi", "beffrois"], "definition": "Tour de bois roulante, plus haute que les murs, que l’on pousse contre la muraille ; son pont s’abat sur le haut du mur et les hommes y passent.", "attested": "vers 1155, « berfroi »" },
     { "id": "besogne", "word": "Besogne", "forms": ["besogne"], "definition": "Le travail, l’ouvrage d’un homme de métier.", "attested": "1268, Étienne Boileau, Livre des métiers" },
     { "id": "breche", "word": "Brèche", "forms": ["brèche", "brèches"], "definition": "Ouverture faite dans la muraille, par où l’on entre.", "attested": "1119" },
+    { "id": "brouillas", "word": "Brouillas", "forms": ["brouillas"], "definition": "Le brouillard, dans la langue du temps : « brouillard » ne paraît qu’au XVᵉ siècle, et « brume » ne prend ce sens qu’en 1562 (elle disait alors l’hiver).", "attested": "vers 1210, « bruillat », Gautier de Coinci" },
     { "id": "capitaine", "word": "Capitaine", "forms": ["capitaine"], "definition": "Celui qui commande les hommes d’un château et sa défense.", "attested": "1288, Renart le Nouvel" },
     { "id": "carreau", "word": "Carreau", "forms": ["carreau", "carreaux"], "definition": "Trait d’arbalète, au fer de section carrée.", "attested": "vers 1100, la Chanson de Roland, « quarrel »" },
     { "id": "coulisse", "word": "Coulisse", "forms": ["coulisse"], "definition": "Grille de bois ferré qui glisse entre deux rainures et tombe derrière la porte ; on dira plus tard « herse ».", "attested": "1289, « coulice », Renart le Nouvel" },
