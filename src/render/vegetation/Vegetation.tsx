@@ -11,6 +11,7 @@ import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { TREE_SPECIES, type TreeInstance, type TreeSpecies } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import type { SeasonPalette } from '../materials/season-palette.ts';
 import { CameraTrigger, createLodBatch, type LodBatch, type LodBatchInstance } from './lod-batch.ts';
 import { buildTreeGeometry, SPECIES_STYLE, TREE_VARIANTS } from './tree-geometry.ts';
 
@@ -27,7 +28,7 @@ const FERN_DISTANCE_M = 70;
 /** Distant trees only need a couple of silhouettes per species. */
 const FAR_VARIANTS = 2;
 
-function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terrain: TerrainData, variantOf: (t: TreeInstance) => number): LodBatch {
+function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terrain: TerrainData, variantOf: (t: TreeInstance) => number, season: SeasonPalette): LodBatch {
   const style = SPECIES_STYLE[species];
   const fern = species === 'fern';
   const material = createPaintedMaterial({
@@ -56,8 +57,8 @@ function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terr
     {
       name: `Veg:${species}`,
       material,
-      near: Array.from({ length: TREE_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 0)),
-      far: fern ? [] : Array.from({ length: FAR_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 1)),
+      near: Array.from({ length: TREE_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 0, season)),
+      far: fern ? [] : Array.from({ length: FAR_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 1, season)),
       detailDistanceM: fern ? FERN_DISTANCE_M : DETAIL_DISTANCE_M,
       // Bushes cast (they would float otherwise); ferns are too small to matter.
       castShadow: !fern,
@@ -66,18 +67,18 @@ function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terr
   );
 }
 
-function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData): LodBatch[] {
+function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData, season: SeasonPalette): LodBatch[] {
   const pickRng = Rng.create('vegetation-variants');
   const variants = new Map<TreeInstance, number>(trees.map((t) => [t, pickRng.int(0, TREE_VARIANTS - 1)]));
   const variantOf = (t: TreeInstance) => variants.get(t) ?? 0;
   return TREE_SPECIES.map((species) => {
     const list = trees.filter((t) => t.species === species);
-    return list.length > 0 ? speciesBatch(species, list, terrain, variantOf) : null;
+    return list.length > 0 ? speciesBatch(species, list, terrain, variantOf, season) : null;
   }).filter((b): b is LodBatch => b !== null);
 }
 
-export function Vegetation({ trees, terrain }: { readonly trees: readonly TreeInstance[]; readonly terrain: TerrainData }) {
-  const { batches, trigger } = useMemo(() => ({ batches: buildVegetation(trees, terrain), trigger: new CameraTrigger() }), [trees, terrain]);
+export function Vegetation({ trees, terrain, season }: { readonly trees: readonly TreeInstance[]; readonly terrain: TerrainData; readonly season: SeasonPalette }) {
+  const { batches, trigger } = useMemo(() => ({ batches: buildVegetation(trees, terrain, season), trigger: new CameraTrigger() }), [trees, terrain, season]);
 
   useFrame(({ camera }) => {
     if (!trigger.moved(camera)) return;

@@ -10,7 +10,7 @@ import { actionsFor } from '../battle/actions.ts';
 import { triggerAction } from '../battle/intent.ts';
 import { Torches } from '../../render/vfx/Torches.tsx';
 import { BattleSoundscape } from '../../render/battle/BattleSoundscape.tsx';
-import { hourOf, isSeenBy, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
+import { hourOf, isSeenBy, mistSightM, seasonOf, WEATHERS, type BattleConditions, type Weather } from '../../core/battle/conditions.ts';
 import { useSceneConditions } from '../../state/scene-conditions.ts';
 import type { BattleState } from '../../core/battle/types.ts';
 import { Projectiles, type ProjectileHandle } from '../../render/vfx/Projectiles.tsx';
@@ -33,7 +33,7 @@ import { requestEndTurn, unitsStillActing } from '../battle/end-turn.ts';
 import { navigate, ROUTES } from '../router.ts';
 import { deedsOf } from '../../core/campaign/deeds.ts';
 import { bannersOf, woundedHeroes } from '../../core/campaign/scenario.ts';
-import { CAMPAIGN } from '../../data/index.ts';
+import { CAMPAIGN, DEFAULT_RULES } from '../../data/index.ts';
 import { useCampaign } from '../../state/campaign.ts';
 import { requestBattleMap } from '../campaign/battle-map.ts';
 import { battleKey, battleQuery, battleSetupFrom, battleTitle, shapeOf, type BattleSetup } from '../campaign/battle-setup.ts';
@@ -48,14 +48,16 @@ import './screens.css';
 
 const OPENING_VIEW = 1;
 
-/** Fixed weather and hour for captures and tests (?weather=rain&hour=21); drawn from the seed otherwise. */
+/** Fixed weather, hour and month for captures and tests (?weather=rain&hour=21&season=october); drawn from the seed (no month) otherwise. */
 function conditionsParams(): Partial<BattleConditions> {
   const query = new URLSearchParams(window.location.search);
   const weather = query.get('weather');
   const hour = query.get('hour');
+  const season = query.get('season');
   return {
     ...((WEATHERS as readonly string[]).includes(weather ?? '') ? { weather: weather as Weather } : {}),
     ...(hour !== null && Number.isFinite(Number(hour)) ? { startHour: Number(hour) } : {}),
+    ...(season !== null && Object.hasOwn(DEFAULT_RULES.weather.seasons, season) ? { season } : {}),
   };
 }
 
@@ -219,6 +221,8 @@ export default function BattleScreen() {
   const session = started?.session ?? null;
   const units = useMemo(() => (session ? markersOf(session) : undefined), [session]);
   const siege = useMemo(() => (session ? siegeOf(session) : undefined), [session]);
+  // The land's season, a campaign siege's month (ADR-052).
+  const look = session ? seasonOf(session.ctx.rules, session.state)?.look : undefined;
   const [handles, setHandles] = useState<ReadonlyMap<string, UnitHandle> | null>(null);
   const [castle, setCastle] = useState<CastleHandle | null>(null);
   const [fire, setFire] = useState<FireHandle | null>(null);
@@ -299,7 +303,7 @@ export default function BattleScreen() {
   useEffect(() => {
     if (!session) return undefined;
     const apply = (state: BattleState) => {
-      useSceneConditions.getState().set(hourOf(session.ctx.rules, state), state.weather);
+      useSceneConditions.getState().set(hourOf(session.ctx.rules, state), state.weather, mistSightM(session.ctx.rules, state) !== null);
       if (handles) {
         for (const u of state.units) {
           if (u.faction === PLAYER_FACTION) continue;
@@ -385,7 +389,7 @@ export default function BattleScreen() {
   return (
     <main className="scene-screen" style={{ '--ui-scale': uiScale } as CSSProperties}>
       <GameCanvas>
-        <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} />
+        <WorldScene layout={layout} units={units} onUnitHandles={setHandles} {...(siege ? { siege } : {})} onCastleHandle={setCastle} {...(look ? { look } : {})} />
         {session && <Fire width={layout.terrain.width} heightAt={heightAt} onHandle={setFire} />}
         {session && <Torches layout={layout} />}
         {session && sceneReady && !NO_SOUND && <BattleSoundscape session={session} terrain={layout.terrain} />}

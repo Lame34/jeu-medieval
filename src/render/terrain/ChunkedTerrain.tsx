@@ -8,6 +8,7 @@ import { useEffect, useMemo } from 'react';
 import { Mesh, type BufferGeometry, type Texture } from 'three';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { buildTerrainGeometry } from './terrain-geometry.ts';
+import type { SeasonPalette } from '../materials/season-palette.ts';
 import { createTerrainMaterial } from './terrain-material.ts';
 
 const CHUNK_CELLS = 128;
@@ -28,12 +29,12 @@ interface Chunk {
   lod: number;
 }
 
-export function ChunkedTerrain({ terrain, splat }: { readonly terrain: TerrainData; readonly splat: Texture }) {
+export function ChunkedTerrain({ terrain, splat, season }: { readonly terrain: TerrainData; readonly splat: Texture; readonly season: SeasonPalette }) {
   const built = useMemo(() => {
     let sum = 0;
     for (const h of terrain.heights) sum += h;
     const cs = terrain.cellSize;
-    const material = createTerrainMaterial(splat, { x: terrain.width * cs, z: terrain.depth * cs }, sum / terrain.heights.length);
+    const material = createTerrainMaterial(splat, { x: terrain.width * cs, z: terrain.depth * cs }, sum / terrain.heights.length, undefined, false, season);
     const chunks: Chunk[] = [];
     for (let iz0 = 0; iz0 < terrain.depth; iz0 += CHUNK_CELLS) {
       for (let ix0 = 0; ix0 < terrain.width; ix0 += CHUNK_CELLS) {
@@ -50,7 +51,7 @@ export function ChunkedTerrain({ terrain, splat }: { readonly terrain: TerrainDa
       }
     }
     return { chunks, material };
-  }, [terrain, splat]);
+  }, [terrain, splat, season]);
 
   useEffect(
     () => () => {

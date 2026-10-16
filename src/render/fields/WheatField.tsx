@@ -15,9 +15,9 @@ import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { distanceToPolygonEdge, pointInPolygon } from '../../core/worldgen/geometry.ts';
 import type { FieldPatch } from '../../core/worldgen/types.ts';
-import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
+import type { SeasonPalette } from '../materials/season-palette.ts';
 import { burnTufts, fieldBurn } from './field-burn.ts';
 
 const SPACING_M = 0.34;
@@ -52,7 +52,8 @@ const NEW_CHUNKS_PER_FRAME = 6;
 type Crop = 'wheat' | 'rye';
 const CROPS: readonly Crop[] = ['wheat', 'rye'];
 
-function tuftGeometry(lit: string, base: string, stalks: number): BufferGeometry {
+/** A tuft of `stalks` stalks `heightM` high, with their ears (none on young wheat or stubble). */
+function tuftGeometry(lit: string, base: string, stalks: number, heightM: number, ears: boolean): BufferGeometry {
   const rng = Rng.create(`wheat-tuft:${stalks}`);
   const positions: number[] = [];
   const colors: number[] = [];
@@ -75,11 +76,13 @@ function tuftGeometry(lit: string, base: string, stalks: number): BufferGeometry
   for (let s = 0; s < stalks; s++) {
     const angle = (s / stalks) * Math.PI + rng.float(-0.3, 0.3);
     const lean = new Vector3(rng.float(-0.12, 0.12), 0, rng.float(-0.12, 0.12));
-    const h = TUFT_HEIGHT_M * rng.float(0.8, 1.1);
+    const h = heightM * rng.float(0.8, 1.1);
+    const earM = ears ? EAR_LENGTH_M : 0;
     const offset = new Vector3(rng.float(-0.12, 0.12), 0, rng.float(-0.12, 0.12));
     const side = new Vector3(Math.cos(angle), 0, Math.sin(angle)).multiplyScalar(STALK_WIDTH_M / 2);
-    const top = offset.clone().add(lean).setY(h - EAR_LENGTH_M);
+    const top = offset.clone().add(lean).setY(h - earM);
     quad(offset.clone().sub(side), offset.clone().add(side), top.clone().add(side.clone().multiplyScalar(0.5)), top.clone().sub(side.clone().multiplyScalar(0.5)), cBase, cLit);
+    if (!ears) continue;
     const earSide = side.clone().normalize().multiplyScalar(EAR_WIDTH_M / 2);
     const earTop = top.clone().add(lean.clone().multiplyScalar(0.4)).setY(h);
     quad(top.clone().sub(earSide), top.clone().add(earSide), earTop.clone().add(earSide.clone().multiplyScalar(0.3)), earTop.clone().sub(earSide.clone().multiplyScalar(0.3)), earColor, earColor);
@@ -268,12 +271,13 @@ function makeLevel(geometry: BufferGeometry, material: PaintedMaterial, capacity
   return { mesh, capacity };
 }
 
-function build(fields: readonly FieldPatch[], terrain: TerrainData): Built {
+function build(fields: readonly FieldPatch[], terrain: TerrainData, season: SeasonPalette): Built {
+  const heightM = TUFT_HEIGHT_M * season.cropHeight;
   const material = createPaintedMaterial({
     name: 'Fields',
     ground: true,
     vertexColors: true,
-    heightM: TUFT_HEIGHT_M,
+    heightM,
     windSwayM: WHEAT_SWAY_M,
     gradientBase: 0.6,
     gradientTop: 1.12,
@@ -290,9 +294,9 @@ function build(fields: readonly FieldPatch[], terrain: TerrainData): Built {
   const geometries: BufferGeometry[] = [];
   const levels = {} as Record<Crop, { near: Level; far: Level }>;
   for (const crop of CROPS) {
-    const palette = crop === 'wheat' ? PALETTE.wheat : PALETTE.rye;
-    const nearGeo = tuftGeometry(palette.lit, palette.base, STALKS);
-    const farGeo = tuftGeometry(palette.lit, palette.base, FAR_STALKS);
+    const palette = crop === 'wheat' ? season.wheat : season.rye;
+    const nearGeo = tuftGeometry(palette.lit, palette.base, STALKS, heightM, season.ears);
+    const farGeo = tuftGeometry(palette.lit, palette.base, FAR_STALKS, heightM, season.ears);
     geometries.push(nearGeo, farGeo);
     levels[crop] = {
       near: makeLevel(nearGeo, material, NEAR_CAPACITY, `Fields:${crop}:near`),
@@ -374,8 +378,8 @@ function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: Terrain
   return complete;
 }
 
-export function Fields({ fields, terrain }: { readonly fields: readonly FieldPatch[]; readonly terrain: TerrainData }) {
-  const built = useMemo(() => build(fields, terrain), [fields, terrain]);
+export function Fields({ fields, terrain, season }: { readonly fields: readonly FieldPatch[]; readonly terrain: TerrainData; readonly season: SeasonPalette }) {
+  const built = useMemo(() => build(fields, terrain, season), [fields, terrain, season]);
 
   useFrame(({ camera }) => {
     const focus = paintedGlobals.uFocus.value;

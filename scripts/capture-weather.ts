@@ -1,8 +1,9 @@
 /**
  * Weather and time-of-day captures (J5, brief §9.11 and §13): the battle map at night, at dusk,
- * in the rain and in fog (?weather=&hour= fix the conditions), from two of its views.
- * Requires the dev server (npm run dev). Writes docs/captures/<date>-<tag>/<case>-<view>.png.
- * Usage: node scripts/capture-weather.ts [tag]
+ * in the rain and in fog (?weather=&hour= fix the conditions), and in the campaign's seasons
+ * (?season=, ADR-052: April, June, July, an October morning's mist and its afternoon), from two
+ * of its views. Requires the dev server (npm run dev). Writes docs/captures/<date>-<tag>/<case>-<view>.png.
+ * Usage: node scripts/capture-weather.ts [tag] [--seasons]  (--seasons: the seasons only)
  */
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,15 +12,24 @@ import { baseUrl, launch, VIEWPORT } from './browser.ts';
 interface Hooks {
   __battleCamera?: { viewIds(): string[]; setView(id: string): void };
 }
-const tag = process.argv[2] ?? 'j5-weather-v1';
+const args = process.argv.slice(2);
+const tag = args.find((a) => !a.startsWith('--')) ?? 'j5-weather-v1';
 const outDir = join('docs/captures', `${new Date().toISOString().slice(0, 10)}-${tag}`);
 mkdirSync(outDir, { recursive: true });
-const cases = [
+const weathers = [
   { name: 'night', q: 'weather=clear&hour=22' },
   { name: 'dusk', q: 'weather=clear&hour=20' },
   { name: 'rain', q: 'weather=rain&hour=13' },
   { name: 'fog', q: 'weather=fog&hour=10' },
 ];
+const seasons = [
+  { name: 'april', q: 'weather=clear&hour=11&season=april' },
+  { name: 'june', q: 'weather=clear&hour=11&season=june' },
+  { name: 'july', q: 'weather=clear&hour=11&season=july' },
+  { name: 'october-mist', q: 'weather=clear&hour=8&season=october' },
+  { name: 'october', q: 'weather=clear&hour=11&season=october' },
+];
+const cases = args.includes('--seasons') ? seasons : [...weathers, ...seasons];
 const browser = await launch();
 const errors: string[] = [];
 try {

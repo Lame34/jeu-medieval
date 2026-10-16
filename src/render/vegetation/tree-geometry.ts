@@ -10,6 +10,7 @@ import { createSimplex } from '../../core/noise/noise.ts';
 import { Rng } from '../../core/rng.ts';
 import type { TreeSpecies } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
+import { SEASON_PALETTES, turnLeaves, type SeasonPalette } from '../materials/season-palette.ts';
 
 export const TREE_VARIANTS = 5;
 
@@ -242,23 +243,25 @@ function fern(rng: Rng): BufferGeometry {
   return g;
 }
 
-/** Bush looks: mossy, dark olive, and a flowering one (hawthorn / dog-rose speckles). */
+/** Bush looks: mossy, dark olive, light olive. */
 const BUSH_STYLES = [
-  { lit: PALETTE.moss.lit, base: PALETTE.moss.base, flowers: null },
-  { lit: '#7d8c46', base: '#3b4724', flowers: null },
-  { lit: '#77894a', base: '#404f2a', flowers: null },
+  { lit: PALETTE.moss.lit, base: PALETTE.moss.base },
+  { lit: '#7d8c46', base: '#3b4724' },
+  { lit: '#77894a', base: '#404f2a' },
 ] as const;
-const FLOWER_DENSITY = 0;
+/** In a season of blossom (hawthorn, dog-rose), one bush variant in BLOSSOM_EVERY flowers, on this share of its upper faces. */
+const BLOSSOM_EVERY = 3;
+const BLOSSOM_DENSITY = 0.3;
 
 /** Paints small flower speckles on the upper, outward faces of a bush. */
-function sprinkleFlowers(g: BufferGeometry, rng: Rng, hex: string): void {
+function sprinkleFlowers(g: BufferGeometry, rng: Rng, hex: string, density: number): void {
   const flower = new Color(hex);
   const colors = g.getAttribute('color');
   const normals = g.getAttribute('normal');
   // Non-indexed: recolour whole triangles so speckles stay crisp.
   for (let tri = 0; tri < colors.count / 3; tri++) {
     const ny = normals.getY(tri * 3);
-    if (ny < 0.1 || rng.next() > FLOWER_DENSITY) continue;
+    if (ny < 0.1 || rng.next() > density) continue;
     for (let k = 0; k < 3; k++) colors.setXYZ(tri * 3 + k, flower.r, flower.g, flower.b);
   }
 }
@@ -277,10 +280,17 @@ function mergeAll(parts: BufferGeometry[]): BufferGeometry {
 }
 
 /**
- * Builds variant `variant` of a species; deterministic. `lod` 1 uses faceted blobs and fewer of
- * them (~1/4 of the triangles) for distant forests.
+ * Builds variant `variant` of a species in `season` (ADR-052); deterministic. `lod` 1 uses
+ * faceted blobs and fewer of them (~1/4 of the triangles) for distant forests. The broad leaves
+ * turn with the season; the pines stay green.
  */
-export function buildTreeGeometry(species: TreeSpecies, variant: number, lod: 0 | 1 = 0): BufferGeometry {
+export function buildTreeGeometry(species: TreeSpecies, variant: number, lod: 0 | 1 = 0, season: SeasonPalette = SEASON_PALETTES.harvest): BufferGeometry {
+  const g = treeShape(species, variant, lod, season.blossom);
+  if (species !== 'pine') turnLeaves(g, season.leaves, variant);
+  return g;
+}
+
+function treeShape(species: TreeSpecies, variant: number, lod: 0 | 1, blossom: string | null): BufferGeometry {
   const rng = Rng.create(`tree:${species}:${variant}`);
   const detail = lod === 0 ? 1 : 0;
   const blobs = (n: number) => (lod === 0 ? n : Math.max(3, Math.ceil(n / 2)));
@@ -317,7 +327,7 @@ export function buildTreeGeometry(species: TreeSpecies, variant: number, lod: 0 
       const g = mergeAll([
         canopy(rng, { center: new Vector3(0, 0.55, 0), radii: new Vector3(1.0, 0.65, 1.0), blobCount: blobs(5), blobRadius: [0.45, 0.75], lit: style.lit, base: style.base, detail, normalBlend: 0.85, bump: 0.2 }),
       ]);
-      if (style.flowers) sprinkleFlowers(g, rng, style.flowers);
+      if (blossom && variant % BLOSSOM_EVERY === 0) sprinkleFlowers(g, rng, blossom, BLOSSOM_DENSITY);
       return g;
     }
     case 'fern':

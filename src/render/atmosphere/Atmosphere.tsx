@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { DirectionalLight, HemisphereLight, Object3D, Vector3 } from 'three';
 import { useSettings } from '../../state/settings.ts';
 import { useSceneConditions, useSceneHour } from '../../state/scene-conditions.ts';
-import { applyRigToGlobals, paintedGlobals, setActiveFog, WEATHER_FOG } from '../materials/painted-globals.ts';
+import { applyRigToGlobals, MIST_FOG, paintedGlobals, setActiveFog, WEATHER_FOG } from '../materials/painted-globals.ts';
 import { QUALITY_PRESETS } from '../quality/presets.ts';
 import { resolveRig } from './time-of-day.ts';
 
@@ -30,6 +30,7 @@ const SHADOW_EVERY = 2;
 export function Atmosphere() {
   const hour = useSceneHour();
   const weather = useSceneConditions((s) => s.weather);
+  const mist = useSceneConditions((s) => s.mist);
   const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
   const scene = useThree((s) => s.scene);
   const gl = useThree((s) => s.gl);
@@ -47,14 +48,15 @@ export function Atmosphere() {
     gl.shadowMap.needsUpdate = true;
   }, [gl, rig]);
   useEffect(() => {
-    setActiveFog(WEATHER_FOG[weather]);
+    // Under a clear sky, an autumn morning's mist; the fog and the rain close in on their own.
+    setActiveFog(weather === 'clear' && mist ? MIST_FOG : WEATHER_FOG[weather]);
     // Overcast: no cast shadows, and no shadow pass to render.
     paintedGlobals.uCastShadow.value = weather === 'rain' ? 0 : 1;
     return () => {
       setActiveFog(WEATHER_FOG.clear);
       paintedGlobals.uCastShadow.value = 1;
     };
-  }, [weather]);
+  }, [weather, mist]);
 
   const sun = useMemo(() => {
     const light = new DirectionalLight();

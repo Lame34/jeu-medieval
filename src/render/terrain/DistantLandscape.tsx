@@ -16,6 +16,7 @@ import type { Vec2 } from '../../core/math/vec2.ts';
 import type { WaterBody } from '../../core/worldgen/types.ts';
 import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import { turnLeaves, type SeasonPalette } from '../materials/season-palette.ts';
 import { extendedRiver } from '../water/river-extension.ts';
 import { createTerrainMaterial } from './terrain-material.ts';
 
@@ -91,7 +92,8 @@ function paintClump(g: BufferGeometry, lit: Color, base: Color, topM: number): B
 }
 
 /** Lobes of icosahedra with sphere normals (20 faces far away, 80 bumpy ones up close), or a cone. */
-function clumpGeometry(lobes: readonly Lobe[] | 'conifer', near: boolean): BufferGeometry {
+/** A far clump; broad-leaved ones turn with the season (`variant` picks the hue, so a wood mixes them). */
+function clumpGeometry(lobes: readonly Lobe[] | 'conifer', near: boolean, season: SeasonPalette, variant: number): BufferGeometry {
   if (lobes === 'conifer') {
     const cone = new ConeGeometry(0.85, 3.2, near ? 9 : 6, 1).toNonIndexed();
     cone.translate(0, 1.4, 0);
@@ -116,7 +118,9 @@ function clumpGeometry(lobes: readonly Lobe[] | 'conifer', near: boolean): Buffe
   const merged = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   if (!merged) throw new Error('clump merge failed');
-  return paintClump(merged, new Color(PALETTE.foliage.lit), new Color(PALETTE.foliage.base), 2);
+  const clump = paintClump(merged, new Color(PALETTE.foliage.lit), new Color(PALETTE.foliage.base), 2);
+  turnLeaves(clump, season.leaves, variant);
+  return clump;
 }
 
 const HILLS: FbmOptions = { octaves: 4, lacunarity: 2.1, gain: 0.5, frequency: 1 / 420 };
@@ -139,7 +143,7 @@ const CLUMP_WATER_CLEARANCE_M = 8;
 /** River segments are bucketed in cells this wide: a point is only measured against those near it. */
 const RIVER_CELL_M = 64;
 
-export function DistantLandscape({ terrain, seed, water }: { readonly terrain: TerrainData; readonly seed: string; readonly water: readonly WaterBody[] }) {
+export function DistantLandscape({ terrain, seed, water, season }: { readonly terrain: TerrainData; readonly seed: string; readonly water: readonly WaterBody[]; readonly season: SeasonPalette }) {
   const built = useMemo(() => {
     const W = terrain.width * terrain.cellSize;
     const D = terrain.depth * terrain.cellSize;
@@ -278,7 +282,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // Same reference height as the map's terrain material (its dryness term depends on it).
     let heightSum = 0;
     for (const h of terrain.heights) heightSum += h;
-    const ringMaterial = createTerrainMaterial(splat, size, heightSum / terrain.heights.length, origin, true);
+    const ringMaterial = createTerrainMaterial(splat, size, heightSum / terrain.heights.length, origin, true, season);
     const ring = new Mesh(geometry, ringMaterial);
     ring.name = 'DistantLandscape';
     ring.receiveShadow = true;
@@ -287,9 +291,9 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
     // Four silhouettes (tall lobe, pair, wide group, conifer) in massifs split by clearings.
     // The clumps right past the edge, seen up close, use rounder, bumpier blobs.
     const material = createPaintedMaterial({ name: 'FarClumps', vertexColors: true, heightM: 2.6, gradientBase: 0.7, hueNoiseAmp: 0.05 });
-    const meshes = CLUMP_VARIANTS.flatMap((variant) =>
+    const meshes = CLUMP_VARIANTS.flatMap((variant, k) =>
       [false, true].map((near) => {
-        const mesh = new InstancedMesh(clumpGeometry(variant.lobes, near), material, near ? NEAR_CLUMPS_MAX : FAR_CLUMPS);
+        const mesh = new InstancedMesh(clumpGeometry(variant.lobes, near, season, k), material, near ? NEAR_CLUMPS_MAX : FAR_CLUMPS);
         mesh.name = `FarClumps:${variant.name}${near ? ':near' : ''}`;
         mesh.count = 0;
         return { mesh, near };
@@ -368,7 +372,7 @@ export function DistantLandscape({ terrain, seed, water }: { readonly terrain: T
       mesh.computeBoundingSphere();
     }
     return { ring, splat, clumps, material, spare: meshes.map(({ mesh }) => mesh) };
-  }, [terrain, seed, water]);
+  }, [terrain, seed, water, season]);
 
   useEffect(
     () => () => {

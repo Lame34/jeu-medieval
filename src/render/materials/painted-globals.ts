@@ -139,6 +139,9 @@ export const WEATHER_FOG: Readonly<Record<'clear' | 'rain' | 'fog', FogSettings>
   fog: { ...DEFAULT_FOG, startBeyondFocusM: 6, endBeyondFocusM: 150, maxAmount: 0.9, valleyAmount: 0.25 },
 };
 
+/** An autumn morning's mist (ADR-052): thinner than the fog, it lets the castle show through. */
+export const MIST_FOG: FogSettings = { ...DEFAULT_FOG, startBeyondFocusM: 18, endBeyondFocusM: 320, maxAmount: 0.8, valleyAmount: 0.3 };
+
 /** The fog the camera anchors (Atmosphere sets it from the battle's weather). */
 let activeFog: FogSettings = DEFAULT_FOG;
 

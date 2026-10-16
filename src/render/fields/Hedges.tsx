@@ -15,6 +15,7 @@ import { pointAlong, polylineLength } from '../../core/worldgen/geometry.ts';
 import type { HedgeLine } from '../../core/worldgen/types.ts';
 import { createStoneMaterial } from '../castle/stone-material.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import type { SeasonPalette } from '../materials/season-palette.ts';
 import { CameraTrigger, createLodBatch, type LodBatch } from '../vegetation/lod-batch.ts';
 import { buildTreeGeometry } from '../vegetation/tree-geometry.ts';
 
@@ -81,7 +82,7 @@ function wallSegment(a: Vec2, b: Vec2, terrain: TerrainData, along0: number): Bu
   return g;
 }
 
-export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLine[]; readonly terrain: TerrainData }) {
+export function Hedges({ hedges, terrain, season }: { readonly hedges: readonly HedgeLine[]; readonly terrain: TerrainData; readonly season: SeasonPalette }) {
   const built = useMemo(() => {
     const rng = Rng.create('hedges');
     const spots: { p: Vec2; s: number; r: number }[] = [];
@@ -118,8 +119,8 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
         {
           name: 'Hedges',
           material,
-          near: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 0)),
-          far: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 1)),
+          near: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 0, season)),
+          far: HEDGE_VARIANTS.map((v) => buildTreeGeometry('bush', v, 1, season)),
           detailDistanceM: HEDGE_DETAIL_DISTANCE_M,
           castShadow: true,
         },
@@ -142,7 +143,7 @@ export function Hedges({ hedges, terrain }: { readonly hedges: readonly HedgeLin
       }
     }
     return { meshes, disposables, batch, trigger: new CameraTrigger() };
-  }, [hedges, terrain]);
+  }, [hedges, terrain, season]);
 
   useFrame(({ camera }) => {
     if (!built.batch || !built.trigger.moved(camera)) return;

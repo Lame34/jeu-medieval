@@ -5,6 +5,7 @@
  */
 import { Color, Vector2, type Texture } from 'three';
 import { PALETTE } from '../materials/palette.ts';
+import { SEASON_PALETTES, type SeasonPalette } from '../materials/season-palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { moveFieldUniforms } from '../battle/move-field.ts';
 
@@ -210,6 +211,7 @@ export function createTerrainMaterial(
   heightRefM: number,
   originM: { x: number; z: number } = { x: 0, z: 0 },
   ring = false,
+  season: SeasonPalette = SEASON_PALETTES.harvest,
 ): PaintedMaterial {
   const c = (hex: string) => ({ value: new Color(hex) });
   return createPaintedMaterial({
@@ -227,26 +229,26 @@ ${TERRAIN_PARS}${RING_PARCELS}` : `${TERRAIN_PARS}${MOVE_CONTOURS}`,
         uSplatSize: { value: new Vector2(sizeM.x, sizeM.z) },
         uSplatOrigin: { value: new Vector2(originM.x, originM.z) },
         uHeightRef: { value: heightRefM },
-        uGrassLushLit: c(PALETTE.grassLush.lit),
-        uGrassLushBase: c(PALETTE.grassLush.base),
-        uGrassDryLit: c(PALETTE.grassDry.lit),
-        uGrassDryBase: c(PALETTE.grassDry.base),
+        uGrassLushLit: c(season.grassLush.lit),
+        uGrassLushBase: c(season.grassLush.base),
+        uGrassDryLit: c(season.grassDry.lit),
+        uGrassDryBase: c(season.grassDry.base),
         uMossLit: c(PALETTE.moss.lit),
         uMossBase: c(PALETTE.moss.base),
-        uDirtLit: c(PALETTE.dirt.lit),
-        uDirtBase: c(PALETTE.dirt.base),
-        uPathLit: c(PALETTE.path.lit),
-        uPathBase: c(PALETTE.path.base),
-        uMudLit: c(PALETTE.mud.lit),
-        uMudBase: c(PALETTE.mud.base),
+        uDirtLit: c(season.dirt.lit),
+        uDirtBase: c(season.dirt.base),
+        uPathLit: c(season.path.lit),
+        uPathBase: c(season.path.base),
+        uMudLit: c(season.mud.lit),
+        uMudBase: c(season.mud.base),
         uStoneLit: c(PALETTE.stone.lit),
         uStoneBase: c(PALETTE.stone.base),
-        uWheatBase: c(PALETTE.wheat.base),
-        uWheatLit: c(PALETTE.wheat.lit),
-        uFieldBed: c(PALETTE.fieldBed),
-        uParcelFallow: c(PALETTE.fallow.lit),
-        uParcelRye: c(PALETTE.rye.lit),
-        uHedgeRow: c(PALETTE.moss.base),
+        uWheatBase: c(season.wheat.base),
+        uWheatLit: c(season.wheat.lit),
+        uFieldBed: c(season.fieldBed),
+        uParcelFallow: c(season.fallow),
+        uParcelRye: c(season.rye.lit),
+        uHedgeRow: c(season.hedge),
         ...(ring ? {} : { ...moveFieldUniforms, uMoveInnerColor: c(MOVE_INNER_COLOR), uMoveOuterColor: c(MOVE_OUTER_COLOR) }),
       },
     },

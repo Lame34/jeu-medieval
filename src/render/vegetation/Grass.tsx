@@ -9,8 +9,8 @@ import { useEffect, useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, Mesh, Vector2, type Texture } from 'three';
 import type { TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
-import { PALETTE } from '../materials/palette.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import type { SeasonPalette } from '../materials/season-palette.ts';
 import type { QualityPreset } from '../quality/presets.ts';
 
 const BLADE_VERTS = 3;
@@ -124,16 +124,18 @@ export function Grass({
   heights,
   splat,
   preset,
+  season,
 }: {
   readonly terrain: TerrainData;
   readonly heights: Texture;
   readonly splat: Texture;
   readonly preset: QualityPreset;
+  readonly season: SeasonPalette;
 }) {
   const spacing = 1 / Math.sqrt(preset.grassDensityPerM2);
   const built = useMemo(() => {
     const origin = new Vector2();
-    const lushBase = new Color(PALETTE.grassLush.base);
+    const lushBase = new Color(season.grassLush.base);
     let heightSum = 0;
     for (const h of terrain.heights) heightSum += h;
     paintedGlobals.uGrassRadius.value = preset.grassRadiusM;
@@ -161,11 +163,11 @@ export function Grass({
           uGrassHeightRef: { value: heightSum / terrain.heights.length },
           uGrassSpacing: { value: spacing },
           // Blade roots match the painted ground so the carpet has no dark seams.
-          uGrassLushBase: { value: lushBase.clone().lerp(new Color(PALETTE.grassLush.lit), 0.45) },
+          uGrassLushBase: { value: lushBase.clone().lerp(new Color(season.grassLush.lit), 0.45) },
           // Blades are the ground's own colour, tips at most +10 % value (no "shark teeth").
-          uGrassLushTip: { value: lushBase.clone().lerp(new Color(PALETTE.grassLush.lit), 0.45).multiplyScalar(1.1) },
-          uGrassDryBase: { value: new Color(PALETTE.grassDry.base).lerp(new Color(PALETTE.grassDry.lit), 0.45) },
-          uGrassDryTip: { value: new Color(PALETTE.grassDry.base).lerp(new Color(PALETTE.grassDry.lit), 0.45).multiplyScalar(1.1) },
+          uGrassLushTip: { value: lushBase.clone().lerp(new Color(season.grassLush.lit), 0.45).multiplyScalar(1.1) },
+          uGrassDryBase: { value: new Color(season.grassDry.base).lerp(new Color(season.grassDry.lit), 0.45) },
+          uGrassDryTip: { value: new Color(season.grassDry.base).lerp(new Color(season.grassDry.lit), 0.45).multiplyScalar(1.1) },
         },
       },
     });
@@ -174,7 +176,7 @@ export function Grass({
     mesh.receiveShadow = true;
     mesh.name = 'Grass';
     return { mesh, origin };
-  }, [terrain, heights, splat, preset, spacing]);
+  }, [terrain, heights, splat, preset, spacing, season]);
 
   useEffect(
     () => () => {
