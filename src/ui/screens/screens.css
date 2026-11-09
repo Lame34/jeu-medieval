@@ -121,6 +121,34 @@
   color: var(--ink-soft);
 }
 
+/* The lexicon, and « Retour » from the trial battle's question: small, under the menu (ADR-054). */
+.title-panel__small {
+  margin-top: 18px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ink-soft);
+  text-decoration: underline dotted rgb(58 42 26 / 45%);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.title-panel__small:hover,
+.title-panel__small:focus-visible {
+  color: var(--ink);
+  text-decoration-style: solid;
+}
+
+/* A battle left unfinished: continue it, or a new trial battle. */
+.title-choice__lead {
+  margin: 0 0 16px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
 /* ---------- Coins en fer forgé ---------- */
 .iron-corner {
   position: absolute;

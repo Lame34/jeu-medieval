@@ -23,7 +23,7 @@ function trackErrors(page: Page): string[] {
 test('the lexicon lists the words of the siege, each with its meaning and its age', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
-  await page.getByRole('button', { name: /Lexique/ }).click();
+  await page.getByRole('button', { name: 'Le lexique des mots du siège' }).click();
   await expect(page.getByRole('heading', { name: 'Lexique du siège' })).toBeVisible({ timeout: SCREEN_TIMEOUT_MS });
   expect(await page.locator('.lexicon__entry').count()).toBeGreaterThanOrEqual(MIN_WORDS);
   const mouton = page.locator('.lexicon__entry').filter({ has: page.locator('dt', { hasText: /^Mouton$/ }) });

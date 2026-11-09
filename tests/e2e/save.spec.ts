@@ -2,8 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 /**
  * A battle left unfinished is taken up (J7): after an order the battle is saved in the browser;
- * coming back, the game asks to take it up or start again, the title menu offers it first, and a
- * battle taken up skips its briefing (no « another version » notice: the orders replayed exactly).
+ * coming back, the game asks to take it up or start again; the title menu's trial battle offers to
+ * continue it or start a new trial battle (ADR-054); a battle taken up skips its briefing (no
+ * « another version » notice: the orders replayed exactly).
  * Runs with ?fast but without ?e2e: test hooks off, saving on, as for a player.
  */
 
@@ -81,10 +82,34 @@ test('a battle left after an order is saved, offered again, and taken up without
   await expect(page.locator('.hud-notice')).toHaveCount(0);
   expect(await savedBattle(page)).not.toBeNull();
 
-  // The title menu offers it first.
+  // The title menu's trial battle offers it: continue it, and it is taken up as it was.
   await page.goto('/');
-  await expect(page.locator('.title-menu__label').first()).toHaveText('Reprendre la bataille');
-  await expect(page.locator('.title-menu__item').first()).toContainText('Siège au hasard, au tour 1');
+  await expect(page.locator('.title-menu__label')).toHaveText(['Bataille d’essai', 'Campagne', 'Options']);
+  const trial = page.getByRole('button', { name: /Bataille d’essai/ });
+  await expect(trial).toContainText('Ou continuer la bataille en cours : Siège au hasard, au tour 1');
+  await trial.click();
+  await expect(page.locator('.title-choice__lead')).toContainText('Une bataille est en cours : Siège au hasard, laissée au tour 1');
+  await page.getByRole('button', { name: /Continuer la bataille/ }).click();
+  await sceneReady(page);
+  await expect(page.locator('.hud-banner')).toContainText('Tour 1');
+  await expect(page.locator('.hud-briefing')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('from the title menu, a new trial battle sets the battle in progress aside; « Retour » keeps it', async ({ page }) => {
+  const errors = trackErrors(page);
+  await startAndOrder(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: /Bataille d’essai/ }).click();
+  await page.getByRole('button', { name: 'Retour' }).click();
+  await expect(page.locator('.title-menu__label')).toHaveText(['Bataille d’essai', 'Campagne', 'Options']);
+  expect(await savedBattle(page)).not.toBeNull();
+
+  await page.getByRole('button', { name: /Bataille d’essai/ }).click();
+  await page.getByRole('button', { name: /Nouvelle bataille d’essai/ }).click();
+  await expect(page).toHaveURL(/\/battle\?tutorial/);
+  expect(await savedBattle(page)).toBeNull();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

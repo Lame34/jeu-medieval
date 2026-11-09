@@ -34,12 +34,13 @@ async function waitForBattle(page: Page): Promise<void> {
   await page.waitForFunction(() => document.body.dataset['sceneReady'] === 'true' && typeof window.__battle !== 'undefined', undefined, { timeout: SCENE_READY_TIMEOUT_MS });
 }
 
-test('the title menu leads with the trial battle, then the campaign', async ({ page }) => {
+test('the title menu: the trial battle, the campaign, the options, and a small button for the lexicon', async ({ page }) => {
   const errors = trackErrors(page);
   await page.goto('/');
   const entries = page.locator('.title-menu__label');
-  await expect(entries).toHaveText(['Bataille d’essai', 'Campagne', 'Siège au hasard', 'Lexique', 'Options']);
+  await expect(entries).toHaveText(['Bataille d’essai', 'Campagne', 'Options']);
   await expect(page.locator('.title-menu__mark')).toHaveText('Commencez ici');
+  await expect(page.getByRole('button', { name: 'Le lexique des mots du siège' })).toBeVisible();
   await page.getByRole('button', { name: /Campagne/ }).click();
   await expect(page).toHaveURL(/\/campagne$/);
   expect(errors).toEqual([]);
