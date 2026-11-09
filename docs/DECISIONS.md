@@ -738,8 +738,65 @@ L'asset-scout a retenu 107 fichiers CC0, de formats et de niveaux hétérogènes
   - au rang de Baron : 7, comme auparavant.
 **Conséquences** :
 - Une bataille de campagne sauvegardée avant ce changement ne se rejoue plus à l'identique : l'empreinte la détecte, la sauvegarde est écartée et le joueur en est prévenu.
-- Le toponyme « Brumefond » et le « marais de la Brume » restent : ce sont des noms propres. Au XIIIᵉ siècle, « brume » voulait dire l'hiver.
+- Le toponyme « Brumefond » et le « marais de la Brume » restaient d'abord, comme noms propres ; l'utilisateur les a fait renommer (ADR-053).
 - `?season=april|may|june|july|october` impose un mois pour les captures et les bancs.
+
+## ADR-053 — Bruinefond
+**Contexte** : au XIIIᵉ siècle, « brume » voulait dire l'hiver (1265) ; son sens de brouillard ne vient qu'en 1562 (ADR-052). Un nom forgé au temps du jeu sur « brume » ne parlerait donc pas du brouillard. L'utilisateur a demandé un nom d'époque.
+**Décision** :
+- **Brumefond devient Bruinefond**, et le ruisseau du marais, la Brume, devient la Bruine. « Bruine » voulait dire le brouillard épais vers 1130 (« broïne », le *Couronnement de Louis* ; « brüine », *Aliscans*, 1180-1200, d'après le TLF). Son sens de pluie fine ne vient qu'en 1538. « Fond », la partie la plus basse d'un lieu creux, date de vers 1100. Le nom garde le son et l'idée de l'ancien, sur un mot du temps.
+- L'Anglo-Norman Dictionary range « bruine » sous BROINE, la broigne (la cotte de mailles) : c'est un homographe anglo-normand. Le sens de brouillard est celui du français continental.
+- L'introduction du château le dit (« Bruinefond se cache dans sa bruine, des brouillas que seul le vent dissipe »), et « bruine » entre au lexique.
+- Seuls les noms affichés changent. L'identifiant `brumefond` et la graine de la carte `orle-brume` restent : les sauvegardes et la carte en dépendent.
+**Conséquences** : un joueur moderne entend dans « bruine » une pluie fine ; le mot est souligné, et le lexique en donne le sens d'alors.
+
+## ADR-054 — Un menu à trois entrées
+**Contexte** : l'utilisateur veut un menu plus simple : « seulement Bataille d'essai en premier, puis Campagne, puis Options, c'est tout ». Une bataille en cours se continue en cliquant sur « Bataille d'essai », qui propose d'en faire une nouvelle ou de continuer l'autre. Le lexique garde « un petit bouton quelque part dans le menu principal ».
+**Décision** :
+- Le menu (`ui/screens/TitleScreen.tsx`) n'a plus que trois entrées : **Bataille d'essai**, **Campagne** et **Options**. Dessous, un petit lien, « Le lexique des mots du siège ».
+- L'entrée « Reprendre la bataille » disparaît. Quand une bataille est restée en cours, quelle qu'elle soit, la ligne d'aide de « Bataille d'essai » le dit (« Ou continuer la bataille en cours : Roche-Grise, au tour 7 »). Un clic propose alors :
+  - de **continuer la bataille**, reprise à l'identique ;
+  - ou une **nouvelle bataille d'essai**, qui abandonne celle en cours.
+
+  « Retour » ramène au menu sans rien changer.
+- La lettre d'un château de campagne propose toujours de reprendre sa bataille, et la bataille elle-même pose la question si on la rouvre.
+- Le **siège au hasard** quitte le menu. L'escarmouche reste pour les tests, les captures et les bancs (`?seed=…&castle=…`).
+**Conséquences** : le joueur ne trouve plus de château tiré au sort. La campagne et la bataille d'essai couvrent le jeu.
+
+## ADR-055 — Trois niveaux de graphismes
+**Contexte** : l'utilisateur demande d'améliorer les graphismes, « toujours à 3 niveaux » : en **faible**, « qu'on puisse tout voir sans bug » ; en **moyen**, « un peu plus de qualité » ; en **haut**, « quelque chose de grandiose ». Il signale un défaut : le blé ne se voit qu'au centre de l'écran, et veut que les problèmes de ce genre soient réglés « de la meilleure des façons ».
+**Décision** :
+- **Les niveaux** (`render/quality/presets.ts`) s'appellent Faible (`portable`, le niveau par défaut, tenu aux budgets de l'ADR-007 sur l'Intel Arc), Moyenne (`medium`) et Haute (`high`). Les identifiants enregistrés ne changent pas.
+  - `?preset=` impose un niveau à une page (captures, bancs, tests) sans toucher aux options. Le banc de performance passait déjà ce paramètre, mais rien ne le lisait.
+  - Moyenne ajoute l'occlusion ambiante (N8AO, à mi-résolution), un halo et l'ombre des nuages qui passent. Haute dessine l'image à 1,25 fois la définition de l'écran (à 1,5 fois, la RTX 500 d'un portable tombait à 38 images par seconde), avec des ombres plus fines et plus douces, et ajoute les rayons du soleil bas et le miroir des douves.
+- **Le blé partout** (`fields/field-canopy.ts`, `fields/WheatField.tsx`). Les touffes étaient diffusées autour du point visé : hors de ce rayon, et aux bords de l'écran, le champ n'avait que son lit peint.
+  - Chaque parcelle porte désormais un **couvert peint** à la hauteur des épis : grain, rangs des sillons, plaques plus mûres, houle du vent.
+  - Les touffes sont diffusées dans le champ de la caméra, les plus proches d'abord, jusqu'à la distance du niveau (40, 60, 90 m).
+  - Avant cette distance, le couvert se lève sous les touffes, puis les touffes s'éclaircissent une à une au-dessus de lui : aucune limite à l'écran.
+- **L'herbe** (`vegetation/Grass.tsx`, `terrain/meadow-tone.ts`).
+  - Les brins poussent sur un tapis posé entre la caméra et le point visé, en anneaux d'espacement doublé (deux anneaux en Moyenne et en Haute). Ils s'effacent avec la distance à la caméra en prenant **exactement la teinte du sol** : une même formule sert au terrain et aux brins (sécheresse des pentes au soleil, trèfle, grain, dérive de teinte).
+  - Ils sont éclairés comme le sol. Le pied est sombre et la pointe claire. La houle du vent, la même que sur les blés, éclaire les pointes qu'elle couche. En Haute, chaque brin est courbe.
+  - Les brins **n'écrivent pas de profondeur** : l'occlusion ambiante lisait chacun, large d'un pixel, et semait la prairie de taches sombres. Ils sont dessinés après les objets opaques, et le tapis est tourné chaque image pour être tracé de l'arrière vers l'avant.
+- **Les ombres** (`atmosphere/Atmosphere.tsx`, `atmosphere/shadow-only.ts`).
+  - Le soleil est une `SunLight` de three r186 : deux cascades ajustées au champ de la caméra, au lieu d'une carte de 70 m autour du point visé.
+  - Elles portent au moins à 160, 340 ou 480 m, et à 1,6 fois le recul de la caméra : comptée depuis la caméra seule, la portée laissait la vue d'ensemble sans aucune ombre.
+  - Le décalage de lecture le long de la normale suit la taille du texel de la cascade et grandit aux incidences rasantes. Un décalage fixe laissait des rayures sur les coteaux au soleil bas, que la lumière enveloppante éclaire encore un peu.
+  - Maillages qui ne font que projeter une ombre, jamais dessinés dans la vue : le terrain de toute la carte (pas de 2 m dans la cascade proche, de 4 m dans la lointaine, deux tracés au lieu de 32) et la bande des créneaux.
+  - Les hommes ne sont dessinés dans les cartes d'ombre que si leur ombre (20 m au plus) peut tomber dans le champ. Les cascades, larges boîtes étirées vers le soleil, tenaient sinon tous les hommes de la carte.
+  - Les ombres des champs de blé ne sont plus projetées (elles sont toujours reçues).
+- **L'eau** (`water/Water.tsx`, `water/reflection.ts`).
+  - En Haute, l'eau dormante des douves **reflète** les murailles, les tours, les arbres et le ciel. La scène est rendue depuis une caméra symétrique sous l'eau, à mi-définition, avec un plan de coupe oblique sur l'eau.
+  - Ce que le miroir ne doit pas montrer vit sur un calque que sa caméra ignore : l'eau elle-même, l'herbe, les touffes, les silhouettes des hommes cachés, la pluie, le maillage d'ombre du terrain.
+  - Le reflet prend le vert de l'eau et reste plus sombre que la scène : la douve se lit toujours comme un obstacle (revue J4). L'eau courante de la rivière garde ses reflets peints.
+  - À tous les niveaux, sous la pluie, le miroir se brouille et des ronds de gouttes s'ouvrent sur l'eau. Le reflet de la lune et du soleil se pose sur une houle lisse, et non plus sur un bruit en grille qui dessinait des pavés.
+- **Le pont de pierre** (`castle/castle-parts.ts`) : une élévation pleine, percée d'arches entre les culées (là où les berges rejoignent l'eau) et les piles, extrudée sur la largeur, avec des avant-becs pointés et coiffés. Les arches se surbaissent quand le tablier est bas. Elles remplacent un tablier posé sur deux plots.
+- **Les budgets** valent pour la pire image : la passe d'ombre n'est redessinée qu'une image sur deux quand la vue est immobile. Le test de bout en bout lit désormais le pire de quatre images par vue, et chaque niveau dessine chaque vue d'une bataille sans erreur.
+**Conséquences** :
+- Faible, en bataille, pire image : au plus 139 appels et 1,39 M triangles (budgets : 150 et 1,5 M).
+- Intel Arc, Faible, bataille en cours, passes alternées contre HEAD : 87,6 images par seconde contre 84,5, chargement de 5,5 s contre 6,3 ; 62,1 avec le processeur bridé ×4. Sur la RTX 500 d'un portable : Moyenne 94,5, Haute 60,6 (`docs/PERF_LOG.md`).
+- Lire les deux cascades d'ombre ensemble doublait la compilation des shaders de la bataille (une copie de la lecture par cascade) : une seule lecture, et la cascade suivante prend le relais pixel par pixel dans la bande de transition.
+- `scripts/frame-breakdown.ts` peut de nouveau figer la passe d'ombre : Atmosphere la redemandait toutes les deux images, ce qui défaisait le gel.
+- Avertissement de compilation (X3595, une dérivée dans une boucle) en Moyenne et en Haute : il vient du shader d'une dépendance (l'occlusion ambiante), sans effet.
 
 ## En attente
 - **Cavalerie** : cheval Quaternius CC0 et cavalier attaché à l'os `Back`, ou alternative (voir le rapport d'`asset-scout`). À trancher en J3.

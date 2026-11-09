@@ -96,6 +96,21 @@ Bataille en cours (`--scene battle --query live`), A/B contre 35f2489 dans un wo
 - La musique n'est pas rendue par la carte graphique. Seul le morceau joué est téléchargé, en flux.
 - À refaire sur secteur, avec `--log`, pour une ligne de référence.
 
+## Trois niveaux de graphismes (09/11, ADR-055)
+Bataille en cours (`--scene battle --query live`), sur secteur, A/B contre 28a9095 dans un worktree, **en alternant les passes** : en chauffant, l'iGPU a fait tomber HEAD de 145,8 à 83,0 i/s d'une passe à l'autre, de quoi fabriquer un faux recul. Les deux lignes datées du 09/11 dans les mesures portent le hash de HEAD : ce sont les changements de l'ADR-055, pas encore commités.
+
+| Version, Faible, Intel Arc | Moyenne | 1 % bas | Appels max | Triangles max | Chargement |
+|---|---|---|---|---|---|
+| Avant (28a9095), passes 1 et 2 | 86,7 / 79,3 i/s | 26,0 / 22,2 | 114 | 1,05–1,25 M | 7,1 / 9,0 s |
+| Après, deux cascades lues ensemble, passes 1 et 2 | 80,1 / 77,9 i/s | 24,2 / 23,7 | 139 | 1,33–1,37 M | 10,4 / 10,2 s |
+| Après, une seule lecture d'ombre ; HEAD juste après | 87,6 i/s ; 84,5 i/s | 33,8 ; 25,4 | 123 ; 112 | 1,37 M ; 1,16 M | 5,5 s ; 6,3 s |
+| Après, processeur bridé ×4 | 62,1 i/s | 4,8 | 139 | 1,18 M | 8,4 s |
+
+- **Pire image** (relevé de 8 images de suite par vue, passe d'ombre comprise), Faible : au plus 139 appels et 1,39 M triangles, figé ou animé. La passe d'ombre n'est redessinée qu'une image sur deux quand la vue est immobile.
+- La passe d'ombre de la bataille animée comptait 80 à 87 appels, dont plus de 40 pour les hommes : les deux cascades, larges boîtes étirées vers le soleil, tenaient tous les hommes de la carte. Seuls ceux dont l'ombre peut tomber dans le champ y sont maintenant dessinés (75 au plus). Le terrain projette en deux tracés (un par cascade) au lieu de 32.
+- **Chargement** : chaque programme peint compilait deux copies de la lecture d'ombre (une par cascade, déroulées par le compilateur D3D), et la compilation doublait (3,6 à 4,6 s contre 1,8 à 2,2 s). Avec une seule lecture, la cascade suivante prenant le relais pixel par pixel dans la bande de transition, ce surcoût disparaît.
+- **Carte NVIDIA RTX 500 Ada** (préférence graphique de Chromium basculée le temps des mesures) : Moyenne 94,5 i/s ; Haute 38,1 i/s à ×1,5 de définition et occlusion en pleine résolution, **60,6 i/s** à ×1,25 et occlusion à mi-résolution (retenu). Les chargements de 11 à 24 s relevés par le banc sur cette carte tiennent à son réveil : mesurés directement, 6,4 à 7,9 s en Haute.
+
 ## Méthode
 - `npm run bench:perf -- --preset portable [--scene lookdev|battle|title] [--cpu-throttle 4] [--log]`
 - Build de production (`vite build` puis `vite preview`), Chromium de Playwright lancé avec `--use-angle=d3d11 --ignore-gpu-blocklist --disable-gpu-vsync --disable-frame-rate-limit` pour mesurer la marge réelle au-delà de 60 Hz.
@@ -146,3 +161,5 @@ Le FPS indiqué est la moyenne des 4 vues de la scène ; le 1 % low est la pire 
 | 2026-10-03 20:17 | 00477ae | battle | portable | ×1 | 73.9 | 31.8 | 123 | 1.38 M | 75 | ❌ |
 | 2026-10-03 20:19 | 00477ae | battle | portable | ×4 | 35.7 | 4.9 | 129 | 1.38 M | 75 | ❌ |
 | 2026-10-09 16:44 | e4c5739 | battle | portable | ×1 | 96.5 | 53.2 | 118 | 1.19 M | 75 | ✅ |
+| 2026-11-09 09:30 | 28a9095 | battle | portable | ×1 | 90.4 | 28.3 | 123 | 1.13 M | 76 | ❌ |
+| 2026-11-09 09:32 | 28a9095 | battle | portable | ×4 | 62.1 | 4.8 | 139 | 1.18 M | 76 | ✅ |

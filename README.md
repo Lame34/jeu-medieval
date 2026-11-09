@@ -5,10 +5,11 @@ Un jeu de stratégie au tour par tour : à la tête de l’ost de la comtesse Is
 **Jouer :** https://jeu-medieval.vercel.app. Il faut un navigateur récent (Chrome, Edge ou Firefox) et un ordinateur capable d’afficher de la 3D (WebGL 2) ; rien à installer.
 
 ## Pour commencer
-1. **Bataille d’essai.** Guillaume, le vieux chevalier, vous apprend le siège en quinze leçons, toujours sur le même fortin.
+1. **Bataille d’essai.** Guillaume, le vieux chevalier, vous apprend le siège en quinze leçons, toujours sur le même fortin. Si une bataille est restée en cours, ce bouton propose de la continuer ou d’en commencer une nouvelle.
 2. **Campagne.** La carte du Val d’Orle : choisissez un château, réunissez le conseil de guerre, scellez le plan d’un de vos trois compagnons (Aude, Bertrand ou Guillaume), puis donnez l’assaut. Votre rang règle la difficulté : **Écuyer** (une garnison clairsemée, plus de temps), **Chevalier**, ou **Baron** (une garnison au complet, moins de temps).
-3. **Siège au hasard.** Un château tiré au sort, sans histoire.
-4. **Lexique.** Les mots du siège, leur sens et leur âge. Tous sont attestés au XIIᵉ ou au XIIIᵉ siècle (Trésor de la langue française) : le mouton plutôt que le bélier, la coulisse plutôt que la herse. Dans le jeu, un mot souligné de pointillés donne son sens au survol.
+3. **Options.** Graphismes, son, jeu, accessibilité. Les graphismes ont trois niveaux : **Faible** pour un ordinateur portable, où tout ce que montre la bataille reste visible jusqu’aux bords de l’écran ; **Moyenne** ; **Haute**, pour une carte graphique puissante, où le château se mire dans ses douves et où la lumière du soleil bas perce entre les tours.
+
+Sous le menu, un petit bouton ouvre **le lexique** : les mots du siège, leur sens et leur âge. Tous sont attestés au XIIᵉ ou au XIIIᵉ siècle (Trésor de la langue française) : le mouton plutôt que le bélier, la coulisse plutôt que la herse. Dans le jeu, un mot souligné de pointillés donne son sens au survol.
 
 Une garnison qui tombe à une poignée d’hommes debout se rend. Votre héraut peut la sommer de se rendre : plus elle a perdu d’hommes et de murs, plus elle est prête à traiter. Passé le délai, l’armée de secours lève le siège.
 

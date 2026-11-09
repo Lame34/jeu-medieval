@@ -7,7 +7,7 @@ Documents de référence :
 - `docs/STYLE_BIBLE.md`, la direction artistique ;
 - `docs/DECISIONS.md`, les décisions (ADR).
 
-**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les cinq étapes sont faites : 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045), 3 (la justesse historique : ADR-046 à 048), 4 (les tentes de l'ost et la chronique : ADR-049, 050) et 5 (la musique d'époque et les saisons : ADR-051, 052).
+**État :** J1 à J6 sont livrés (campagne du Val d'Orle, ADR-036). J7, le polish, est en cours (ADR-037). La feuille de route décidée avec l'utilisateur est l'**ADR-041**, en cinq étapes. Les cinq étapes sont faites : 1 (la prise en main : ADR-042 à 044), 2 (le rythme et les rangs : ADR-045), 3 (la justesse historique : ADR-046 à 048), 4 (les tentes de l'ost et la chronique : ADR-049, 050) et 5 (la musique d'époque et les saisons : ADR-051, 052). Depuis : Bruinefond (ADR-053), le menu à trois entrées (ADR-054), les graphismes à trois niveaux, Faible, Moyenne et Haute (ADR-055).
 
 ## Travailler avec l'utilisateur — le plus important
 - **Il ne lance rien et ne clique jamais.** J'installe, je lance les serveurs, les navigateurs de test, Blender headless et les téléchargements, en ligne de commande.
@@ -63,7 +63,8 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
 | L'homme qui tient les chaînes du pont | `def-tower-0` | Celui qui tient le pont-levis |
 | Commandement | `volley` | La capacité d'Aude |
 | Muraille, le haut du mur, coulisse, pont-levis, douve, fagots, brèche, coureurs, routiers, héraut, sommation | `wall`, `portcullis`, `fill` | Les mots justes, partout |
-| Brouillas ; brouillas du matin | `fog` ; le `mist` d'octobre | Jamais « brouillard » ni « brume » (sauf les noms propres Brumefond, la Brume) |
+| Brouillas ; brouillas du matin | `fog` ; le `mist` d'octobre | Jamais « brouillard » ni « brume » |
+| Bruinefond, la Bruine | `brumefond`, graine `orle-brume` | Le château des marais (ADR-053) : « bruine », brouillard épais vers 1130 |
 
 ## Sécurité — le site est public
 - **En-têtes HTTP** dans `vercel.json` : une politique de sécurité du contenu (CSP) stricte, plus `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` et COOP/CORP. HTTPS obligatoire (HSTS) est envoyé par Vercel.
@@ -83,7 +84,7 @@ Le joueur visé a une soixantaine d'années. C'est un passionné du Moyen Âge, 
   - fusionnée avec un autre onglet ouvert : deux onglets ne s'effacent jamais leurs châteaux.
 - **Bataille en cours** (`siege.battle.v1`) :
   - enregistrée après chaque ordre : la liste des ordres, les héros absents, les provisions des tentes (format 2), et l'empreinte de l'état (`hashBattleState`) ;
-  - reprise depuis le menu, la lettre du château ou la bataille elle-même ;
+  - reprise depuis la « Bataille d'essai » du menu (continuer, ou une nouvelle bataille d'essai à sa place, ADR-054), la lettre du château ou la bataille elle-même ;
   - si une autre version du jeu ne rejoue plus les ordres à l'identique, l'empreinte le détecte : la sauvegarde est écartée et le joueur en est prévenu ;
   - les parties de test (`?e2e`, `?bench`) ne sauvegardent pas.
 - **Options** (`siege.settings.v1`) : chaque champ est validé.
@@ -116,6 +117,7 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
 4. Après un changement qui pèse sur le rendu : `npm run bench:perf -- --preset portable --scene battle --query live`.
    - Comparer en **A/B** contre le commit précédent, dans un worktree : `git worktree add`, puis une jonction `mklink /J` vers `node_modules`.
    - Le « 1 % bas » varie avec l'état de la machine ; on ne compare jamais à une vieille ligne du journal.
+   - **Alterner les passes** (la nôtre, HEAD, la nôtre, HEAD, avec `--no-build`) : en chauffant, l'iGPU fait tomber une même version de 146 à 83 i/s, de quoi fabriquer un faux recul.
 5. Documentation :
    - un ADR pour chaque décision ;
    - les tables de `docs/ARCHITECTURE.md` ;
@@ -129,6 +131,7 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
   - Les scripts jetables vont dans le scratchpad, jamais dans `scripts/` : `tsc -b` y vérifie tout et échouerait. En `.mts`, on importe le projet par chemin relatif.
 - **Playwright.** La config est dans `tests/e2e/`. Utiliser `npm run e2e [-- <filtre>]`, pas `npx playwright test` seul.
 - **Rechargement à chaud.** Le serveur de dev (:5188) et le serveur Vite des e2e rechargent les sources : ne pas éditer `src/` pendant une capture ou des e2e.
+- **Cache Vite partagé.** Deux serveurs Vite sur le même `node_modules` (le dev :5188 et celui des e2e, ou un worktree relié par jonction) se partagent `node_modules/.vite` et s'invalident l'un l'autre (« 504 Outdated Optimize Dep ») : une bataille reste sur l'écran de chargement. Arrêter le serveur de dev avant `npm run e2e` ; comparer un worktree sur des builds (`bench:perf`), pas sur deux serveurs de dev.
 - **Port 4188.** Un aperçu orphelin bloque `bench:perf` et `npm run preview`. Trouver le processus (`Get-NetTCPConnection -LocalPort 4188`) et l'arrêter.
 - **Os des modèles.** Le chargeur glTF retire les points des noms : l'os `Fist.L` s'appelle `FistL`.
 - **Arrondis.** `0.3 × 10` vaut `3.0000000000000004` : prévoir une marge (epsilon) avant un `floor` (`surrenderLine`).
@@ -146,6 +149,7 @@ Toujours charger la chaîne portable (Node 24, Blender 4.5, KTX), qui n'est pas 
 | `?seed=…&castle=1..4` | Escarmouche sur une carte précise |
 | `?weather=clear\|rain\|fog&hour=H` | Météo et heure imposées |
 | `?season=april\|may\|june\|july\|october` | Mois imposé (ADR-052) : sa boue, son feu, ses brouillas, ses couleurs |
+| `?preset=portable\|medium\|high` | Préréglage graphique imposé à la page (Faible, Moyenne, Haute), sans toucher aux options enregistrées (ADR-055) |
 | `?tutorial` | Bataille d'essai |
 | `&resume` | Reprend la bataille sauvegardée sans poser la question |
 | `?level=<id>&plan=<id>` | Bataille de campagne avec son stratagème |
@@ -204,7 +208,9 @@ public/assets/ Assets optimisés livrés (dont ui/title.webp)
 
 ### Invariants du rendu
 - Un seul matériau maison, le **PaintedMaterial** (base `MeshLambertMaterial` + `onBeforeCompile`), réassigné à tous les assets importés ; seul l'albédo est conservé.
-- Budgets Portable (ADR-007) : ≥ 60 FPS sur l'Intel Arc, < 150 draw calls (environ 114 en bataille aujourd'hui), < 1,5 M triangles, < 400 Mo de textures ; `dpr` plafonné à 1 ; une seule lumière qui projette des ombres.
+- Budgets Portable (ADR-007) : ≥ 60 FPS sur l'Intel Arc, < 150 draw calls, < 1,5 M triangles, < 400 Mo de textures ; `dpr` plafonné à 1 ; une seule lumière qui projette des ombres.
+  - Ils valent pour la **pire image** : la passe d'ombre (deux cascades) n'est redessinée qu'une image sur deux quand la vue est immobile. Au plus 139 appels et 1,39 M triangles en bataille (ADR-055).
+  - Ce qui ne fait que projeter une ombre passe par `atmosphere/shadow-only.ts` (jamais dessiné dans la vue). Un objet que le miroir des douves ne doit pas montrer passe par `keepOutOfReflections` (`water/reflection.ts`).
 - Aucune allocation dans `useFrame` ; pas de `setState` par frame ; `dispose()` vérifié via `renderer.info`.
 - Shaders précompilés (`renderer.compile`) derrière l'écran de chargement.
 
