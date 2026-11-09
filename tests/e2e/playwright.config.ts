@@ -16,8 +16,11 @@ export default defineConfig({
     channel: 'chromium',
     launchOptions: { args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'] },
   },
-  // Seven browsers loading battles at once time the machine, not the game: the load budget is
-  // measured first and alone, then the rest of the suite runs in parallel.
+  // Browsers loading battles at once time the machine, not the game: the load budget is measured
+  // first and alone, then the rest of the suite runs in parallel, six at a time. Playwright's
+  // default (half the logical cores: eleven here) had eleven WebGL contexts compiling their shaders
+  // on the one GPU, and the tests that play several battles ran past their timeout.
+  workers: 6,
   projects: [
     { name: 'load-budget', grep: LOAD_BUDGET },
     { name: 'suite', grepInvert: LOAD_BUDGET, dependencies: ['load-budget'] },
