@@ -12,6 +12,8 @@ export interface TerrainPatch {
   readonly step: number;
   /** Extra skirt depth (m) hiding cracks between LODs; 0 for none. */
   readonly skirtM: number;
+  /** False: positions only (a shadow caster's depth pass reads no normal). */
+  readonly normals?: boolean;
 }
 
 export function buildTerrainGeometry(t: TerrainData, patch: TerrainPatch): BufferGeometry {
@@ -21,7 +23,8 @@ export function buildTerrainGeometry(t: TerrainData, patch: TerrainPatch): Buffe
   const skirt = patch.skirtM > 0;
   const ringVerts = skirt ? 2 * (nx + nz) : 0;
   const positions = new Float32Array((nx * nz + ringVerts) * 3);
-  const normals = new Float32Array((nx * nz + ringVerts) * 3);
+  const withNormals = patch.normals !== false;
+  const normals = new Float32Array(withNormals ? (nx * nz + ringVerts) * 3 : 0);
 
   const h = (ix: number, iz: number) => heightAtCorner(t, ix, iz);
   let v = 0;
@@ -32,6 +35,10 @@ export function buildTerrainGeometry(t: TerrainData, patch: TerrainPatch): Buffe
       positions[v * 3] = ix * cs;
       positions[v * 3 + 1] = h(ix, iz);
       positions[v * 3 + 2] = iz * cs;
+      if (!withNormals) {
+        v++;
+        continue;
+      }
       const dx = (h(ix + 1, iz) - h(ix - 1, iz)) / (2 * cs);
       const dz = (h(ix, iz + 1) - h(ix, iz - 1)) / (2 * cs);
       const len = Math.hypot(dx, 1, dz);
@@ -67,7 +74,7 @@ export function buildTerrainGeometry(t: TerrainData, patch: TerrainPatch): Buffe
       positions[dst * 3] = positions[src * 3] as number;
       positions[dst * 3 + 1] = (positions[src * 3 + 1] as number) - patch.skirtM;
       positions[dst * 3 + 2] = positions[src * 3 + 2] as number;
-      normals.set(normals.subarray(src * 3, src * 3 + 3), dst * 3);
+      if (withNormals) normals.set(normals.subarray(src * 3, src * 3 + 3), dst * 3);
     });
     for (let k = 0; k < border.length; k++) {
       const a = border[k] as number;
@@ -80,7 +87,7 @@ export function buildTerrainGeometry(t: TerrainData, patch: TerrainPatch): Buffe
 
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new BufferAttribute(normals, 3));
+  if (withNormals) geometry.setAttribute('normal', new BufferAttribute(normals, 3));
   geometry.setIndex(indices);
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();

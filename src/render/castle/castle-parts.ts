@@ -2,10 +2,11 @@
  * Castle pieces beyond curtain walls and round towers (brief §6.2): the keep (square
  * crenellated tower with a pyramid roof), the gatehouse (crenellated lintel over the opening,
  * studded double door), the timber bridge over the moat in front of the gate, and the stone
- * bridge over the river. Stone parts share the procedural masonry; timber parts are painted
- * with vertex colours. Same attribute layout as castle-geometry.ts (merge-compatible).
+ * bridge over the river, on arches between cutwatered piers. Stone parts share the procedural
+ * masonry; timber parts are painted with vertex colours. Same attribute layout as
+ * castle-geometry.ts (merge-compatible).
  */
-import { Color, ConeGeometry, Matrix4, Vector3, type BufferGeometry } from 'three';
+import { BufferAttribute, BufferGeometry, Color, ConeGeometry, ExtrudeGeometry, Matrix4, Path, Shape, Vector3 } from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '../../core/math/vec2.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -50,10 +51,30 @@ const LIFT_BACKING_COLOR = '#6e5034';
 const LIFT_BAND_M = 0.04;
 const LIFT_BAND_WIDTH_M = 0.16;
 const STONE_BRIDGE_SEGMENTS = 14;
-const STONE_DECK_THICKNESS_M = 1.1;
 const STONE_PARAPET_HEIGHT_M = 0.85;
 const STONE_PARAPET_WIDTH_M = 0.45;
 const PIER_WIDTH_M = 1.6;
+/**
+ * The stone bridge's body (ADR-055): its elevation, the deck line above the river bed, pierced by
+ * arches between the abutments (where the banks come down to the water) and extruded across its
+ * width. Arches of about ARCH_SPAN_M; they spring just above the water and rise as high as the deck
+ * leaves room for their ring of masonry (flatter, segmental arches under a low deck), never less
+ * than ARCH_MIN_RISE_M. Pointed cutwaters, capped, stand against the current at each pier.
+ */
+const ARCH_SPAN_M = 3.2;
+const MAX_ARCHES = 5;
+const ARCH_SPRING_ABOVE_WATER_M = 0.25;
+const ARCH_RING_M = 0.55;
+const ARCH_MIN_RISE_M = 0.45;
+const ARCH_SEGMENTS = 10;
+const ABUTMENT_ABOVE_WATER_M = 0.35;
+const ABUTMENT_SEARCH_STEP_M = 0.25;
+const BRIDGE_BED_BELOW_WATER_M = 2.5;
+/** The arches' openings stop this far above the bed (a hole may not touch the outline). */
+const ARCH_FLOOR_M = 0.05;
+const CUTWATER_OUT_M = 1.3;
+const CUTWATER_ABOVE_SPRING_M = 0.6;
+const CUTWATER_CAP_M = 0.7;
 
 /** Unit vectors of a site facing `rotationTurns` (castle.ts turnsFacing: forward = (sin, cos)). */
 function frame(rotationTurns: number): { fwd: Vec2; right: Vec2 } {
@@ -271,25 +292,130 @@ export function buildStoneBridge(bridge: BridgeSite, terrain: TerrainData, water
   const hTo = sampleHeight(terrain, bridge.to.x, bridge.to.z);
   const deckAt = (t: number) => Math.max(hFrom + (hTo - hFrom) * t, hFrom + (hTo - hFrom) * t + (bridge.deckHeightM - Math.min(hFrom, hTo)) * Math.sin(Math.PI * t));
   const paintBase = waterLevelM - 1;
+  const bed = waterLevelM - BRIDGE_BED_BELOW_WATER_M;
   const stone: BufferGeometry[] = [];
+  // Elevation in the bridge's vertical plane (u along it from `from`, v the height): the deck line
+  // over the bed, then the arches' openings.
+  const shape = new Shape();
+  shape.moveTo(0, bed);
+  shape.lineTo(length, bed);
+  for (let k = STONE_BRIDGE_SEGMENTS; k >= 0; k--) shape.lineTo((k / STONE_BRIDGE_SEGMENTS) * length, deckAt(k / STONE_BRIDGE_SEGMENTS));
+  const { arches, piers } = bridgeArches(bridge, terrain, waterLevelM, length, d, deckAt);
+  for (const arch of arches) shape.holes.push(archOpening(arch, bed + ARCH_FLOOR_M));
+  // Extruded across the width; local (u, v, w) to the world: u along `d`, w across `side`.
+  const body = new ExtrudeGeometry(shape, { depth: bridge.widthM, bevelEnabled: false });
+  const origin = at(bridge.from, side, -bridge.widthM / 2, d, 0);
+  body.applyMatrix4(new Matrix4().makeBasis(new Vector3(d.x, 0, d.z), new Vector3(0, 1, 0), new Vector3(side.x, 0, side.z)).setPosition(origin.x, 0, origin.z));
+  stone.push(finish(body, paintBase, WHITE, along));
+  // Cutwaters on both faces of each pier: the river may run either way under it.
+  const cutwaterTop = waterLevelM + ARCH_SPRING_ABOVE_WATER_M + CUTWATER_ABOVE_SPRING_M;
+  for (const u of piers) {
+    for (const s of [-1, 1]) {
+      const face = at(bridge.from, d, u, side, (s * bridge.widthM) / 2);
+      stone.push(finish(cutwater(face, d, { x: side.x * s, z: side.z * s }, bed, cutwaterTop), paintBase, WHITE, along));
+    }
+  }
   const segment = length / STONE_BRIDGE_SEGMENTS;
   for (let k = 0; k < STONE_BRIDGE_SEGMENTS; k++) {
     const t = (k + 0.5) / STONE_BRIDGE_SEGMENTS;
     const c = at(bridge.from, d, t * length, side, 0);
     const top = deckAt(t);
-    stone.push(finish(boxGeometry({ center: new Vector3(c.x, top - STONE_DECK_THICKNESS_M / 2, c.z), size: new Vector3(segment + 0.05, STONE_DECK_THICKNESS_M, bridge.widthM), yaw }), paintBase, WHITE, along));
     for (const s of [-1, 1]) {
       const p = at(c, side, s * (bridge.widthM / 2 - STONE_PARAPET_WIDTH_M / 2), d, 0);
       stone.push(finish(boxGeometry({ center: new Vector3(p.x, top + STONE_PARAPET_HEIGHT_M / 2, p.z), size: new Vector3(segment + 0.05, STONE_PARAPET_HEIGHT_M, STONE_PARAPET_WIDTH_M), yaw }), paintBase, WHITE, along));
     }
   }
-  for (const t of [0.36, 0.64]) {
-    const c = at(bridge.from, d, t * length, side, 0);
-    const top = deckAt(t) - STONE_DECK_THICKNESS_M;
-    const bottom = waterLevelM - 2.5;
-    stone.push(finish(boxGeometry({ center: new Vector3(c.x, (top + bottom) / 2, c.z), size: new Vector3(PIER_WIDTH_M, top - bottom, bridge.widthM + 0.4), yaw }), paintBase, WHITE, along));
-  }
   return { stone, roof: [], wood: [] };
+}
+
+/** An arch's opening along the bridge (u0 to u1), where it springs and how high it rises. */
+interface Arch {
+  readonly u0: number;
+  readonly u1: number;
+  readonly springM: number;
+  readonly riseM: number;
+}
+
+/**
+ * The arches between the abutments (where the banks come down to the water) and the piers between
+ * them (their middles, along the bridge); an arch the deck leaves no room for stays solid masonry.
+ */
+function bridgeArches(bridge: BridgeSite, terrain: TerrainData, waterLevelM: number, length: number, d: Vec2, deckAt: (t: number) => number): { arches: Arch[]; piers: number[] } {
+  const dry = (u: number) => sampleHeight(terrain, bridge.from.x + d.x * u, bridge.from.z + d.z * u) > waterLevelM + ABUTMENT_ABOVE_WATER_M;
+  let uA = 0;
+  while (uA < length && dry(uA)) uA += ABUTMENT_SEARCH_STEP_M;
+  let uB = length;
+  while (uB > uA && dry(uB)) uB -= ABUTMENT_SEARCH_STEP_M;
+  const span = uB - uA;
+  if (span < ARCH_MIN_RISE_M * 2) return { arches: [], piers: [] };
+  const count = Math.max(1, Math.min(MAX_ARCHES, Math.round((span + PIER_WIDTH_M) / (ARCH_SPAN_M + PIER_WIDTH_M))));
+  const width = (span - (count - 1) * PIER_WIDTH_M) / count;
+  const springM = waterLevelM + ARCH_SPRING_ABOVE_WATER_M;
+  const arches: Arch[] = [];
+  const piers: number[] = [];
+  for (let k = 0; k < count; k++) {
+    const u0 = uA + k * (width + PIER_WIDTH_M);
+    const u1 = u0 + width;
+    if (k < count - 1) piers.push(u1 + PIER_WIDTH_M / 2);
+    const room = Math.min(deckAt(u0 / length), deckAt(u1 / length), deckAt((u0 + u1) / 2 / length)) - ARCH_RING_M - springM;
+    const riseM = Math.min(width / 2, room);
+    if (riseM >= ARCH_MIN_RISE_M) arches.push({ u0, u1, springM, riseM });
+  }
+  return { arches, piers };
+}
+
+/** The opening under an arch: from its floor up the jambs to the springing line, then the arch (segmental, or a half circle when there is room). */
+function archOpening(arch: Arch, floorM: number): Path {
+  const half = (arch.u1 - arch.u0) / 2;
+  const mid = (arch.u0 + arch.u1) / 2;
+  const radius = (half * half + arch.riseM * arch.riseM) / (2 * arch.riseM);
+  const centreM = arch.springM + arch.riseM - radius;
+  const sweep = Math.asin(Math.min(1, half / radius));
+  const hole = new Path();
+  hole.moveTo(arch.u0, floorM);
+  hole.lineTo(arch.u1, floorM);
+  hole.lineTo(arch.u1, arch.springM);
+  for (let k = 1; k < ARCH_SEGMENTS; k++) {
+    const a = sweep - (2 * sweep * k) / ARCH_SEGMENTS;
+    hole.lineTo(mid + radius * Math.sin(a), centreM + radius * Math.cos(a));
+  }
+  hole.lineTo(arch.u0, arch.springM);
+  hole.closePath();
+  return hole;
+}
+
+/** A pointed cutwater against a pier's face (`face`: its foot's middle, `out`: away from the bridge), capped by a pyramid. */
+function cutwater(face: Vec2, along: Vec2, out: Vec2, bottomM: number, topM: number): BufferGeometry {
+  const w = PIER_WIDTH_M / 2;
+  const left = (y: number) => new Vector3(face.x - along.x * w, y, face.z - along.z * w);
+  const right = (y: number) => new Vector3(face.x + along.x * w, y, face.z + along.z * w);
+  const nose = (y: number) => new Vector3(face.x + out.x * CUTWATER_OUT_M, y, face.z + out.z * CUTWATER_OUT_M);
+  const apex = new Vector3(face.x + (out.x * CUTWATER_OUT_M) / 3, topM + CUTWATER_CAP_M, face.z + (out.z * CUTWATER_OUT_M) / 3);
+  const inside = new Vector3(face.x + (out.x * CUTWATER_OUT_M) / 3, (bottomM + topM) / 2, face.z + (out.z * CUTWATER_OUT_M) / 3);
+  const faces: [Vector3, Vector3, Vector3][] = [
+    [left(bottomM), nose(bottomM), nose(topM)],
+    [left(bottomM), nose(topM), left(topM)],
+    [nose(bottomM), right(bottomM), right(topM)],
+    [nose(bottomM), right(topM), nose(topM)],
+    [left(topM), nose(topM), apex],
+    [nose(topM), right(topM), apex],
+    [right(topM), left(topM), apex],
+  ];
+  const positions: number[] = [];
+  const e1 = new Vector3();
+  const e2 = new Vector3();
+  const centroid = new Vector3();
+  for (const [a, b, c] of faces) {
+    // Wound to face outwards (away from the cutwater's inside).
+    const n = e1.subVectors(b, a).cross(e2.subVectors(c, a));
+    centroid.copy(a).add(b).add(c).divideScalar(3).sub(inside);
+    const [p, q, r] = n.dot(centroid) >= 0 ? [a, b, c] : [a, c, b];
+    positions.push(p.x, p.y, p.z, q.x, q.y, q.z, r.x, r.y, r.z);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  g.computeVertexNormals();
+  return g;
 }
 
 /** Stairs up to the wall-walk (J4): stone steps from the courtyard to the wall-walk height. */

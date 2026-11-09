@@ -21,14 +21,12 @@ const TINT_COOL = new Color('#7fa39a');
 const TINT_AMOUNT = 0.08;
 const UP = new Vector3(0, 1, 0);
 
-/** Camera distance (m) under which a tree uses its detailed geometry. */
-const DETAIL_DISTANCE_M = 70;
 /** Ferns are ground clutter: hidden beyond this camera distance. */
 const FERN_DISTANCE_M = 70;
 /** Distant trees only need a couple of silhouettes per species. */
 const FAR_VARIANTS = 2;
 
-function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terrain: TerrainData, variantOf: (t: TreeInstance) => number, season: SeasonPalette): LodBatch {
+function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terrain: TerrainData, variantOf: (t: TreeInstance) => number, season: SeasonPalette, detailM: number): LodBatch {
   const style = SPECIES_STYLE[species];
   const fern = species === 'fern';
   const material = createPaintedMaterial({
@@ -59,7 +57,7 @@ function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terr
       material,
       near: Array.from({ length: TREE_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 0, season)),
       far: fern ? [] : Array.from({ length: FAR_VARIANTS }, (_, v) => buildTreeGeometry(species, v, 1, season)),
-      detailDistanceM: fern ? FERN_DISTANCE_M : DETAIL_DISTANCE_M,
+      detailDistanceM: fern ? FERN_DISTANCE_M : detailM,
       // Bushes cast (they would float otherwise); ferns are too small to matter.
       castShadow: !fern,
     },
@@ -67,18 +65,19 @@ function speciesBatch(species: TreeSpecies, trees: readonly TreeInstance[], terr
   );
 }
 
-function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData, season: SeasonPalette): LodBatch[] {
+function buildVegetation(trees: readonly TreeInstance[], terrain: TerrainData, season: SeasonPalette, detailM: number): LodBatch[] {
   const pickRng = Rng.create('vegetation-variants');
   const variants = new Map<TreeInstance, number>(trees.map((t) => [t, pickRng.int(0, TREE_VARIANTS - 1)]));
   const variantOf = (t: TreeInstance) => variants.get(t) ?? 0;
   return TREE_SPECIES.map((species) => {
     const list = trees.filter((t) => t.species === species);
-    return list.length > 0 ? speciesBatch(species, list, terrain, variantOf, season) : null;
+    return list.length > 0 ? speciesBatch(species, list, terrain, variantOf, season, detailM) : null;
   }).filter((b): b is LodBatch => b !== null);
 }
 
-export function Vegetation({ trees, terrain, season }: { readonly trees: readonly TreeInstance[]; readonly terrain: TerrainData; readonly season: SeasonPalette }) {
-  const { batches, trigger } = useMemo(() => ({ batches: buildVegetation(trees, terrain, season), trigger: new CameraTrigger() }), [trees, terrain, season]);
+/** `detailM`: within this distance of the camera a tree uses its detailed geometry (the quality preset's). */
+export function Vegetation({ trees, terrain, season, detailM }: { readonly trees: readonly TreeInstance[]; readonly terrain: TerrainData; readonly season: SeasonPalette; readonly detailM: number }) {
+  const { batches, trigger } = useMemo(() => ({ batches: buildVegetation(trees, terrain, season, detailM), trigger: new CameraTrigger() }), [trees, terrain, season, detailM]);
 
   useFrame(({ camera }) => {
     if (!trigger.moved(camera)) return;

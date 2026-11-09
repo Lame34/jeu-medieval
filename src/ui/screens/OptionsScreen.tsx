@@ -17,9 +17,9 @@ import { navigate, ROUTES } from '../router.ts';
 import './options.css';
 
 const QUALITY_HINT = {
-  portable: 'Pour un ordinateur portable : une image fluide, des ombres et une herbe plus discrètes.',
-  medium: 'Plus d’herbe, des ombres plus loin, un léger halo de lumière.',
-  high: 'Pour une carte graphique dédiée : tout au plus loin.',
+  portable: 'Pour un ordinateur portable : une image fluide, et tout ce que montre la bataille jusqu’aux bords de l’écran.',
+  medium: 'Plus d’herbe et de blé, des ombres plus douces qui portent plus loin, l’ombre au pied des murs, le passage des nuées et la clarté des lumières vives.',
+  high: 'Pour un ordinateur doté d’une carte graphique puissante : une image plus fine, le château qui se mire dans ses douves, la lumière du soleil bas qui perce entre les tours, encore plus d’herbe et les ombres les plus longues.',
 } as const;
 const ANIMATION_LABEL = { normal: '×1', fast: '×2', instant: 'Instantané' } as const;
 const CAMERA_LABEL = { slow: 'Lente', normal: 'Normale', fast: 'Rapide' } as const;

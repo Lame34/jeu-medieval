@@ -8,6 +8,7 @@ import { PALETTE } from '../materials/palette.ts';
 import { SEASON_PALETTES, type SeasonPalette } from '../materials/season-palette.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { moveFieldUniforms } from '../battle/move-field.ts';
+import { MEADOW_TONE_PARS, MEADOW_WRAP, meadowUniforms } from './meadow-tone.ts';
 
 /** Movement contours: wash strengths inside the two zones, line half-width (px). */
 const MOVE_WASH_INNER = 0.5;
@@ -28,10 +29,6 @@ uniform sampler2D uSplat;
 uniform vec2 uSplatSize;
 uniform vec2 uSplatOrigin;
 uniform float uHeightRef;
-uniform vec3 uGrassLushLit;
-uniform vec3 uGrassLushBase;
-uniform vec3 uGrassDryLit;
-uniform vec3 uGrassDryBase;
 uniform vec3 uMossLit;
 uniform vec3 uMossBase;
 uniform vec3 uDirtLit;
@@ -77,17 +74,12 @@ const TERRAIN_ALBEDO = /* glsl */ `
   float nFine = terrainTriValue(p, tri, 1.9);
   float edgeNoise = (nMid - 0.5) * 0.55 + (nFine - 0.5) * 0.22;
 
-  // Slopes facing the sun dry out and blond; ridges too.
-  vec2 sunXZ = normalize(uSunDir.xz + vec2(1e-5));
-  float sunFacing = clamp(dot(n.xz, sunXZ) * 3.0, 0.0, 1.0) * clamp(slope * 4.0, 0.0, 1.0);
-  float dry = smoothstep(0.42, 0.8, nLarge + slope * 0.8 + sunFacing * 0.3 + (p.y - uHeightRef) * 0.02);
-  vec3 lush = mix(uGrassLushBase, uGrassLushLit, 0.5 + 0.5 * nMid);
-  vec3 dryC = mix(uGrassDryBase, uGrassDryLit, 0.45 + 0.55 * nMid);
-  vec3 col = mix(lush, dryC, dry * 0.85);
-  // Third tone: darker clover patches.
-  float clover = smoothstep(0.55, 0.75, paintedFbm(p.xz / 11.0 + 31.0));
-  col = mix(col, max(paintedHueShift(col, 0.012), 0.0) * 0.86, clover * (1.0 - dry));
-  col *= 0.9 + 0.2 * nFine;
+  // The meadow (meadow-tone.ts, the grass blades' own formula): slopes facing the sun dry out and
+  // blond, ridges too; darker clover patches.
+  float dry = meadowDryness(n, nLarge, p.y - uHeightRef);
+  vec3 lush = meadowLush(nMid);
+  vec3 dryC = meadowDry(nMid);
+  vec3 col = meadowTone(lush, dryC, dry, p.xz, nFine);
 
   float wForest = smoothstep(0.3, 0.7, w.a + edgeNoise);
   col = mix(col, mix(uMossBase, uMossLit, 0.35 + 0.5 * nMid), wForest * 0.9);
@@ -95,16 +87,11 @@ const TERRAIN_ALBEDO = /* glsl */ `
   // Under the crop the ground reads as a golden straw bed, not as bare soil.
   // Stubble tone close to the crop: sparse distant tufts (and the unstreamed far fields) keep their mass.
   vec3 fieldBed = uFieldBed * (0.88 + 0.24 * nFine) * (0.94 + 0.12 * nMid);
-  // Beyond the streamed tufts (WheatField, 72 m around the focus) the bed carries the crop
-  // itself: the ripe mass, not the shade between the stalks.
+  // Where the tufts end (WheatField, the preset's distance from the camera) the bed carries the
+  // crop itself under the canopy: the ripe mass, not the shade between the stalks.
   vec3 cropMass = mix(uWheatBase, uWheatLit, 0.5 + 0.25 * nMid) * (0.92 + 0.16 * nFine);
-  fieldBed = mix(fieldBed, cropMass, max(0.35, smoothstep(38.0, 55.0, distance(p.xz, uFocus.xz))));
+  fieldBed = mix(fieldBed, cropMass, max(0.35, smoothstep(uCropTuftsM * 0.7, uCropTuftsM, distance(p, cameraPosition))));
   col = mix(col, fieldBed, wField * 0.9);
-  // Where the GPU grass ends (uGrassRadius around the focus), the ground takes the blades'
-  // average tone so the end of the carpet does not read.
-  vec3 grassMass = mix(mix(uGrassLushBase, uGrassLushLit, 0.45) * 1.05, dryC, dry * 0.85);
-  float prairie = (1.0 - wForest) * (1.0 - wField);
-  col = mix(col, grassMass, 0.5 * prairie * smoothstep(0.6 * uGrassRadius, uGrassRadius, distance(p.xz, uFocus.xz)));
   float wMud = smoothstep(0.28, 0.7, w.b + edgeNoise);
   col = mix(col, mix(uMudBase, uMudLit, 0.3 + 0.6 * nMid), wMud);
   // Width wanders ±0.4 m with the large-scale noise; ragged edges.
@@ -127,7 +114,7 @@ const TERRAIN_ALBEDO = /* glsl */ `
   #endif
 
   // Large painterly hue drift across the landscape.
-  col = max(paintedHueShift(col, (nLarge - 0.5) * 0.05), 0.0);
+  col = landscapeHueDrift(col, nLarge);
   diffuseColor.rgb = col;
 }
 `;
@@ -218,21 +205,18 @@ export function createTerrainMaterial(
     name: 'Terrain',
     ground: true,
     worldNormal: true,
-    wrap: 0.35,
+    wrap: MEADOW_WRAP,
     customAlbedo: {
       key: ring ? 'terrain-ring-v1' : 'terrain-v2',
       pars: ring ? `#define TERRAIN_RING
-${TERRAIN_PARS}${RING_PARCELS}` : `${TERRAIN_PARS}${MOVE_CONTOURS}`,
+${MEADOW_TONE_PARS}${TERRAIN_PARS}${RING_PARCELS}` : `${MEADOW_TONE_PARS}${TERRAIN_PARS}${MOVE_CONTOURS}`,
       body: TERRAIN_ALBEDO,
       uniforms: {
         uSplat: { value: splat },
         uSplatSize: { value: new Vector2(sizeM.x, sizeM.z) },
         uSplatOrigin: { value: new Vector2(originM.x, originM.z) },
         uHeightRef: { value: heightRefM },
-        uGrassLushLit: c(season.grassLush.lit),
-        uGrassLushBase: c(season.grassLush.base),
-        uGrassDryLit: c(season.grassDry.lit),
-        uGrassDryBase: c(season.grassDry.base),
+        ...meadowUniforms(season),
         uMossLit: c(PALETTE.moss.lit),
         uMossBase: c(PALETTE.moss.base),
         uDirtLit: c(season.dirt.lit),

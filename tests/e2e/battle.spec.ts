@@ -39,6 +39,32 @@ const WORLDGEN_BUDGET_MS = 10_000;
 // 2500 ms before a full measurement pass; this smoke check only needs the scene to have rendered
 // a few frames at the new angle).
 const VIEW_SETTLE_MS = 1500;
+/**
+ * Frames sampled per view: the sun's shadow maps are redrawn every other frame while the view is
+ * still (Atmosphere.tsx), so the budgets hold for the worse of consecutive frames, not for any one.
+ */
+const FRAMES_PER_VIEW = 4;
+
+/** The heaviest of the next `frames` frames (the renderer's totals, all passes). */
+async function worstFrame(page: Page, frames: number): Promise<{ calls: number; triangles: number }> {
+  return page.evaluate(
+    (count) =>
+      new Promise<{ calls: number; triangles: number }>((resolve) => {
+        let calls = 0;
+        let triangles = 0;
+        let left = count;
+        const sample = () => {
+          const info = window.__perf?.renderer();
+          calls = Math.max(calls, info?.calls ?? Number.POSITIVE_INFINITY);
+          triangles = Math.max(triangles, info?.triangles ?? Number.POSITIVE_INFINITY);
+          if (--left > 0) requestAnimationFrame(sample);
+          else resolve({ calls, triangles });
+        };
+        requestAnimationFrame(sample);
+      }),
+    frames,
+  );
+}
 
 test('battle map boots on hardware WebGL2, within the load and worldgen budgets, no console errors', async ({ page }) => {
   const errors = trackErrors(page);
@@ -71,12 +97,29 @@ test('every camera view stays within the draw-call and triangle budgets (ADR-007
   for (let i = 0; i < viewCount; i++) {
     await page.evaluate((index) => (window.__perf?.control['setView'] as (n: number) => void)(index), i);
     await page.waitForTimeout(VIEW_SETTLE_MS);
-    const info = await page.evaluate(() => window.__perf?.renderer());
-    expect(info?.calls ?? Number.POSITIVE_INFINITY, `view ${i}: draw calls`).toBeLessThan(DRAW_CALL_BUDGET);
-    expect(info?.triangles ?? Number.POSITIVE_INFINITY, `view ${i}: triangles`).toBeLessThan(TRIANGLE_BUDGET);
+    const worst = await worstFrame(page, FRAMES_PER_VIEW);
+    expect(worst.calls, `view ${i}: draw calls`).toBeLessThan(DRAW_CALL_BUDGET);
+    expect(worst.triangles, `view ${i}: triangles`).toBeLessThan(TRIANGLE_BUDGET);
   }
   expect(errors).toEqual([]);
 });
+
+// Every quality preset draws every view of a battle without an error: the sun's cascades, the
+// moat's mirror (high), the ambient occlusion, the bloom and the sun's shafts (medium, high).
+for (const preset of ['portable', 'medium', 'high'] as const) {
+  test(`the ${preset} quality preset draws every view of a battle without error`, async ({ page }) => {
+    const errors = trackErrors(page);
+    await page.goto(`/battle?bench&preset=${preset}`);
+    await waitForBattleReady(page);
+    const viewCount = await page.evaluate(() => (window.__perf?.control['viewCount'] as () => number)());
+    for (let i = 0; i < viewCount; i++) {
+      await page.evaluate((index) => (window.__perf?.control['setView'] as (n: number) => void)(index), i);
+      const worst = await worstFrame(page, FRAMES_PER_VIEW);
+      expect(worst.calls, `${preset}, view ${i}: something is drawn`).toBeGreaterThan(0);
+    }
+    expect(errors).toEqual([]);
+  });
+}
 
 test('a specific seed and castle layout (?seed=&castle=) boots without error', async ({ page }) => {
   const errors = trackErrors(page);

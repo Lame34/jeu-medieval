@@ -4,7 +4,7 @@
  */
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { BatchedMesh, InstancedMesh, Mesh, type Material, type Object3D } from 'three';
+import { BatchedMesh, InstancedMesh, Mesh, type BufferGeometry, type Material, type Object3D } from 'three';
 import { renderScale } from '../quality/DynamicResolution.tsx';
 
 const RING_SIZE = 8192;
@@ -50,6 +50,13 @@ export function readGpuString(gl: WebGLRenderingContext | WebGL2RenderingContext
 /** Object family: the name prefix before ':' (the grouping of the triangle breakdown). */
 function family(o: Object3D): string {
   return (o.name || o.type).split(':')[0] as string;
+}
+
+/** Triangles one draw of `object` sends (a geometry group's, an instanced mesh's every instance). */
+function drawnTriangles(geometry: BufferGeometry, object: Object3D, group: { readonly count: number } | null): number {
+  const all = geometry.index ? geometry.index.count : (geometry.getAttribute('position')?.count ?? 0);
+  const count = Math.min(group ? group.count : all, geometry.drawRange.count);
+  return Math.round((count / 3) * (object instanceof InstancedMesh ? object.count : 1));
 }
 
 /**
@@ -187,8 +194,8 @@ export function PerfProbe() {
       });
       return rows;
     };
-    // Draw calls of one whole frame by object family (shadow pass included): where the calls go.
-    api.control['drawList'] = () =>
+    // Two whole frames' draws by object family (shadow pass apart), each weighed by `weigh`.
+    const tallyFrames = (weigh: (geometry: BufferGeometry, object: Object3D, group: { readonly count: number } | null) => number) =>
       new Promise<Record<string, number>>((resolve) => {
         const counts: Record<string, number> = {};
         const original = gl.renderBufferDirect;
@@ -204,7 +211,7 @@ export function PerfProbe() {
         };
         gl.renderBufferDirect = function (this: typeof gl, ...args: Parameters<typeof original>) {
           const key = `${inShadow ? 'shadow:' : ''}${family(args[4])}`;
-          counts[key] = (counts[key] ?? 0) + 1;
+          counts[key] = (counts[key] ?? 0) + weigh(args[2], args[4], args[5]);
           return original.apply(this, args);
         };
         requestAnimationFrame(() =>
@@ -215,14 +222,21 @@ export function PerfProbe() {
           }),
         );
       });
+    // Draw calls by object family: where the calls go.
+    api.control['drawList'] = () => tallyFrames(() => 1);
+    // Triangles by object family: where the triangles go (the budgets count them after culling).
+    api.control['triangleList'] = () => tallyFrames(drawnTriangles);
+    // Freezes the shadow pass: the maps drawn last stay, whatever asks for a new one (the sun redraws
+    // them as the view moves and every other frame, Atmosphere.tsx).
+    const shadowRender = gl.shadowMap.render;
+    const frozenShadows: typeof shadowRender = () => undefined;
     api.control['shadowPass'] = (on: boolean) => {
-      gl.shadowMap.autoUpdate = on;
-      gl.shadowMap.needsUpdate = true;
+      gl.shadowMap.render = on ? shadowRender : frozenShadows;
     };
     window.__perf = api;
     return () => {
       gl.info.autoReset = true;
-      gl.shadowMap.autoUpdate = true;
+      gl.shadowMap.render = shadowRender;
       for (const o of hidden.splice(0)) o.visible = true;
       if (window.__perf === api) delete window.__perf;
     };

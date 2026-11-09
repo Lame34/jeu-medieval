@@ -179,7 +179,7 @@ test('the options are kept across a reload, and the campaign can be wiped', asyn
   const progress = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}') as { conquered?: object }, CAMPAIGN_KEY);
   expect(progress.conquered).toEqual({});
   await page.getByRole('button', { name: /Rétablir les options/ }).click();
-  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Légère' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Qualité' }).getByRole('radio', { name: 'Faible' })).toHaveAttribute('aria-checked', 'true');
   expect(errors).toEqual([]);
 });
 

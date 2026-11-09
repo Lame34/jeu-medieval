@@ -5,8 +5,8 @@
  * treatment (vertical gradient, world-space hue noise, ground-contact AO), optional wind sway,
  * optional rim light (units) and the shared atmospheric fog.
  */
-import { Color, MeshLambertMaterial, ShaderChunk, Vector2, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
-import { PAINTED_FOG_FN, PAINTED_GLOBALS_PARS, PAINTED_LIGHTS_PARS, PAINTED_NOISE, buildPaintedLightsBegin } from './painted-chunks.ts';
+import { Color, MeshLambertMaterial, Vector2, type Texture, type WebGLProgramParametersWithUniforms } from 'three';
+import { PAINTED_FOG_FN, PAINTED_GLOBALS_PARS, PAINTED_LIGHTS_PARS, PAINTED_NOISE, PAINTED_SUN_SHADOW_FN, PAINTED_WIND_SWELL, buildPaintedLightsBegin } from './painted-chunks.ts';
 import { paintedGlobals } from './painted-globals.ts';
 
 export interface PaintedOptions {
@@ -101,6 +101,7 @@ function paintedLightsBegin(): string {
 const VERTEX_PARS = /* glsl */ `
 ${PAINTED_GLOBALS_PARS}
 ${PAINTED_NOISE}
+${PAINTED_WIND_SWELL}
 uniform vec2 uBoundsY;
 uniform float uWindSway;
 varying vec3 vPaintedWorldPos;
@@ -123,16 +124,6 @@ vPaintedWorldNormal = normalize(mat3(modelMatrix) * objectNormal);
 vPaintedData = aPaintedData;
 vPaintedHeight = aPaintedData.x;
 #endif
-`;
-
-const FOLIAGE_SHADOW_NORMAL_BIAS_M = 0.3;
-const FOLIAGE_SHADOWMAP_VERTEX = `
-#ifdef PAINTED_FOLIAGE
-#define PAINTED_SHADOW_NORMAL_BIAS ${FOLIAGE_SHADOW_NORMAL_BIAS_M.toFixed(2)}
-#else
-#define PAINTED_SHADOW_NORMAL_BIAS 0.0
-#endif
-${ShaderChunk.shadowmap_vertex.replace(/directionalLightShadows\[ i \]\.shadowNormalBias/g, '( directionalLightShadows[ i ].shadowNormalBias + PAINTED_SHADOW_NORMAL_BIAS )')}
 `;
 
 const VERTEX_WIND = /* glsl */ `
@@ -343,13 +334,13 @@ export function createPaintedMaterial(options: PaintedOptions = {}): PaintedMate
     vs = inject(vs, 'common', VERTEX_PARS + (customVertex?.pars ?? ''), 'after');
     vs = inject(vs, 'begin_vertex', (customVertex?.body ?? '') + VERTEX_WIND, 'after');
     vs = inject(vs, 'project_vertex', VERTEX_WORLD + VERTEX_EXTRA, 'after');
-    // Foliage: extra normal offset for the shadow lookup (blobs would shadow their own facets).
-    vs = inject(vs, 'shadowmap_vertex', FOLIAGE_SHADOWMAP_VERTEX, 'replace');
     shader.vertexShader = vs;
 
     let fs = shader.fragmentShader;
     fs = inject(fs, 'common', FRAGMENT_PARS + (custom?.pars ?? ''), 'after');
     fs = inject(fs, 'lights_lambert_pars_fragment', PAINTED_LIGHTS_PARS, 'replace');
+    // The sun's cascaded shadow lookup, with the painted jitter and the leaves' normal offset.
+    fs = inject(fs, 'shadowmap_pars_fragment', PAINTED_SUN_SHADOW_FN, 'after');
     fs = inject(fs, 'clipping_planes_fragment', FRAGMENT_NEAR_FADE, 'after');
     fs = inject(fs, 'normal_fragment_begin', '#ifdef PAINTED_KEEP_BACK_NORMAL\nnormal = normalize(vNormal);\n#endif', 'after');
     fs = inject(fs, 'color_fragment', custom ? custom.body : FRAGMENT_ALBEDO, 'after');
@@ -362,7 +353,7 @@ gl_FragColor.rgb = paintedApplyFog(gl_FragColor.rgb, vPaintedWorldPos);`, 'repla
     shader.fragmentShader = fs;
   };
   // One program per feature combination; values live in uniforms.
-  material.customProgramCacheKey = () => `painted-v1|${custom?.key ?? 'default'}|${customVertex?.key ?? 'mesh'}|${defines.join(',')}`;
+  material.customProgramCacheKey = () => `painted-v2|${custom?.key ?? 'default'}|${customVertex?.key ?? 'mesh'}|${defines.join(',')}`;
   return material;
 }
 

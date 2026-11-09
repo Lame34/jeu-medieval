@@ -10,6 +10,7 @@
 import { Bone, Group, SkinnedMesh, type Material, type Object3D } from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { UnitClip } from './Units.tsx';
+import { keepOutOfReflections } from '../water/reflection.ts';
 
 export const ENGINE_MODELS = { ram: '/assets/engines/ram.glb', catapult: '/assets/engines/catapult.glb', siegeTower: '/assets/engines/siegeTower.glb' } as const;
 export type EngineKind = keyof typeof ENGINE_MODELS;
@@ -136,6 +137,8 @@ export function createEngineRig(source: Object3D, kind: EngineKind, material: Ma
           ghost.bind(m.skeleton, m.bindMatrix);
           ghost.renderOrder = silhouetteOrder;
           ghost.frustumCulled = false;
+          // Drawn where the engine is hidden from the view: from the mirror's, elsewhere.
+          keepOutOfReflections(ghost);
           m.parent?.add(ghost);
           return ghost;
         });

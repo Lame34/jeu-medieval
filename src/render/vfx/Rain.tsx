@@ -7,6 +7,7 @@ import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { BufferAttribute, BufferGeometry, Color, LineSegments, ShaderMaterial } from 'three';
 import { paintedGlobals } from '../materials/painted-globals.ts';
+import { keepOutOfReflections } from '../water/reflection.ts';
 
 const DROPS = 2600;
 /** The rain volume around the focus (m), the fall speed (m/s) and a streak's length (m). */
@@ -95,6 +96,8 @@ export function Rain({ windX, windZ, windStrength }: { readonly windX: number; r
     const l = new LineSegments(g, material);
     l.name = 'Rain';
     l.frustumCulled = false;
+    // The streaks follow the view's camera.
+    keepOutOfReflections(l);
     l.renderOrder = 7;
     return l;
   }, []);

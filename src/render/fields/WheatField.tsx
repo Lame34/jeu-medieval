@@ -1,15 +1,16 @@
 /**
- * Wheat and rye fields, streamed around the camera focus (brief §7): instanced tufts of stalks
- * with ears on a world-aligned jittered grid clipped to each parcel with a noisy, thinning
- * edge. Tufts are generated per 16 m chunk on demand (deterministic hash, no global state) and
- * drawn at two levels of detail (full tufts near the camera, sparse wider tufts further out),
- * one InstancedMesh per crop and level. Beyond the streaming disk the painted field bed of the
- * terrain carries the crop; tufts sink into it over the outer ring (vertex shader), so there
- * is no popping edge. The painted wind (phase = world position) rolls waves across the field.
+ * Wheat and rye fields (brief §7, ADR-055), the same mass at every distance and in every corner of
+ * the screen. Each parcel has a canopy (field-canopy.ts): a painted surface at the crop's height,
+ * waves of wind rolling across it, charred where it burnt. Near the camera, instanced tufts of
+ * stalks and ears take over: generated per 16 m chunk on demand (deterministic hash, no global
+ * state), the visible chunks nearest the camera first, at two levels of detail (full tufts close,
+ * sparse wider tufts further out), one InstancedMesh per crop and level. Over a band before the
+ * preset's distance the canopy first rises under the whole tufts, then the tufts thin out one by one
+ * above it, their ears standing out of the mass (vertex shaders): there is no edge to see.
  */
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
-import { BufferAttribute, BufferGeometry, Color, DoubleSide, InstancedMesh, Matrix4, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DataTexture, DoubleSide, Frustum, InstancedMesh, Matrix4, Mesh, NearestFilter, Quaternion, RGBAFormat, Sphere, UnsignedByteType, Vector2, Vector3, type Camera } from 'three';
 import { createSimplex, type Noise2D } from '../../core/noise/noise.ts';
 import { Rng } from '../../core/rng.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
@@ -18,10 +19,11 @@ import type { FieldPatch } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial, type PaintedMaterial } from '../materials/painted-material.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 import type { SeasonPalette } from '../materials/season-palette.ts';
-import { burnTufts, fieldBurn } from './field-burn.ts';
+import { BURNING_TINT, BURNT_HEIGHT, BURNT_MIX, BURNT_TINT, burnTufts, fieldBurn } from './field-burn.ts';
+import { buildCanopyGeometry, EDGE_FADE_M } from './field-canopy.ts';
+import { keepOutOfReflections } from '../water/reflection.ts';
 
 const SPACING_M = 0.34;
-const EDGE_FADE_M = 2.2;
 const STALKS = 7;
 const FAR_STALKS = 3;
 const TUFT_HEIGHT_M = 1.05;
@@ -31,20 +33,31 @@ const EAR_WIDTH_M = 0.14;
 const WHEAT_SWAY_M = 0.2;
 const UP = new Vector3(0, 1, 0);
 
-/** Streaming: chunk size, disk radius around the focus and its fading outer ring (m). */
+/** Streaming: chunk size and the radius of its bounding sphere (m, tuft jitter and height included). */
 const CHUNK_M = 16;
-const STREAM_RADIUS_M = 55;
-const STREAM_FADE_M = 17;
-/** Chunks whose centre is closer than this to the camera use full tufts. */
-const NEAR_DISTANCE_M = 30;
+const CHUNK_RADIUS_M = CHUNK_M * Math.SQRT1_2 + 1.5;
+/** The band before the preset's distance (m): the canopy rises over its first half, the tufts thin out over the second. */
+const TUFTS_FADE_M = 16;
+/** Chunks nearer the camera than this share of the tufts' distance use full tufts. */
+const NEAR_SHARE = 0.6;
 /** Far level: three tufts in five, twice as wide: the mass without the triangles. */
 const FAR_KEEP = 0.6;
 const FAR_WIDTH = 2.4;
-/** Instance caps per crop (the triangle budget): nearest chunks are served first. */
+/**
+ * Instance caps per crop at the portable preset's 40 m (the triangle budget), grown with the area
+ * within reach up to MAX_CAPACITY_SCALE: the visible chunks nearest the camera are served first.
+ */
 const NEAR_CAPACITY = 5000;
 const FAR_CAPACITY = 9000;
-/** The focus or the camera must move this far before the streamed set is rebuilt. */
+const CAPACITY_REFERENCE_M = 40;
+const MAX_CAPACITY_SCALE = 4;
+/** The camera must move this far, or turn this much, before the streamed set is rebuilt. */
 const REBUILD_STEP_M = 3;
+const REBUILD_TURN_COS = Math.cos((4 * Math.PI) / 180);
+/** Where the tufts stand, the canopy sinks this far under the ground (hidden by the terrain). */
+const CANOPY_SINK_M = 0.15;
+/** The canopy's top leans with the swell by this share of its height. */
+const CANOPY_LEAN = 0.05;
 const FLOATS_PER_MATRIX = 16;
 /** New chunks generated per frame at most (no hitch while panning under CPU throttling). */
 const NEW_CHUNKS_PER_FRAME = 6;
@@ -222,11 +235,14 @@ function chunksOf(fields: readonly FieldPatch[], terrain: TerrainData): CropChun
 }
 
 const FIELD_VERTEX_PARS = /* glsl */ `
-uniform float uStreamRadius;
-uniform float uStreamFade;
+uniform float uTuftsM;
+uniform float uTuftsFade;
 `;
 
-/** Tufts shrink into the painted field bed over the outer ring of the streaming disk. */
+/**
+ * Over the band's second half, above the risen canopy, the tufts thin out: each leaves at its own
+ * distance (a hash of its place), shrinking quickly, so the field's grain fades rather than ends.
+ */
 const FIELD_VERTEX_BODY = /* glsl */ `
 {
   vec4 origin = vec4(0.0, 0.0, 0.0, 1.0);
@@ -234,13 +250,84 @@ const FIELD_VERTEX_BODY = /* glsl */ `
   origin = instanceMatrix * origin;
   #endif
   origin = modelMatrix * origin;
-  float fade = 1.0 - smoothstep(uStreamRadius - uStreamFade, uStreamRadius, distance(origin.xz, uFocus.xz));
-  transformed *= fade;
-  // Wind waves: a value swell (12 m wavelength, 1.5 m/s) rolls across the field.
+  float thin = mix(-0.1, 1.1, smoothstep(uTuftsM - 0.5 * uTuftsFade, uTuftsM, distance(origin.xyz, cameraPosition)));
+  transformed *= clamp((paintedHash12(floor(origin.xz * 9.0)) - thin) * 8.0, 0.0, 1.0);
+  // Wind waves: a value swell rolls across the field.
   #ifdef USE_COLOR
-  float swell = sin(dot(origin.xz, uWindDir) * 0.5236 - uTime * 0.785);
-  vColor.rgb *= 1.0 + 0.1 * swell;
+  vColor.rgb *= 1.0 + 0.1 * paintedWindSwell(origin.xz);
   #endif
+}
+`;
+
+const glslVec3 = (v: readonly [number, number, number]) => `vec3(${v.map((x) => x.toFixed(3)).join(', ')})`;
+
+const CANOPY_VERTEX_PARS = /* glsl */ `
+uniform float uTuftsM;
+uniform float uTuftsFade;
+uniform sampler2D uBurnMap;
+uniform vec2 uBurnMapSize;
+varying float vCanopySwell;
+`;
+
+/**
+ * The canopy stands at its height where the tufts are not drawn and sinks under the ground where
+ * they are; burnt, it falls as the burnt tufts do; its top leans with the wind's swell.
+ */
+const CANOPY_VERTEX_BODY = /* glsl */ `
+{
+  float height = aPaintedData.x;
+  float groundY = transformed.y - height;
+  float rise = smoothstep(uTuftsM - uTuftsFade, uTuftsM - 0.5 * uTuftsFade, distance(transformed, cameraPosition));
+  float burnt = texture2D(uBurnMap, transformed.xz / uBurnMapSize).r;
+  float h = height * rise * mix(1.0, ${BURNT_HEIGHT.toFixed(2)}, burnt);
+  transformed.y = groundY + h - ${CANOPY_SINK_M.toFixed(2)} * (1.0 - rise);
+  // The tufts' swell, so the waves run on from the tufts to the canopy.
+  vCanopySwell = paintedWindSwell(transformed.xz);
+  transformed.xz += uWindDir * vCanopySwell * ${CANOPY_LEAN.toFixed(2)} * h;
+}
+`;
+
+const CANOPY_FRAGMENT_PARS = /* glsl */ `
+uniform sampler2D uBurnMap;
+uniform vec2 uBurnMapSize;
+varying float vCanopySwell;
+`;
+
+/**
+ * The crop's grain as the tufts paint it from afar: mottled clumps of ears and their dark gaps, short
+ * brush strokes leaning with the wind, the furrows' rows; patches riper or greener over the parcel;
+ * the swell's light crests; shaded low in the stalks and towards the thinning border; charred by fire.
+ * The finest marks fade to their mean where they would be smaller than a pixel (no shimmer).
+ */
+const CANOPY_ALBEDO = /* glsl */ `
+{
+  vec3 c = diffuseColor.rgb;
+  float top = clamp(vPaintedHeight / max(uBoundsY.y, 1e-3), 0.0, 1.0);
+  vec2 p = vPaintedWorldPos.xz;
+  float fine = 1.0 - smoothstep(0.035, 0.12, length(fwidth(p)));
+  // Rotated off the world grid: the value noise's lattice must not read as squares.
+  vec2 q = mat2(0.8, 0.6, -0.6, 0.8) * p;
+  float tufts = mix(0.5, smoothstep(0.2, 0.8, paintedFbm(q * 2.6 + 2.0)), fine);
+  float ears = smoothstep(0.74, 0.9, paintedValueNoise(q * 5.7 + 9.0)) * fine;
+  float clumps = smoothstep(0.2, 0.8, paintedFbm(q * 0.55 + 7.0));
+  vec2 wind = normalize(uWindDir + vec2(1e-4));
+  float strokes = mix(0.5, paintedValueNoise(vec2(dot(p, wind) * 0.8, dot(p, vec2(-wind.y, wind.x)) * 3.4) + 11.0), fine);
+  float rows = 0.5 + 0.5 * sin(dot(p, vec2(-vPaintedData.z, vPaintedData.y)) * 8.976);
+  c *= 0.8 + 0.18 * tufts + 0.08 * clumps + 0.1 * strokes + 0.04 * rows * fine;
+  c *= 1.0 + 0.28 * ears;
+  float ripe = paintedFbm(p / 17.0 + 3.0);
+  c = max(paintedHueShift(c, (ripe - 0.5) * 0.05), 0.0) * (0.92 + 0.16 * ripe);
+  c *= mix(0.62, 1.1, smoothstep(0.0, 1.0, top));
+  c *= mix(0.76, 1.0, vPaintedData.w);
+  c *= 1.0 + 0.1 * vCanopySwell;
+  c = mix(c, c * 1.22 + 0.02, smoothstep(0.65, 1.0, vCanopySwell) * 0.3);
+  float n = paintedFbm(p * uHueNoiseScale);
+  c = max(paintedHueShift(c, (n - 0.5) * 2.0 * uHueNoiseAmp), 0.0);
+  c *= 1.0 + (n - 0.5) * 2.0 * uValueNoiseAmp;
+  vec2 fire = texture2D(uBurnMap, p / uBurnMapSize).rg;
+  c = mix(c, ${glslVec3(BURNT_TINT)}, fire.r * ${BURNT_MIX.toFixed(2)});
+  c *= mix(vec3(1.0), ${glslVec3(BURNING_TINT)}, fire.g);
+  diffuseColor.rgb = c;
 }
 `;
 
@@ -254,8 +341,12 @@ interface Built {
   readonly levels: Record<Crop, { near: Level; far: Level }>;
   readonly material: PaintedMaterial;
   readonly geometries: BufferGeometry[];
-  readonly last: { focus: Vector3; camera: Vector3 };
-  /** The fire version the streamed set was built with. */
+  readonly canopy: Mesh;
+  /** The fire over the battle grid (r: burnt, g: burning), read by the canopy. */
+  readonly burnMap: DataTexture;
+  readonly tuftsM: number;
+  readonly last: { camera: Vector3; forward: Vector3 };
+  /** The fire version the streamed set and the burn map were built with. */
   readonly fireVersion: { value: number };
 }
 
@@ -268,11 +359,14 @@ function makeLevel(geometry: BufferGeometry, material: PaintedMaterial, capacity
   mesh.castShadow = false;
   mesh.receiveShadow = true;
   mesh.name = name;
+  // Thousands of tufts for a mirror that would hardly show them.
+  keepOutOfReflections(mesh);
   return { mesh, capacity };
 }
 
-function build(fields: readonly FieldPatch[], terrain: TerrainData, season: SeasonPalette): Built {
+function build(fields: readonly FieldPatch[], terrain: TerrainData, season: SeasonPalette, tuftsM: number): Built {
   const heightM = TUFT_HEIGHT_M * season.cropHeight;
+  const fade = { uTuftsM: { value: tuftsM }, uTuftsFade: { value: TUFTS_FADE_M } };
   const material = createPaintedMaterial({
     name: 'Fields',
     ground: true,
@@ -285,26 +379,59 @@ function build(fields: readonly FieldPatch[], terrain: TerrainData, season: Seas
     side: DoubleSide,
     keepNormalOnBackFaces: true,
     customVertex: {
-      key: 'field-stream-v1',
+      key: 'field-stream-v2',
       pars: FIELD_VERTEX_PARS,
       body: FIELD_VERTEX_BODY,
-      uniforms: { uStreamRadius: { value: STREAM_RADIUS_M }, uStreamFade: { value: STREAM_FADE_M } },
+      uniforms: fade,
     },
   });
   const geometries: BufferGeometry[] = [];
   const levels = {} as Record<Crop, { near: Level; far: Level }>;
+  const capacity = Math.min(MAX_CAPACITY_SCALE, (tuftsM / CAPACITY_REFERENCE_M) ** 2);
   for (const crop of CROPS) {
     const palette = crop === 'wheat' ? season.wheat : season.rye;
     const nearGeo = tuftGeometry(palette.lit, palette.base, STALKS, heightM, season.ears);
     const farGeo = tuftGeometry(palette.lit, palette.base, FAR_STALKS, heightM, season.ears);
     geometries.push(nearGeo, farGeo);
     levels[crop] = {
-      near: makeLevel(nearGeo, material, NEAR_CAPACITY, `Fields:${crop}:near`),
-      far: makeLevel(farGeo, material, FAR_CAPACITY, `Fields:${crop}:far`),
+      near: makeLevel(nearGeo, material, Math.round(NEAR_CAPACITY * capacity), `Fields:${crop}:near`),
+      far: makeLevel(farGeo, material, Math.round(FAR_CAPACITY * capacity), `Fields:${crop}:far`),
     };
   }
+  const burnMap = new DataTexture(new Uint8Array(terrain.width * terrain.depth * 4), terrain.width, terrain.depth, RGBAFormat, UnsignedByteType);
+  burnMap.magFilter = NearestFilter;
+  burnMap.minFilter = NearestFilter;
+  burnMap.needsUpdate = true;
+  const fire = { uBurnMap: { value: burnMap }, uBurnMapSize: { value: new Vector2(terrain.width * terrain.cellSize, terrain.depth * terrain.cellSize) } };
+  const canopyMaterial = createPaintedMaterial({
+    name: 'FieldCanopy',
+    ground: true,
+    vertexColors: true,
+    vertexData: true,
+    heightM,
+    groundAO: 0,
+    customVertex: { key: 'field-canopy-v1', pars: CANOPY_VERTEX_PARS, body: CANOPY_VERTEX_BODY, uniforms: { ...fade, ...fire } },
+    customAlbedo: { key: 'field-canopy-v1', pars: CANOPY_FRAGMENT_PARS, body: CANOPY_ALBEDO, uniforms: fire },
+  });
+  const crops = fields.filter((field) => field.crop !== 'fallow').map((field) => ({ field, tone: field.crop === 'wheat' ? season.wheat : season.rye }));
+  const canopy = new Mesh(buildCanopyGeometry(crops, terrain, heightM), canopyMaterial);
+  canopy.name = 'FieldCanopy';
+  // A metre of crop casts no shadow worth its two draws and its triangles in each cascade; it receives them.
+  canopy.receiveShadow = true;
   const inf = Number.POSITIVE_INFINITY;
-  return { chunks: chunksOf(fields, terrain), levels, material, geometries, last: { focus: new Vector3(inf, 0, 0), camera: new Vector3(inf, 0, 0) }, fireVersion: { value: fieldBurn.version } };
+  return { chunks: chunksOf(fields, terrain), levels, material, geometries, canopy, burnMap, tuftsM, last: { camera: new Vector3(inf, 0, 0), forward: new Vector3() }, fireVersion: { value: -1 } };
+}
+
+/** The fire's cells into the canopy's burn map. */
+function paintBurnMap(map: DataTexture): void {
+  const data = map.image.data as Uint8Array;
+  data.fill(0);
+  const { width, burnt, burning } = fieldBurn;
+  if (width > 0) {
+    for (const cell of burnt) data[cell * 4] = 255;
+    for (const cell of burning) data[cell * 4 + 1] = 255;
+  }
+  map.needsUpdate = true;
 }
 
 /** Copies one chunk level into an instanced level; returns the new fill count. */
@@ -317,6 +444,9 @@ function append(level: Level, filled: number, matrices: Float32Array, colors: Fl
 }
 
 const byDistance: { chunk: CropChunk; d2: number }[] = [];
+const frustum = new Frustum();
+const viewProjection = new Matrix4();
+const chunkSphere = new Sphere();
 
 /** A chunk's tufts through the fire (field-burn.ts), cached per fire version. */
 function burntTuftsOf(chunk: CropChunk, tufts: ChunkTufts): ChunkTufts {
@@ -329,15 +459,25 @@ function burntTuftsOf(chunk: CropChunk, tufts: ChunkTufts): ChunkTufts {
   return chunk.burnt ?? tufts;
 }
 
-/** Returns false when some chunks are still to be generated (rebuild again next frame). */
-function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: TerrainData): boolean {
-  const reach = (STREAM_RADIUS_M + CHUNK_M * Math.SQRT1_2) ** 2;
+/**
+ * The tufts of the visible chunks within reach of the camera, nearest first. Returns false when some
+ * chunks are still to be generated (rebuild again next frame).
+ */
+function rebuild(built: Built, camera: Camera, terrain: TerrainData): boolean {
+  const reach = (built.tuftsM + CHUNK_RADIUS_M) ** 2;
+  const nearM = built.tuftsM * NEAR_SHARE;
+  const eye = camera.position;
+  frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   byDistance.length = 0;
   for (const chunk of built.chunks) {
-    const dx = chunk.x - focus.x;
-    const dz = chunk.z - focus.z;
-    const d2 = dx * dx + dz * dz;
-    if (d2 <= reach) byDistance.push({ chunk, d2 });
+    const dx = chunk.x - eye.x;
+    const dy = chunk.y - eye.y;
+    const dz = chunk.z - eye.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > reach) continue;
+    chunkSphere.center.set(chunk.x, chunk.y, chunk.z);
+    chunkSphere.radius = CHUNK_RADIUS_M;
+    if (frustum.intersectsSphere(chunkSphere)) byDistance.push({ chunk, d2 });
   }
   byDistance.sort((a, b) => a.d2 - b.d2);
   const fill: Record<Crop, { near: number; far: number }> = { wheat: { near: 0, far: 0 }, rye: { near: 0, far: 0 } };
@@ -354,7 +494,7 @@ function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: Terrain
     }
     const level = built.levels[chunk.crop];
     const f = fill[chunk.crop];
-    const near = Math.hypot(chunk.x - camera.x, chunk.y - camera.y, chunk.z - camera.z) < NEAR_DISTANCE_M;
+    const near = Math.hypot(chunk.x - eye.x, chunk.y - eye.y, chunk.z - eye.z) < nearM;
     const tufts = burntTuftsOf(chunk, chunk.tufts);
     if (near) f.near = append(level.near, f.near, tufts.near, tufts.nearColor);
     else f.far = append(level.far, f.far, tufts.far, tufts.farColor);
@@ -378,25 +518,36 @@ function rebuild(built: Built, focus: Vector3, camera: Vector3, terrain: Terrain
   return complete;
 }
 
-export function Fields({ fields, terrain, season }: { readonly fields: readonly FieldPatch[]; readonly terrain: TerrainData; readonly season: SeasonPalette }) {
-  const built = useMemo(() => build(fields, terrain, season), [fields, terrain, season]);
+const forward = new Vector3();
+
+/** `tuftsM`: the tufts are drawn within this distance of the camera (the quality preset's), the canopy beyond. */
+export function Fields({ fields, terrain, season, tuftsM }: { readonly fields: readonly FieldPatch[]; readonly terrain: TerrainData; readonly season: SeasonPalette; readonly tuftsM: number }) {
+  const built = useMemo(() => build(fields, terrain, season, tuftsM), [fields, terrain, season, tuftsM]);
+  // The terrain's field bed takes the crop's mass where the tufts end.
+  useEffect(() => {
+    paintedGlobals.uCropTuftsM.value = tuftsM;
+  }, [tuftsM]);
 
   useFrame(({ camera }) => {
-    const focus = paintedGlobals.uFocus.value;
     const { last } = built;
     const fireMoved = built.fireVersion.value !== fieldBurn.version;
-    if (!fireMoved && last.focus.distanceToSquared(focus) < REBUILD_STEP_M ** 2 && last.camera.distanceToSquared(camera.position) < REBUILD_STEP_M ** 2) return;
+    camera.getWorldDirection(forward);
+    if (!fireMoved && last.camera.distanceToSquared(camera.position) < REBUILD_STEP_M ** 2 && last.forward.dot(forward) > REBUILD_TURN_COS) return;
+    if (fireMoved) paintBurnMap(built.burnMap);
     built.fireVersion.value = fieldBurn.version;
-    last.focus.copy(focus);
     last.camera.copy(camera.position);
+    last.forward.copy(forward);
     // Unfinished (chunks still to generate): force another pass next frame.
-    if (!rebuild(built, focus, camera.position, terrain)) last.focus.setScalar(Number.POSITIVE_INFINITY);
+    if (!rebuild(built, camera, terrain)) last.camera.setScalar(Number.POSITIVE_INFINITY);
   });
 
   useEffect(
     () => () => {
       built.geometries.forEach((g) => g.dispose());
       built.material.dispose();
+      built.canopy.geometry.dispose();
+      (built.canopy.material as PaintedMaterial).dispose();
+      built.burnMap.dispose();
       for (const crop of CROPS) {
         built.levels[crop].near.mesh.dispose();
         built.levels[crop].far.mesh.dispose();
@@ -407,6 +558,7 @@ export function Fields({ fields, terrain, season }: { readonly fields: readonly 
 
   return (
     <>
+      <primitive object={built.canopy} />
       {CROPS.flatMap((crop) => [built.levels[crop].near.mesh, built.levels[crop].far.mesh]).map((mesh) => (
         <primitive key={mesh.name} object={mesh} />
       ))}

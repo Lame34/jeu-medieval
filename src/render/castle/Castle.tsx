@@ -15,6 +15,7 @@ import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-
 import type { BridgeSite, GateSite, KeepSite, StairSite, TowerSite, WallRun, WaterBody } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
 import { assignShadowDepthMaterials } from '../materials/shadow-depth.ts';
+import { castShadowOnly } from '../atmosphere/shadow-only.ts';
 import { buildCrenelShadowProxy, buildTowerGeometry, buildWallGeometry } from './castle-geometry.ts';
 import { buildGate, buildGatePieces, buildKeep, buildStairs, buildStoneBridge, gateYaw } from './castle-parts.ts';
 import { crackGeometry, DustPool, hash01, planCollapse, Rubble, rubbleBedGeometry, segmentFrame } from './siege-fx.ts';
@@ -202,15 +203,13 @@ export function Castle({ walls, towers, gates, keeps, bridges, water, terrain, s
       stoneMesh.castShadow = true;
       stoneMesh.receiveShadow = true;
     }
-    const proxyMaterial = new MeshBasicMaterial({ side: DoubleSide, colorWrite: false, depthWrite: false });
+    const proxyMaterial = new MeshBasicMaterial({ side: DoubleSide });
     const firstProxy = buildCrenelShadowProxy(walls, towers, isBreached);
-    // Invisible in the view (writes neither colour nor depth), cast in the shadow pass: one band,
-    // no comb. (three r186 filters shadow casters by the view camera's layers, so a layer cannot
-    // hide it.)
+    // Never drawn in a view, cast in the shadow pass (shadow-only.ts): one band, no comb.
     const proxy = firstProxy ? new Mesh(firstProxy, proxyMaterial) : null;
     if (proxy) {
       proxy.name = 'Castle:crenelShadow';
-      proxy.castShadow = true;
+      castShadowOnly(proxy);
     }
 
     // Moving gate parts, in each gate's local frame.

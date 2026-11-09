@@ -5,6 +5,14 @@
  */
 import { ShaderChunk } from 'three';
 
+/** The clouds' shadows: their size (m) and how fast the wind drives them (m/s). */
+const CLOUD_SCALE_M = 150;
+const CLOUD_DRIFT_M_PER_S = 2.5;
+/** Leaves: extra normal offset of the shadow lookup (m): blobs would shadow their own facets. */
+const FOLIAGE_SHADOW_NORMAL_BIAS_M = 0.3;
+/** The wind's swell over the crops and the meadow: its wavelength (m) and speed (m/s). */
+const SWELL_WAVELENGTH_M = 12;
+const SWELL_SPEED_M_PER_S = 1.5;
 
 /** Uniform declarations for the shared globals (see painted-globals.ts). */
 export const PAINTED_GLOBALS_PARS = /* glsl */ `
@@ -29,7 +37,7 @@ uniform vec3 uHorizonAway;
 uniform vec2 uWindDir;
 uniform float uWindStrength;
 uniform vec3 uFocus;
-uniform float uGrassRadius;
+uniform vec2 uGrassFade;
 uniform vec3 uSceneLight;
 uniform float uExposure;
 uniform vec2 uMapMin;
@@ -41,6 +49,18 @@ uniform float uTorchStrength;
 uniform float uCastShadow;
 uniform float uSunShare;
 uniform vec3 uTorchColor;
+uniform float uCloudShadow;
+uniform float uCropTuftsM;
+`;
+
+/**
+ * The wind's swell at a ground point, −1 to 1: one wave rolling downwind over the wheat and the
+ * grass alike, so it runs on from the meadow into the fields. Needs PAINTED_GLOBALS_PARS.
+ */
+export const PAINTED_WIND_SWELL = /* glsl */ `
+float paintedWindSwell(vec2 xz) {
+  return sin(dot(xz, uWindDir) * ${((2 * Math.PI) / SWELL_WAVELENGTH_M).toFixed(4)} - uTime * ${((2 * Math.PI * SWELL_SPEED_M_PER_S) / SWELL_WAVELENGTH_M).toFixed(4)});
+}
 `;
 
 /** Cheap hash/value-noise helpers (no sin-based hash: stable across GPUs). */
@@ -134,9 +154,18 @@ export const PAINTED_LIGHTS_PARS = /* glsl */ `
 varying vec3 vViewPosition;
 uniform float uWrap;
 float paintedShadow = 1.0;
-// Shadow-map lookup jitter (a ragged, painted shadow edge), in shadow UV units.
-vec4 paintedShadowJitter = vec4(0.0);
+// Shadow lookup jitter (a ragged, painted shadow edge), in metres on the ground.
+vec3 paintedShadowJitter = vec3(0.0);
 float paintedSunLit = 0.0;
+
+// The clouds' shadows drifting with the wind over the land (medium and high presets): broad
+// soft patches of shade, ~150 m across. Skipped when off (uniform branch).
+float paintedCloudLight() {
+  if (uCloudShadow <= 0.0) return 1.0;
+  vec2 drift = uWindDir * uTime * ${CLOUD_DRIFT_M_PER_S.toFixed(2)};
+  float cloud = smoothstep(0.5, 0.74, paintedFbm((vPaintedWorldPos.xz - drift) / ${CLOUD_SCALE_M.toFixed(1)}));
+  return 1.0 - uCloudShadow * cloud;
+}
 
 struct LambertMaterial {
   vec3 diffuseColor;
@@ -154,7 +183,7 @@ void RE_Direct_Painted(const in IncidentLight directLight, const in vec3 geometr
 
 void RE_Direct_PaintedSun(const in IncidentLight directLight, const in vec3 geometryNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight) {
   // Under an overcast sky (rain) nothing casts a shadow: the light is diffuse.
-  paintedShadow = mix(1.0, paintedShadow, uCastShadow);
+  paintedShadow = mix(1.0, paintedShadow, uCastShadow) * paintedCloudLight();
   float vis = paintedWrap(geometryNormal, directLight.direction) * paintedShadow;
   // "Is this surface in the sun?" — a narrow step around the terminator, not the wrap term:
   // flat ground under a grazing sun must stay neutral, only true shade takes the tint.
@@ -208,11 +237,69 @@ void RE_IndirectDiffuse_Painted(const in vec3 irradiance, const in vec3 geometry
 #define RE_IndirectDiffuse RE_IndirectDiffuse_Painted
 `;
 
-/** Shadow edge jitter amplitude in shadow-map UV (≈ 0.35 m over the 140 m shadow box). */
-const SHADOW_JITTER_UV = '0.0025';
-const SUN_SHADOW_PATTERN = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getShadow(';
+/** Ragged shadow edges: the lookup moves by up to this much on the ground (m), never on units. */
+const SHADOW_JITTER_M = '0.35';
+/**
+ * The lookup's offset along the normal, in texels of the cascade it reads, and how much more where
+ * the surface turns from the sun: the far cascade's texels are several times wider than the near
+ * one's, and a fixed offset left acne striping the hillsides that the low sun grazes (the painted
+ * wrap still lights them a little past the terminator).
+ */
+const SHADOW_NORMAL_BIAS_TEXELS = 1.5;
+const SHADOW_GRAZING_BIAS_TEXELS = 2;
+const SUN_SHADOW_PATTERN = 'directLight.color *= ( directLight.visible && receiveShadow ) ? getSunShadow( sunShadowMap[ i ], sunLightShadow, UNROLLED_LOOP_INDEX ) : 1.0;';
 const SUN_CALL_PATTERN = 'RE_Direct( directLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );';
+const SUN_BLOCK_MARKER = '#if ( NUM_SUN_LIGHTS > 0 ) && defined( RE_Direct )';
 const DIR_BLOCK_MARKER = '#if ( NUM_DIR_LIGHTS > 0 ) && defined( RE_Direct )';
+
+/**
+ * three's getSunShadow with the painted touches: the lookup moved by the ragged-edge jitter (in
+ * metres, so it reads the same in both cascades), offset along the normal by the cascade's own
+ * texel size and, for leaves, pushed further (blobs would shadow their own facets). Injected after
+ * shadowmap_pars_fragment.
+ *
+ * One lookup, in one cascade: the nearest that holds the fragment, the next one taking over pixel by
+ * pixel (an interleaved-gradient dither) across the band where three blends the two. three's loop
+ * sampled both there, and every painted program carried two copies of the PCF sampling once the
+ * shader compiler unrolled it: the battle's shaders took twice as long to compile.
+ */
+export const PAINTED_SUN_SHADOW_FN = /* glsl */ `
+#if defined( USE_SHADOWMAP ) && NUM_SUN_LIGHT_SHADOWS > 0
+#ifdef PAINTED_FOLIAGE
+#define PAINTED_SUN_NORMAL_BIAS ${FOLIAGE_SHADOW_NORMAL_BIAS_M.toFixed(2)}
+#else
+#define PAINTED_SUN_NORMAL_BIAS 0.0
+#endif
+float paintedGetSunShadow(
+  #if defined( SHADOWMAP_TYPE_PCF )
+  sampler2DShadow shadowMap,
+  #else
+  sampler2D shadowMap,
+  #endif
+  SunLightShadow sunLightShadow, int shadowIndex, vec3 jitter) {
+  float viewDepth = vSunShadowWorldPosition.w;
+  int cascadeOffset = shadowIndex * SUN_LIGHT_CASCADES;
+  // The nearest cascade holding this depth; across its far band, the next one takes over.
+  int index = SUN_LIGHT_CASCADES - 1;
+  float handOver = interleavedGradientNoise(gl_FragCoord.xy);
+  for (int i = SUN_LIGHT_CASCADES - 2; i >= 0; i--) {
+    vec4 near = sunShadowCascade[cascadeOffset + i];
+    if (viewDepth < near.y && handOver >= smoothstep(near.z, near.y, viewDepth)) index = i;
+  }
+  vec4 cascade = sunShadowCascade[cascadeOffset + index];
+  if (viewDepth < cascade.x || viewDepth >= cascade.y) return 1.0;
+  mat4 shadowMatrix = sunShadowMatrix[cascadeOffset + index];
+  // The cascade's texel on the ground (m): the matrix's first row is the atlas u per metre.
+  float texelM = 1.0 / (length(vec3(shadowMatrix[0][0], shadowMatrix[1][0], shadowMatrix[2][0])) * sunLightShadow.shadowMapSize.x);
+  float grazing = 1.0 - clamp(dot(vSunShadowWorldNormal, uSunDir), 0.0, 1.0);
+  float normalBias = max(sunLightShadow.shadowNormalBias, texelM * (${SHADOW_NORMAL_BIAS_TEXELS.toFixed(2)} + ${SHADOW_GRAZING_BIAS_TEXELS.toFixed(2)} * grazing)) + PAINTED_SUN_NORMAL_BIAS;
+  vec4 shadowWorldPosition = vec4(vSunShadowWorldPosition.xyz + jitter + vSunShadowWorldNormal * normalBias, 1.0);
+  float shadow = getShadow(shadowMap, sunLightShadow.shadowMapSize, sunLightShadow.shadowIntensity, sunLightShadow.shadowBias, sunLightShadow.shadowRadius, shadowMatrix * shadowWorldPosition);
+  // The last cascade fades out over its own band (as three's does).
+  return index == SUN_LIGHT_CASCADES - 1 ? mix(shadow, 1.0, smoothstep(cascade.z, cascade.y, viewDepth)) : shadow;
+}
+#endif
+`;
 
 function replaceOnce(source: string, pattern: string, replacement: string, what: string): string {
   const index = source.indexOf(pattern);
@@ -221,27 +308,24 @@ function replaceOnce(source: string, pattern: string, replacement: string, what:
 }
 
 /**
- * three's lights_fragment_begin with the directional (sun) loop patched: the shadow factor is
- * captured into `paintedShadow` instead of darkening the light colour, and the sun goes
- * through RE_Direct_PaintedSun. Throws at startup if a three.js update changed the chunk.
+ * three's lights_fragment_begin with the sun's loop patched (the scene's only light that casts
+ * shadows is a SunLight): the shadow factor is captured into `paintedShadow` instead of darkening
+ * the light colour, looked up through paintedGetSunShadow, and the sun goes through
+ * RE_Direct_PaintedSun. Throws at startup if a three.js update changed the chunk.
  */
 export function buildPaintedLightsBegin(): string {
   const chunk = ShaderChunk.lights_fragment_begin;
-  const start = chunk.indexOf(DIR_BLOCK_MARKER);
-  if (start < 0) throw new Error('PaintedMaterial: directional light block not found in lights_fragment_begin.');
-  let dirPart = chunk.slice(start);
-  const hasShadowLine = dirPart.includes(SUN_SHADOW_PATTERN);
-  if (hasShadowLine) {
-    dirPart = replaceOnce(dirPart, SUN_SHADOW_PATTERN, 'paintedShadow = ( directLight.visible && receiveShadow ) ? getShadow(', 'sun shadow line');
-    dirPart = replaceOnce(dirPart, 'vDirectionalShadowCoord[ i ] ) : 1.0;', 'vDirectionalShadowCoord[ i ] + paintedShadowJitter ) : 1.0;', 'sun shadow coordinate');
-  }
-  // Ragged shadow edges (±0.18 m on a 140 m shadow box), never on units (they would crawl).
+  const start = chunk.indexOf(SUN_BLOCK_MARKER);
+  const end = chunk.indexOf(DIR_BLOCK_MARKER);
+  if (start < 0 || end < start) throw new Error('PaintedMaterial: sun light block not found in lights_fragment_begin.');
+  let sunPart = chunk.slice(start, end);
+  sunPart = replaceOnce(sunPart, SUN_SHADOW_PATTERN, 'paintedShadow = ( directLight.visible && receiveShadow ) ? paintedGetSunShadow( sunShadowMap[ i ], sunLightShadow, UNROLLED_LOOP_INDEX, paintedShadowJitter ) : 1.0;', 'sun shadow line');
+  sunPart = replaceOnce(sunPart, SUN_CALL_PATTERN, 'RE_Direct_PaintedSun( directLight, geometryNormal, material, reflectedLight );', 'sun RE_Direct call');
+  // Ragged shadow edges, never on units (they would crawl).
   const jitter = `
 #ifndef PAINTED_ALLEGIANCE
-paintedShadowJitter = vec4((vec2(paintedValueNoise(vPaintedWorldPos.xz * 0.7), paintedValueNoise(vPaintedWorldPos.xz * 0.7 + 13.0)) - 0.5) * ${SHADOW_JITTER_UV}, 0.0, 0.0);
+paintedShadowJitter = vec3(paintedValueNoise(vPaintedWorldPos.xz * 0.7) - 0.5, 0.0, paintedValueNoise(vPaintedWorldPos.xz * 0.7 + 13.0) - 0.5) * ${SHADOW_JITTER_M};
 #endif
 `;
-  dirPart = jitter + dirPart;
-  dirPart = replaceOnce(dirPart, SUN_CALL_PATTERN, 'RE_Direct_PaintedSun( directLight, geometryNormal, material, reflectedLight );', 'sun RE_Direct call');
-  return chunk.slice(0, start) + dirPart;
+  return chunk.slice(0, start) + jitter + sunPart + chunk.slice(end);
 }

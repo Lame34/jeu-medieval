@@ -17,6 +17,8 @@ import type { Faction } from '../../core/rules/types.ts';
 import { sampleHeight, type TerrainData } from '../../core/terrain-data/terrain-data.ts';
 import type { UnitMarker } from '../../core/worldgen/types.ts';
 import { createPaintedMaterial } from '../materials/painted-material.ts';
+import { keepOutOfReflections } from '../water/reflection.ts';
+import { castShadowNearView } from '../atmosphere/shadow-only.ts';
 import { paintedGlobals } from '../materials/painted-globals.ts';
 import { alignRingToGround, createRingBatch, createRingMarker, RING_MAX_SCALE, RING_SCALE_DISTANCE_M, updateRingBatch } from './FactionRing.ts';
 import { createPennants } from './Pennants.ts';
@@ -51,6 +53,8 @@ const UNIT_HEIGHT_M = 2.4;
 const BODY_BOUNDS_M = { centreY: 1.1, radius: 2.2 } as const;
 /** Units cast no shadow seen from farther than this (a few pixels; one draw call each). */
 const UNIT_SHADOW_MAX_DISTANCE_M = 90;
+/** A man's shadow is at most this long (1.8 m tall under a sun 5° high): from farther off the view, it cannot fall in it. */
+const UNIT_SHADOW_REACH_M = 20;
 /**
  * Animation level of detail (camera distance, m): mixers update every frame closer than the
  * first bound, every 2nd frame up to the second, every 4th beyond (with the elapsed time
@@ -286,6 +290,7 @@ export function Units({
         o.receiveShadow = true;
         // Fixed bounds in the mesh's frame (the rest pose's do not follow the animation).
         o.boundingSphere = new Sphere(new Vector3(0, BODY_BOUNDS_M.centreY / UNIT_SCALE, 0), BODY_BOUNDS_M.radius / UNIT_SCALE);
+        castShadowNearView(o, UNIT_SHADOW_REACH_M);
         shadowCasters.push(o);
       });
       body.scale.setScalar(UNIT_SCALE);
@@ -302,6 +307,7 @@ export function Units({
         shield.position.set(SHIELD_POSE.at[0] / s, SHIELD_POSE.at[1] / s, SHIELD_POSE.at[2] / s);
         shield.rotation.set(...SHIELD_POSE.turn);
         shield.castShadow = true;
+        castShadowNearView(shield, UNIT_SHADOW_REACH_M);
         shadowCasters.push(shield);
         fist.add(shield);
       }
@@ -376,6 +382,8 @@ export function Units({
               ghost.bind(o.skeleton, o.bindMatrix);
               ghost.frustumCulled = false;
               ghost.renderOrder = SILHOUETTE_ORDER;
+              // Drawn where the man is hidden from the view: from the mirror's, elsewhere.
+              keepOutOfReflections(ghost);
               o.parent?.add(ghost);
               return ghost;
             });

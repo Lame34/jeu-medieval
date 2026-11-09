@@ -18,13 +18,12 @@ import { Sky } from './sky/Sky.tsx';
 import { ChunkedTerrain } from './terrain/ChunkedTerrain.tsx';
 import { DistantLandscape } from './terrain/DistantLandscape.tsx';
 import { Terrain } from './terrain/Terrain.tsx';
-import { useSettings } from '../state/settings.ts';
 import { paintedGlobals } from './materials/painted-globals.ts';
 import { SEASON_PALETTES } from './materials/season-palette.ts';
 import type { SeasonLook } from '../core/rules/types.ts';
 import { useSceneStatus } from '../state/scene-status.ts';
 import { assignShadowDepthMaterials } from './materials/shadow-depth.ts';
-import { QUALITY_PRESETS } from './quality/presets.ts';
+import { useQualityPreset } from './quality/use-quality-preset.ts';
 import { buildHeightTexture, buildSplatTexture } from './terrain/terrain-textures.ts';
 import { Units, type UnitHandle } from './units/Units.tsx';
 import { Grass } from './vegetation/Grass.tsx';
@@ -102,7 +101,7 @@ export function WorldScene({
 }) {
   const t = layout.terrain;
   const season = SEASON_PALETTES[look];
-  const preset = QUALITY_PRESETS[useSettings((s) => s.quality)];
+  const preset = useQualityPreset();
   const heights = useMemo(() => buildHeightTexture(t), [t]);
   const splat = useMemo(() => buildSplatTexture(t, layout.trees, layout.hedges, layout.roads), [t, layout.trees, layout.hedges, layout.roads]);
   const heightsSize = useMemo(() => new Vector2(t.width + 1, t.depth + 1), [t]);
@@ -124,10 +123,10 @@ export function WorldScene({
       <Sky />
       {t.width > SINGLE_MESH_TERRAIN_CELLS || t.depth > SINGLE_MESH_TERRAIN_CELLS ? <ChunkedTerrain terrain={t} splat={splat} season={season} /> : <Terrain terrain={t} splat={splat} season={season} />}
       <DistantLandscape terrain={t} seed={layout.name} water={layout.water} season={season} />
-      <Water bodies={layout.water} heights={heights} heightsSize={heightsSize} />
+      <Water bodies={layout.water} heights={heights} heightsSize={heightsSize} mirrorScale={preset.waterMirror} />
       <Grass terrain={t} heights={heights} splat={splat} preset={preset} season={season} />
-      <Vegetation trees={layout.trees} terrain={t} season={season} />
-      <Fields fields={layout.fields} terrain={t} season={season} />
+      <Vegetation trees={layout.trees} terrain={t} season={season} detailM={preset.treeDetailM} />
+      <Fields fields={layout.fields} terrain={t} season={season} tuftsM={preset.wheatTuftsM} />
       <Hedges hedges={layout.hedges} terrain={t} season={season} />
       {layout.props && layout.props.length > 0 && <Props props={layout.props} terrain={t} />}
       <Castle walls={layout.walls} towers={layout.towers} gates={layout.gates} keeps={layout.keeps} bridges={layout.bridges} water={layout.water} terrain={t} stairs={layout.stairs} {...(siege ? { siege } : {})} {...(onCastleHandle ? { onHandle: onCastleHandle } : {})} />

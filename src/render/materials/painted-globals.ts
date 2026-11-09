@@ -62,8 +62,8 @@ export const paintedGlobals = {
   uHorizonAway: { value: new Color() },
   uWindDir: { value: new Vector2(1, 0.3).normalize() },
   uWindStrength: { value: 0.6 },
-  /** Radius of the GPU grass carpet around the focus (set by Grass). */
-  uGrassRadius: { value: 40 },
+  /** The GPU grass fades from x to y metres from the camera (set by Grass); the painted ground takes its tone beyond. */
+  uGrassFade: { value: new Vector2(24, 45) },
   /** Camera focus point on the ground (grass radius, fog reference). */
   uFocus: { value: new Vector3() },
   /** Scene light level (≈ 1 at the reference afternoon): multiplies unlit shaders such as water. */
@@ -81,6 +81,10 @@ export const paintedGlobals = {
   uTorchHeightRange: { value: 1 },
   uTorchStrength: { value: 0 },
   uTorchColor: { value: new Color('#ffa457') },
+  /** Strength of the drifting clouds' shadows (0: none; medium and high presets, clear weather). */
+  uCloudShadow: { value: 0 },
+  /** The wheat's tufts are drawn within this distance of the camera (the fields' preset); the field bed takes the crop's mass beyond. */
+  uCropTuftsM: { value: 40 },
 };
 
 /** The sun intensity of the reference afternoon (the shade lift is full at it). */
