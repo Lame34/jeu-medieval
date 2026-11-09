@@ -179,11 +179,11 @@
     },
     {
       "id": "brumefond",
-      "name": "Brumefond",
+      "name": "Bruinefond",
       "epithet": "le château des brouillas",
       "lord": "Messire Foulques, dit le Loup",
       "lordLine": "Dans mes brouillas, c’est moi qui vois.",
-      "intro": "Au fond d’une vallée de marais, Brumefond se cache dans des brouillas que seul le vent dissipe. On n’y voit pas à quarante pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
+      "intro": "Au fond d’une vallée de marais, Bruinefond se cache dans sa bruine, des brouillas que seul le vent dissipe. On n’y voit pas à quarante pas : les arbalétriers de Foulques tirent sur des ombres, et vos archers aussi.",
       "victory": "Les brouillas se sont levés sur la bannière de la comtesse. Foulques s’est enfui par les marais, ses bottes à la main.",
       "defeat": "Les brouillas ont avalé vos hommes un à un. Du haut de sa muraille, Foulques hurle comme le loup qu’il prétend être.",
       "seed": "orle-brume",

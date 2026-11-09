@@ -34,7 +34,7 @@ const TENTS_HIT_HALF = 40;
 
 type Point = { readonly x: number; readonly y: number };
 
-/** The Orle, west to east, and the Brume stream coming down from the marsh. */
+/** The Orle, west to east, and the Bruine stream coming down from the marsh (ADR-053). */
 const ORLE: readonly Point[] = [
   { x: -20, y: 770 },
   { x: 120, y: 820 },
@@ -49,7 +49,7 @@ const ORLE: readonly Point[] = [
   { x: 1500, y: 860 },
   { x: 1640, y: 840 },
 ];
-const BRUME: readonly Point[] = [
+const BRUINE: readonly Point[] = [
   { x: 960, y: 520 },
   { x: 930, y: 610 },
   { x: 880, y: 720 },
@@ -118,7 +118,7 @@ function scenery(stops: readonly Point[]): Scenery {
   const clear = (p: Point, castleM: number) =>
     stops.every((s) => Math.hypot(s.x - p.x, s.y - p.y) > castleM) &&
     distToPolyline(p, ORLE) > 34 &&
-    distToPolyline(p, BRUME) > 24 &&
+    distToPolyline(p, BRUINE) > 24 &&
     distToPolyline(p, stops) > 26 &&
     Math.hypot((p.x - MARSH.x) / MARSH.rx, (p.y - MARSH.y) / MARSH.ry) > 1.1 &&
     // A clearing under the forest's name.
@@ -314,13 +314,13 @@ const Land = memo(function Land({ stops }: { readonly stops: readonly Point[] })
       <circle cx={1260} cy={170} r={70} fill="#a8875a" opacity={0.08} />
       <circle cx={260} cy={620} r={45} fill="#a8875a" opacity={0.07} />
 
-      {/* Water: the marsh, the Orle and the Brume. */}
+      {/* Water: the marsh, the Orle and the Bruine. */}
       <ellipse cx={MARSH.x} cy={MARSH.y} rx={MARSH.rx} ry={MARSH.ry} fill="#a9b79a" opacity={0.55} filter="url(#map-wash)" />
       <path d={smooth(ORLE)} fill="none" stroke="#8fa8ac" strokeWidth={20} strokeLinecap="round" opacity={0.75} filter="url(#map-wash)" />
       <path d={smooth(ORLE)} fill="none" stroke="#5a7880" strokeWidth={1.6} opacity={0.9} transform="translate(0,-9)" />
       <path d={smooth(ORLE)} fill="none" stroke="#5a7880" strokeWidth={1.6} opacity={0.9} transform="translate(0,9)" />
-      <path d={smooth(BRUME)} fill="none" stroke="#8fa8ac" strokeWidth={9} strokeLinecap="round" opacity={0.75} filter="url(#map-wash)" />
-      <path d={smooth(BRUME)} fill="none" stroke="#5a7880" strokeWidth={1.2} opacity={0.9} />
+      <path d={smooth(BRUINE)} fill="none" stroke="#8fa8ac" strokeWidth={9} strokeLinecap="round" opacity={0.75} filter="url(#map-wash)" />
+      <path d={smooth(BRUINE)} fill="none" stroke="#5a7880" strokeWidth={1.2} opacity={0.9} />
       <g stroke="#5c6a3c" strokeWidth={1.2} fill="none" opacity={0.85}>
         {land.reeds.map((r, i) => (
           <path key={i} d={`M${r.x.toFixed(1)},${r.y.toFixed(1)} q${r.lean.toFixed(1)},-5 ${(r.lean * 1.5).toFixed(1)},-10`} />
@@ -349,7 +349,7 @@ const Land = memo(function Land({ stops }: { readonly stops: readonly Point[] })
           Monts de Morneval
         </text>
         <text x={MARSH.x} y={MARSH.y + MARSH.ry + 26} className="map-lettering__small">
-          Marais de la Brume
+          Marais de la Bruine
         </text>
         <text x={MALBOIS.x} y={MALBOIS.y - 2} className="map-lettering__small">
           Forêt de Malbois

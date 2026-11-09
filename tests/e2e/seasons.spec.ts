@@ -49,7 +49,9 @@ test('each castle’s letter tells its month and what it changes', async ({ page
   await expect(letter).toContainText('Champs moissonnés : le chaume ne cache plus personne');
   await expect(letter).toContainText('Assaut à 8 h');
 
+  // Brumefond is Bruinefond (ADR-053): « brume » meant the winter then, « bruine » the thick fog.
   await openCastle(page, 'brumefond');
+  await expect(page.locator('.letter__title')).toHaveText('Bruinefond');
   await expect(page.locator('.letter__epithet')).toContainText('le château des brouillas');
   await expect(letter).toContainText('Brouillas : on ne voit qu’à 30 m');
   await expect(letter).not.toContainText(/brouillard|brume\b/i);
